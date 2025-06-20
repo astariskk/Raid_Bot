@@ -1,6 +1,7 @@
 // handlers/leaderboardHandler.js
 import { EmbedBuilder } from 'discord.js';
-import { readLeaderboard, writeLeaderboard } from '../utils/fileOps.js'; // Import writeLeaderboard too
+import { readLeaderboard, writeLeaderboard } from '../utils/fileOps.js';
+import { LEADERBOARD_FILE } from '../config/constants.js'; // Import LEADERBOARD_FILE
 
 export function setupLeaderboardHandlers(client) {
     client.on("messageCreate", async (message) => {
@@ -19,8 +20,7 @@ export function setupLeaderboardHandlers(client) {
 
         // Handle Reset Leaderboard Command
         // !IMPORTANT: You should restrict this command to specific roles or users for security.
-        // For example: if (!message.member.permissions.has('ADMINISTRATOR')) return;
-        if (message.content.toLowerCase() === '!resetleaderboard') {
+        if (message.content.toLowerCase() === '!reset') {
             // Optional: Add a check for user permissions here
             // if (!message.member.permissions.has(PermissionsBitField.Flags.Administrator)) {
             //     return message.reply("You don't have permission to use this command.");
@@ -36,14 +36,14 @@ export function setupLeaderboardHandlers(client) {
                     now.getMonth() === lastResetDate.getMonth() && now.getDate() === lastResetDate.getDate()) {
                     return message.reply('Leaderboard has already been reset today. Please wait until tomorrow for another reset.');
                 }
-                    */
+                */
 
                 // Confirm reset
-                await message.reply('Are you sure you want to reset the leaderboard? Reply with `confirm reset` within 15 seconds.');
+                await message.reply({ content:'Are you sure you want to reset the leaderboard? Reply with `confirm` within 15 seconds.', ephemeral: true});
 
                 const filter = response =>
                     response.author.id === message.author.id &&
-                    response.content.toLowerCase() === 'confirm reset';
+                    response.content.toLowerCase() === 'confirm';
 
                 try {
                     const collected = await message.channel.awaitMessages({ filter, max: 1, time: 15000, errors: ['time'] });
