@@ -85,53 +85,92 @@ export function setupExpLairHandlers(client) {
             }
 
             if (hasValidTags || attachment) {
-            await updateRaidStatus(client, threadId, '✅ Done', 0x57F287); // Green for done                
+            await updateRaidStatus(client, threadId, '✅ Done', 0x57F287); // Green for done              
                 try {
                     const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
                     if (expLairChannel && expLairChannel.type === ChannelType.GuildText) {
                         const pointsAwarded = {};
                         let helperSummaries = [];
                         
-                        // (Points calculation logic remains the same)
+                        // --- FIX: Logic to correctly accumulate points for `all` helpers ---
                         if (globalTaggedUsers.size > 0) {
                             let tasksForGlobalAward = [];
                             const initialRequestedTasks = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
+                            let containsMetaTask = false;
+
+                            // Accumulate daily tasks if requested
                             if (initialRequestedTasks.includes('daily') || initialRequestedTasks.includes('dailies')) {
-                                tasksForGlobalAward = DAILIES_LIST.filter(t => t !== 'daily' && t !== 'ultra dailies');
-                            } else if (initialRequestedTasks.includes('weekly') || initialRequestedTasks.includes('weeklies')) {
-                                tasksForGlobalAward = WEEKLIES_LIST.filter(t => t !== 'weekly' && t !== 'ultra weeklies');
-                            } else {
+                                tasksForGlobalAward.push(...DAILIES_LIST.filter(t => t !== 'daily' && t !== 'dailies'));
+                                containsMetaTask = true;
+                            }
+                            
+                            // Accumulate weekly tasks if requested
+                            if (initialRequestedTasks.includes('weekly') || initialRequestedTasks.includes('weeklies')) {
+                                tasksForGlobalAward.push(...WEEKLIES_LIST.filter(t => t !== 'weekly' && t !== 'weeklies'));
+                                containsMetaTask = true;
+                            }
+
+                            // If no meta tasks were in the request, use the original tasks
+                            if (!containsMetaTask) {
                                 tasksForGlobalAward = initialRequestedTasks.filter(task => ALLOWED_TASK_NAMES.includes(task));
                             }
+                            
                             let totalPointsForGlobalHelpers = 0;
                             tasksForGlobalAward.forEach(taskName => {
                                 totalPointsForGlobalHelpers += POINTS_CONFIG[taskName] || 0;
                             });
+
                             const helperNames = Array.from(globalTaggedUsers).map(id => `<@${id}>`).join(', ');
                             if (tasksForGlobalAward.length > 0) {
-                                helperSummaries.push(`**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${tasksForGlobalAward.join(', ')}`);
+                                // Make the summary more readable by referencing the original request
+                                helperSummaries.push(`**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task})`);
                             } else {
                                 helperSummaries.push(`**All Helpers:** ${helperNames} (No specific tasks listed for 'all')`);
                             }
-                            globalTaggedUsers.forEach(userId => {``
+
+                            globalTaggedUsers.forEach(userId => {
                                 pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
                             });
                         }
+
+                        // --- FIX: Logic to handle meta-tasks (daily/weekly) for specific assignments ---
                         for (const taskName in helperAssignments) {
                             const usersForTask = Array.from(helperAssignments[taskName]);
-                            if (usersForTask.length > 0) {
-                                const taskPoints = POINTS_CONFIG[taskName] || 0;
+                            if (usersForTask.length === 0) continue;
+                        
+                            let totalPointsForTask = 0;
+                            let awardedTasksSummary = [taskName]; // Default summary
+                        
+                            // Check if the assigned task is a meta-task and calculate total points accordingly
+                            if (taskName === 'daily' || taskName === 'dailies') {
+                                const dailyTasks = DAILIES_LIST.filter(t => t !== 'daily' && t !== 'dailies');
+                                totalPointsForTask = dailyTasks.reduce((sum, t) => sum + (POINTS_CONFIG[t] || 0), 0);
+                                awardedTasksSummary = dailyTasks;
+                            } else if (taskName === 'weekly' || taskName === 'weeklies') {
+                                const weeklyTasks = WEEKLIES_LIST.filter(t => t !== 'weekly' && t !== 'weeklies');
+                                totalPointsForTask = weeklyTasks.reduce((sum, t) => sum + (POINTS_CONFIG[t] || 0), 0);
+                                awardedTasksSummary = weeklyTasks;
+                            } else {
+                                // It's a single, regular task
+                                totalPointsForTask = POINTS_CONFIG[taskName] || 0;
+                            }
+                        
+                            if (totalPointsForTask > 0) {
                                 const helperNames = usersForTask.map(id => `<@${id}>`).join(', ');
-                                helperSummaries.push(`**${taskName}:** ${helperNames} (${taskPoints} EXP each)`);
+                                helperSummaries.push(`**${taskName.toUpperCase()}:** ${helperNames} (${totalPointsForTask} EXP each)`);
+                                
                                 usersForTask.forEach(userId => {
-                                    pointsAwarded[userId] = (pointsAwarded[userId] || 0) + taskPoints;
+                                    // Avoid double-counting if user is in 'all' and a specific task
+                                    if (!globalTaggedUsers.has(userId)) {
+                                        pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForTask;
+                                    }
                                 });
                             }
                         }
 
                         if (Object.keys(pointsAwarded).length === 0) {
-                             await message.reply('No valid helpers or tasks specified. Please tag helpers or type "cancel" to close without helpers.');
-                             return;
+                               await message.reply('No valid helpers or tasks specified. Please tag helpers or type "cancel" to close without helpers.');
+                               return;
                         }
                         
                         const allHelperIds = Object.keys(pointsAwarded);
@@ -158,7 +197,6 @@ export function setupExpLairHandlers(client) {
                             autoArchiveDuration: 60
                         });
                         
-                        // (expLairThread content generation remains the same)
                         let expLairThreadContent = `
                             This thread contains the full details for the completed raid by <@${raidInfo.requesterId}> from <#${originalRaidLogThread.id}>.\n\n` +
                             `**Task Initially Requested:** ${raidInfo.task}\n` +

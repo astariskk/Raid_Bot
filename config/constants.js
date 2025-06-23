@@ -1,8 +1,8 @@
 // config/constants.js
 
 export const RAID_CHANNEL_ID = '1385452423291600966';
-export const RAID_LOGS_CHANNEL_ID = '1386678145641484369';
-export const EXP_LAIR_CHANNEL_ID = '1386678159176634368';
+export const RAID_LOGS_CHANNEL_ID = '1386731931827441715';
+export const EXP_LAIR_CHANNEL_ID = '1386731997837262998';
 export const RAID_HELPER_ROLE_ID = '1385471833192792115';
 
 export const LEADERBOARD_FILE = 'data\leaderboard.json'; // Recommend using a path like this if it's in a 'data' folder
@@ -31,8 +31,8 @@ export const OTHERS_LIST = ['kathool', 'astarlshrine'];
 
 // ALLOWED_TASK_NAMES should include all valid inputs, including aliases if you want them
 export const ALLOWED_TASK_NAMES = [
-    ...DAILIES_LIST, 'dailies',
-    ...WEEKLIES_LIST, 'weeklies',
+    ...DAILIES_LIST, 'dailies', 'daily',
+    ...WEEKLIES_LIST, 'weeklies', 'weekly',
     ...OTHERS_LIST,
     // Add aliases here if users might type them differently but mean the same thing
 

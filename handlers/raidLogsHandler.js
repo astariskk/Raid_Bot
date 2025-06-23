@@ -50,11 +50,11 @@ export function setupRaidLogsHandlers(client) {
             let newStatus, newColor;
 
             if (content === 'waiting') {
-                newStatus = '🟢 Waiting';
-                newColor = 0x57F287; //green
+                newStatus = '🔵 Waiting';
+                newColor = 0x0099ff; //green
             } else if (content === 'full') {
                 newStatus = '🔴 Full';
-                newColor = 0xFF4500; // OrangeRed
+                newColor = 0xf8312f; // OrangeRed
             }
 
             if (newStatus) {
@@ -180,7 +180,7 @@ export function setupRaidLogsHandlers(client) {
                                 { name: 'Task(s)', value: task, inline: true },
                                 { name: 'Map Name', value: mapName, inline: true },
                                 { name: 'Server', value: server, inline: true },
-                                { name: 'Status', value: '🟢 Waiting', inline: true }, // Initial status
+                                { name: 'Status', value: '🔵 Waiting', inline: true }, // Initial status
                                 { name: 'Description', value: description || 'No description provided.' },
                             )
                             .setTimestamp()
