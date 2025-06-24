@@ -54,7 +54,7 @@ export function setupRaidLogsHandlers(client) {
                 newColor = 0x0099ff; //green
             } else if (content === 'full') {
                 newStatus = '🔴 Full';
-                newColor = 0xf8312f; // OrangeRed
+                newColor = 0xFF4500; // Red
             }
 
             if (newStatus) {
