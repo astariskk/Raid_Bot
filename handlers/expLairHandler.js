@@ -21,6 +21,8 @@ export function setupExpLairHandlers(client) {
         if (message.author.bot) return;
 
         const raidInfo = activeRaidThreads[message.channel.id];
+
+        // --- Cancelling the Raid --- 
         if (message.channel.isThread() && raidInfo && raidInfo.awaitingCompletion && message.author.id === raidInfo.requesterId) {
             const threadId = message.channel.id;
             const originalRaidLogThread = message.channel;
@@ -84,8 +86,9 @@ export function setupExpLairHandlers(client) {
                 }
             }
 
+            // --- Awarding and Checking of tasks to helpers ---
             if (hasValidTags || attachment) {
-            await updateRaidStatus(client, threadId, '✅ Done', 0x57F287); // Green for done              
+            await updateRaidStatus(client, threadId, '✅ Done', 0x57F287);           
                 try {
                     const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
                     if (expLairChannel && expLairChannel.type === ChannelType.GuildText) {
