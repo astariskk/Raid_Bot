@@ -10,7 +10,7 @@ raid discord bot
 !reset = resets the leaderboard
 
 
-#install the dependencies
+# install the dependencies
 npm install
 
 # to run the command, type: 
