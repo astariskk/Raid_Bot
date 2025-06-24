@@ -1,7 +1,7 @@
 # Raid_Bot
 raid discord bot
 
-!raidhelp = shows the button
+!raidhelp = shows the button that shows the modal for raid stuff\
 
 !raidtasks = shows the tasks and rewards
 
