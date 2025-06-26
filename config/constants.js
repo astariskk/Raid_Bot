@@ -8,9 +8,7 @@ export const RAID_HELPER_ROLE_ID = '1385471833192792115';
 export const LEADERBOARD_FILE = 'data\leaderboard.json'; // Recommend using a path like this if it's in a 'data' folder
 
 export const POINTS_CONFIG = {
-    'weeklies': 0,
     'speaker': 3000,
-    'dailies': 1000,
     'drago': 1000,
     'darkon': 2000,
     'dage': 1000,
