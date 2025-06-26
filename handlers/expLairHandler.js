@@ -261,7 +261,7 @@ async function handleRaidCompletion(message, raidInfo) {
             expLairThreadContent += `<@${userId}>: ${pointsAwarded[userId]} EXP\n`;
         }
 
-        expLairThreadContent += `\n**Helper Assignments Breakdown:**\n${helperSummaries.join('\n')}`;
+        expLairThreadContent += `\n**Helper Assignments Breakdown:**\n${helperSummaries.join('\n')}\n`;
 
         // Update leaderboard
         for (const userId in pointsAwarded) {
@@ -273,13 +273,13 @@ async function handleRaidCompletion(message, raidInfo) {
         // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES)
         if (unrecognizedTasks.size > 0) {
             const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`Note: The following tasks mentioned in the completion message were not recognized as valid task names and no points were awarded for them: ${unrecognizedList}. Please use valid task names from \`!raidtasks\`.`);
+            expLairThreadContent += (`**Note**: The following tasks mentioned in the completion message were not recognized as valid task names and no points were awarded for them: ${unrecognizedList}. Please use valid task names from \`!raidtasks\`.`);
         }
         
         // Provide feedback for tasks that didn't match the original request (valid task, but not part of *this* raid)
         if (mismatchedTasks.size > 0) {
             const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`Warning: The following tasks were specified in the completion message but were NOT part of the original raid request (**${raidInfo.task}**) and thus no points were awarded for them: ${mismatchedList}.`);
+            expLairThreadContent += (`**Warning**: The following tasks were specified in the completion message but were NOT part of the original raid request (**${raidInfo.task}**) and thus no points were awarded for them: ${mismatchedList}.`);
         }
 
         await expLairThread.send({ content: expLairThreadContent });        
