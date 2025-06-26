@@ -5,7 +5,7 @@ import {
     DAILIES_LIST,
     WEEKLIES_LIST,
     ALLOWED_TASK_NAMES,
-    TEMPLESHRINE_LIST
+    TEMPLESHRINE_LIST // <<< NEW: Import TEMPLESHRINE_LIST
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { activeRaidThreads, updateRaidStatus } from './sharedState.js';
@@ -43,7 +43,7 @@ function parseHelperAssignments(content) {
         const trimmedLine = line.trim();
         if (!trimmedLine) continue;
 
-        // --- Handle "all = @user1 @user2" assignments, adding users to a global set. ---
+        // Handle "all = @user1 @user2" assignments
         const allMatch = trimmedLine.match(/^all\s*=\s*(.*)/i);
         if (allMatch) {
             const userIds = extractUserIds(allMatch[1]);
@@ -52,7 +52,7 @@ function parseHelperAssignments(content) {
             continue;
         }
 
-        // --- Handle "task1+task2 = @user1" assignments, parsing tasks and assigning users. ---
+        // Handle "task1+task2 = @user1" assignments
         const taskMatch = trimmedLine.match(/^(.+?)\s*=\s*(.*)/i);
         if (taskMatch) {
             const taskPart = taskMatch[1].trim();
@@ -65,6 +65,8 @@ function parseHelperAssignments(content) {
                 hasValidTags = true;
                 userIds.forEach(userId => {
                     tasks.forEach(taskName => {
+                        // Only add to helperAssignments if it's a known ALLOWED_TASK_NAME
+                        // The deeper validation against original raid tasks happens in handleRaidCompletion
                         if (ALLOWED_TASK_NAMES.includes(taskName)) {
                             if (!helperAssignments[taskName]) {
                                 helperAssignments[taskName] = new Set();
@@ -82,7 +84,8 @@ function parseHelperAssignments(content) {
 }
 
 /**
- * Calculates the total points for a given set of tasks, expanding meta-tasks like 'daily' and 'weekly'.
+ * Calculates the total points for a given set of tasks.
+ * Handles meta-tasks like 'daily', 'weekly', and 'templeshrine' and combines them with explicit tasks.
  * @param {string[]} tasks - An array of task names.
  * @returns {number} The total points.
  */
@@ -94,12 +97,13 @@ function calculateTaskPoints(tasks) {
             DAILIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         } else if (task === 'weekly' || task === 'weeklies') {
             WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
-        } else if (task === 'templeshrine') {
+        } else if (task === 'templeshrine') { // <<< NEW: Handle 'templeshrine' meta-task
             TEMPLESHRINE_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         }
         else if (POINTS_CONFIG[task]) {
             uniqueEffectiveTasks.add(task);
         }
+        // No else/warn here, as `parseHelperAssignments` and `handleRaidCompletion` handle filtering
     });
 
     let totalPoints = 0;
@@ -111,327 +115,219 @@ function calculateTaskPoints(tasks) {
 }
 
 /**
- * Determines the effective tasks and raw requested strings from the original raid request for validation purposes.
- * This helps ensure points are only awarded for tasks actually part of the raid.
- * @param {string} raidInfoTask - The raw task string from raidInfo.
- * @returns {{originalRaidEffectiveTasks: Set<string>, originalRaidRequestedStrings: Set<string>}}
- */
-function getOriginalRaidTasks(raidInfoTask) {
-    const originalRequestedTasksRaw = raidInfoTask.toLowerCase().split('+').map(t => t.trim());
-    const originalRaidEffectiveTasks = new Set();
-    const originalRaidRequestedStrings = new Set();
-
-    originalRequestedTasksRaw.forEach(task => {
-        originalRaidRequestedStrings.add(task);
-        if (task === 'daily' || task === 'dailies') {
-            DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-        } else if (task === 'weekly' || task === 'weeklies') {
-            WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-        } else if (task === 'templeshrine') {
-            TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-        }
-        else if (POINTS_CONFIG[task]) {
-            originalRaidEffectiveTasks.add(task);
-        }
-    });
-    return { originalRaidEffectiveTasks, originalRaidRequestedStrings };
-}
-
-/**
- * Awards points to globally tagged helpers based on all effective tasks from the original raid.
- * @param {Set<string>} globalTaggedUsers - Set of user IDs tagged with 'all'.
- * @param {Set<string>} originalRaidEffectiveTasks - Set of all effective tasks from the original raid.
- * @param {{[userId: string]: number}} pointsAwarded - Object to accumulate points.
- * @param {string[]} helperSummaries - Array to store summary strings for the embed.
- * @param {string} raidInfoTask - The raw task string from raidInfo.
- */
-function awardGlobalHelperPoints(globalTaggedUsers, originalRaidEffectiveTasks, pointsAwarded, helperSummaries, raidInfoTask) {
-    if (globalTaggedUsers.size > 0) {
-        const totalPointsForGlobalHelpers = calculateTaskPoints(Array.from(originalRaidEffectiveTasks));
-
-        if (totalPointsForGlobalHelpers > 0) {
-            const helperNames = Array.from(globalTaggedUsers).map(id => `<@${id}>`).join(', ');
-            helperSummaries.push(
-                `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfoTask})`
-            );
-            globalTaggedUsers.forEach(userId => {
-                pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
-            });
-        }
-    }
-}
-
-/**
- * Awards points to specifically assigned helpers, validating tasks against the original raid request.
- * @param {{[taskName: string]: Set<string>}} helperAssignments - Object of task-specific helper assignments.
- * @param {Set<string>} globalTaggedUsers - Set of user IDs tagged with 'all' to avoid double-counting.
- * @param {Set<string>} originalRaidEffectiveTasks - Set of all individual tasks from the original raid.
- * @param {Set<string>} originalRaidRequestedStrings - Set of raw task strings from the original raid (e.g., 'daily').
- * @param {{[userId: string]: number}} pointsAwarded - Object to accumulate points.
- * @param {string[]} helperSummaries - Array to store summary strings for the embed.
- * @param {Set<string>} mismatchedTasks - Set to store tasks that were assigned but not part of the original raid.
- */
-function awardSpecificHelperPoints(
-    helperAssignments,
-    globalTaggedUsers,
-    originalRaidEffectiveTasks,
-    originalRaidRequestedStrings,
-    pointsAwarded,
-    helperSummaries,
-    mismatchedTasks
-) {
-    for (const taskName in helperAssignments) {
-        const usersForTask = Array.from(helperAssignments[taskName]);
-        if (usersForTask.length === 0) continue;
-
-        // --- Validate if the assigned task was part of the original raid request. ---
-        let isValidAssignedTask = originalRaidRequestedStrings.has(taskName) || originalRaidEffectiveTasks.has(taskName);
-
-        if (!isValidAssignedTask) {
-            mismatchedTasks.add(taskName);
-            continue;
-        }
-
-        const totalPointsForTask = calculateTaskPoints([taskName]);
-
-        if (totalPointsForTask > 0) {
-            const helperNames = usersForTask.map(id => `<@${id}>`).join(', ');
-            helperSummaries.push(`**${taskName}:** ${helperNames} (${totalPointsForTask} EXP each)`);
-
-            usersForTask.forEach(userId => {
-                // --- Prevent double-counting points if a user was tagged with 'all' and also a specific task. ---
-                // This ensures a user doesn't get points for the same task multiple times from one raid.
-                if (!globalTaggedUsers.has(userId)) {
-                    pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForTask;
-                }
-            });
-        }
-    }
-}
-
-/**
- * Constructs and sends the raid completion embed to the EXP Lair Channel.
- * This embed provides a summary of the completed raid, including participants and tasks.
- * @param {Message} message - The Discord message that triggered completion.
- * @param {TextChannel} expLairChannel - The channel to send the embed to.
- * @param {object} raidInfo - Information about the active raid.
- * @param {{[userId: string]: number}} pointsAwarded - Object of awarded points per user.
- * @param {Attachment | null} attachment - Optional screenshot attachment.
- * @param {string} detailsContent - The detailed breakdown content to include in the embed.
- * @returns {Promise<Message>} The sent message in the EXP Lair channel.
- */
-async function sendCompletionEmbed(message, expLairChannel, raidInfo, pointsAwarded, attachment, detailsContent) {
-    const allHelperIds = Object.keys(pointsAwarded);
-    const helpersString = allHelperIds.length > 0 ? allHelperIds.map(id => `<@${id}>`).join(' ') : 'None';
-
-    const embed = new EmbedBuilder()
-        .setColor(COLOR_INFO)
-        .setTitle(`Raid Completed by ${message.author.username}`)
-        .setDescription(`Raid requested by: <@${raidInfo.requesterId}>\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`)
-        .addFields(
-            { name: 'Points Breakdown & Helper Assignments', value: detailsContent || 'No detailed breakdown available.', inline: false }
-        )
-        .setTimestamp()
-        .setFooter({ text: 'Raid Completion Report' });
-
-    if (attachment) {
-        embed.setImage(attachment.url);
-    }
-
-    return expLairChannel.send({
-        content: `**Raid Completed!**`,
-        embeds: [embed]
-    });
-}
-
-/**
- * Handles the completion of a raid thread, awarding points and logging details.
- * This is the main function called when a raid requester indicates completion.
+ * Handles the completion of a raid thread.
  * @param {Message} message - The Discord message triggering the completion.
  * @param {object} raidInfo - Information about the active raid.
  */
 async function handleRaidCompletion(message, raidInfo) {
-    console.log('--- Entering handleRaidCompletion ---');
-    // --- Parse helper assignments and validate input. ---
     const { helperAssignments, globalTaggedUsers, hasValidTags, unrecognizedTasks } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
 
-    console.log(`Parsed Assignments:`, { helperAssignments, globalTaggedUsers: Array.from(globalTaggedUsers), hasValidTags, unrecognizedTasks: Array.from(unrecognizedTasks) });
-    console.log(`Attachment present: ${!!attachment}`);
-
-    // --- Early exit if no valid tags or attachments are provided. ---
-    // Prompts the user to correctly specify helpers or to explicitly cancel.
     if (!hasValidTags && !attachment) {
-        console.log('DEBUG: No valid tags and no attachment. Returning early.');
         await message.reply(
             'To close the raid, please specify helpers for tasks (e.g.,\n`daily + dage = @user1` \nor \n`all = @user2 @user3`), \ninclude a screenshot if possible. Or type "cancel" to close without helpers.'
         );
         return;
     }
 
-    console.log('DEBUG: Updating raid status to Done... (This updates the original message in raid-logs)');
-    // --- Update the raid status to 'Done' in the ongoing raid message. ---
-    // Visually indicates that the raid is no longer active in the main raid logs channel.
     await updateRaidStatus(message.client, threadId, '✅ Done', COLOR_SUCCESS);
-    console.log('DEBUG: Raid status updated.');
 
     try {
-        console.log('DEBUG: Fetching EXP Lair channel...');
-        // --- Fetch the EXP Lair channel where completion reports are posted. ---
-        // Ensures the bot can send the necessary logs to the designated channel.
         const expLairChannel = await message.client.channels.fetch(EXP_LAIR_CHANNEL_ID);
         if (!expLairChannel || expLairChannel.type !== ChannelType.GuildText) {
             console.error('EXP Lair channel not found or is not a text channel.');
             await message.reply('Could not find the EXP Lair channel to post the completion details.');
-            console.log('DEBUG: EXP Lair channel error. Returning early.');
             return;
         }
-        console.log('DEBUG: EXP Lair channel fetched.');
 
         const pointsAwarded = {};
         const helperSummaries = [];
-        const mismatchedTasks = new Set(); // Tasks assigned but not part of original request
+        const mismatchedTasks = new Set(); // New set for tasks assigned that weren't in original request
 
-        // --- Get the original raid tasks and their effective components for validation. ---
-        // This set of data is critical for ensuring only points for the *requested* tasks are awarded.
-        const { originalRaidEffectiveTasks, originalRaidRequestedStrings } = getOriginalRaidTasks(raidInfo.task);
-        console.log('DEBUG: Original Raid Tasks:', { originalRaidEffectiveTasks: Array.from(originalRaidEffectiveTasks), originalRaidRequestedStrings: Array.from(originalRaidRequestedStrings) });
+        // 1. Determine all effective tasks AND raw requested strings from the ORIGINAL raid request
+        const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
+        const originalRaidEffectiveTasks = new Set(); // For individual task validation (e.g. ultraspeaker)
+        const originalRaidRequestedStrings = new Set(); // For validating meta-tasks like 'daily', 'weekly', etc.
 
-        // --- Award points to users tagged with 'all' for all original raid tasks. ---
-        // Simplifies point distribution for helpers who participated in all aspects of the raid.
-        awardGlobalHelperPoints(globalTaggedUsers, originalRaidEffectiveTasks, pointsAwarded, helperSummaries, raidInfo.task);
-        console.log('DEBUG: After awardGlobalHelperPoints:', { pointsAwarded, helperSummaries });
+        originalRequestedTasksRaw.forEach(task => {
+            originalRaidRequestedStrings.add(task); // Add the raw string, e.g., 'daily', 'weekly', 'ultraspeaker'
+            if (task === 'daily' || task === 'dailies') {
+                DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            } else if (task === 'weekly' || task === 'weeklies') {
+                WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            } else if (task === 'templeshrine') {
+                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            }
+            else if (POINTS_CONFIG[task]) { // Add individual tasks if they exist in POINTS_CONFIG
+                originalRaidEffectiveTasks.add(task);
+            }
+        });
 
-        // --- Award points to specifically assigned helpers, validating each task against the original raid. ---
-        // Handles granular point assignments, ensuring accuracy and preventing point inflation for unrelated tasks.
-        awardSpecificHelperPoints(
-            helperAssignments,
-            globalTaggedUsers,
-            originalRaidEffectiveTasks,
-            originalRaidRequestedStrings,
-            pointsAwarded,
-            helperSummaries,
-            mismatchedTasks
-        );
-        console.log('DEBUG: After awardSpecificHelperPoints:', { pointsAwarded, helperSummaries, mismatchedTasks: Array.from(mismatchedTasks) });
+        // 2. Calculate points for 'all' tagged helpers
+        // 'all' helpers are assumed to have helped with everything originally requested
+        if (globalTaggedUsers.size > 0) {
+            const totalPointsForGlobalHelpers = calculateTaskPoints(Array.from(originalRaidEffectiveTasks));
 
-        // --- Handle case where no valid helpers or tasks resulted in points. ---
-        // Prevents the bot from proceeding if no valid points can be awarded.
+            if (totalPointsForGlobalHelpers > 0) {
+                const helperNames = Array.from(globalTaggedUsers).map(id => `<@${id}>`).join(', ');
+                helperSummaries.push(
+                    `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task})`
+                );
+                globalTaggedUsers.forEach(userId => {
+                    pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
+                });
+            }
+        }
+
+        // 3. Calculate points for specifically assigned helpers, validating against original raid tasks
+        for (const taskName in helperAssignments) {
+            const usersForTask = Array.from(helperAssignments[taskName]);
+            if (usersForTask.length === 0) continue;
+
+            // --- VALIDATION LOGIC FIX HERE ---
+            let isValidAssignedTask = false;
+            // Check if the assigned task name was one of the *raw strings* originally requested (e.g., 'daily', 'weekly')
+            if (originalRaidRequestedStrings.has(taskName)) {
+                isValidAssignedTask = true;
+            } else {
+                // If not a raw requested string, check if it's an *individual effective task*
+                // that was part of the original request's breakdown (e.g., 'ultraspeaker' if 'daily' was requested)
+                isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
+            }
+
+            if (!isValidAssignedTask) {
+                mismatchedTasks.add(taskName); // Add to mismatched set for feedback
+                continue; // Skip awarding points for this task
+            }
+            // --- END VALIDATION LOGIC FIX ---
+
+            const totalPointsForTask = calculateTaskPoints([taskName]);
+
+            if (totalPointsForTask > 0) {
+                const helperNames = usersForTask.map(id => `<@${id}>`).join(', ');
+                helperSummaries.push(`**${taskName}:** ${helperNames} (${totalPointsForTask} EXP each)`);
+
+                usersForTask.forEach(userId => {
+                    // Only add points if the user wasn't covered by "all" to avoid double counting
+                    // This check is fine as it prevents double counting for a *single user*
+                    // who might be tagged with 'all' AND also a specific task.
+                    if (!globalTaggedUsers.has(userId)) {
+                        pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForTask;
+                    }
+                });
+            }
+        }
+
         if (Object.keys(pointsAwarded).length === 0) {
-            console.log('DEBUG: No points awarded. Returning early.');
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
             return;
         }
-        console.log('DEBUG: Points awarded. Proceeding.');
 
+        // Construct and send embed to EXP Lair Channel
+        const allHelperIds = Object.keys(pointsAwarded);
+        const helpersString = allHelperIds.length > 0 ? allHelperIds.map(id => `<@${id}>`).join(' ') : 'None';
 
-        // --- Build the detailed EXP Lair content to be included in the main embed ---
-        let expLairDetailsContent = `**Task Initially Requested:** ${raidInfo.task}\n\n**Points Breakdown:**\n`;
-        for (const userId in pointsAwarded) {
-            expLairDetailsContent += `<@${userId}>: ${pointsAwarded[userId]} EXP\n`;
+        const embed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle(`Raid Completed by ${message.author.username}`)
+            .setDescription(`Raid requested by: <@${raidInfo.requesterId}>\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`)
+            .setTimestamp()
+            .setFooter({ text: 'Raid Completion Report' });
+
+        if (attachment) {
+            embed.setImage(attachment.url);
         }
-        expLairDetailsContent += `\n**Helper Assignments Breakdown:**\n${helperSummaries.join('\n')}\n`;
 
-        // --- Add feedback for unrecognized and mismatched tasks to the detailed content ---
-        if (unrecognizedTasks.size > 0) {
-            const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-            expLairDetailsContent += (`\n**Note**: The following tasks mentioned in the completion message were not recognized as valid task names and no points were awarded for them: ${unrecognizedList}. Please use valid task names from \`!raidtasks\`.`);
-        }
-        
-        if (mismatchedTasks.size > 0) {
-            const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
-            expLairDetailsContent += (`\n**Warning**: The following tasks were specified in the completion message but were NOT part of the original raid request (**${raidInfo.task}**) and thus no points were awarded for them: ${mismatchedList}.`);
-        }
-        console.log('DEBUG: Detailed EXP Lair content prepared.');
+        // Send the main embed to EXP Lair Channel first
+        const sentExpLairMessage = await expLairChannel.send({
+            embeds: [embed]
+        });
 
-
-        console.log('DEBUG: Sending completion embed to EXP Lair...');
-        // --- Construct and send the main raid completion embed to the EXP Lair Channel. ---
-        // This creates the primary record of the completed raid.
-        const sentExpLairMessage = await sendCompletionEmbed(message, expLairChannel, raidInfo, pointsAwarded, attachment, expLairDetailsContent);
-        console.log('DEBUG: Completion embed sent.');
-
-        // --- Create a new thread in EXP Lair for discussion ---
-        // This thread is now just for general discussion about the completed raid, as details are in the embed.
+        // Create and send details to a new thread from the *sent message* in EXP Lair
         const expLairThread = await sentExpLairMessage.startThread({
             name: `COMPLETED-${raidInfo.task}- Raid for ${message.author.username}`,
             autoArchiveDuration: 60
         });
-        // No separate message sent to this thread initially, as all content is in the parent embed.
-        console.log('DEBUG: EXP Lair discussion thread created.');
 
-        console.log('DEBUG: Updating leaderboard...');
-        // --- Update the global leaderboard with the awarded points. ---
-        // Persists the new EXP totals to the bot's data storage.
+        // Construct the content for the *new thread*
+        let expLairThreadContent = `This thread contains the full details for the completed raid by <@${raidInfo.requesterId}> from <#${originalRaidLogThread.id}>.
+
+**Task Initially Requested:** ${raidInfo.task}
+**Points Breakdown:**
+`;
+
+        for (const userId in pointsAwarded) {
+            expLairThreadContent += `<@${userId}>: ${pointsAwarded[userId]} EXP\n`;
+        }
+
+        expLairThreadContent += `\n**Helper Assignments Breakdown:**\n${helperSummaries.join('\n')}\n`;
+
+        // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES)
+        if (unrecognizedTasks.size > 0) {
+            const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
+            expLairThreadContent += (`**Note**: The following tasks mentioned in the completion message were not recognized as valid task names and no points were awarded for them: ${unrecognizedList}. Please use valid task names from \`!raidtasks\`.`);
+        }
+
+        // Provide feedback for tasks that didn't match the original request (valid task, but not part of *this* raid)
+        if (mismatchedTasks.size > 0) {
+            const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
+            expLairThreadContent += (`\n**Warning**: The following tasks were specified in the completion message but were NOT part of the original raid request (**${raidInfo.task}**) and thus no points were awarded for them: ${mismatchedList}.`);
+        }
+
+        // Send the detailed content to the new thread
+        await expLairThread.send({ content: expLairThreadContent });
+
+        // Update leaderboard (moved after sending messages for better flow, but can be done earlier)
         for (const userId in pointsAwarded) {
             await updateLeaderboard(userId, pointsAwarded[userId]);
         }
-        console.log('DEBUG: Leaderboard updated.');
 
-        // --- Confirm successful closure to the user. ---
-        // Informs the raid requester that their request has been processed.
-        await message.reply('Raid closure details posted and points awarded!');
-        console.log('DEBUG: Confirmation replied to original thread.');
+        // Confirm to the original raid thread that details are posted
+        await message.reply('Raid closure details posted and points awarded in the EXP Lair!');
 
-        console.log('DEBUG: Deleting from activeRaidThreads and locking original raid thread...');
-        // --- Clean up state and lock the original raid thread. ---
-        // Removes the raid from active tracking and closes the discussion thread.
+        // Clean up and lock original raid thread
         delete activeRaidThreads[threadId];
-        await originalRaidLogThread.setLocked(true); // This locks the thread
+        await originalRaidLogThread.setLocked(true);
         await originalRaidLogThread.send('This raid thread is now complete and locked.');
-        console.log('DEBUG: Original raid thread locked and state cleaned up. --- Exiting handleRaidCompletion successfully ---');
     } catch (error) {
-        console.error('Error processing raid completion (caught by catch block):', error);
+        console.error('Error processing raid completion:', error);
         await message.reply('There was an error processing the raid completion.');
-        console.log('DEBUG: Error caught in handleRaidCompletion. --- Exiting handleRaidCompletion with error ---');
     }
 }
 
 /**
  * Handles 'cancel' command within a raid thread.
- * This function is responsible for gracefully closing a raid thread without awarding points.
  * @param {Message} message - The Discord message containing the 'cancel' command.
  * @param {object} raidInfo - Information about the active raid.
  */
 async function handleRaidCancellation(message, raidInfo) {
-    console.log('--- Entering handleRaidCancellation ---');
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
 
-    // --- Reply to the user and update the status of the raid in the main logs. ---
     await message.reply('Raid thread closed without helpers/screenshot. Thread locked.');
     await updateRaidStatus(message.client, threadId, '❌ Cancelled', COLOR_CANCELLED);
-    console.log('DEBUG: Raid status updated to Cancelled.');
-
-    // --- Clean up state and lock the original raid thread. ---
-    // Removes the raid from active tracking and prevents further interaction in the thread.
     delete activeRaidThreads[threadId];
     await originalRaidLogThread.setLocked(true);
-    console.log('DEBUG: Original raid thread locked and state cleaned up. --- Exiting handleRaidCancellation successfully ---');
 }
 
 /**
  * Sets up event handlers for EXP Lair functionalities.
- * This includes listening for messages and button interactions within raid threads
- * to trigger completion or cancellation.
  * @param {Client} client - The Discord client.
  */
 export function setupExpLairHandlers(client) {
     // --- Message Create Listener (for handling completion/cancellation messages in raid threads) ---
-    // This listener processes commands like "all = @user" or "cancel" coming from raid requesters within their threads.
     client.on("messageCreate", async (message) => {
-        if (message.author.bot) return; // Ignore messages from bots
+        if (message.author.bot) return;
 
         const raidInfo = activeRaidThreads[message.channel.id];
 
-        // --- Validate message context: must be a thread, an active raid, and from the requester. ---
-        // Ensures that only valid commands from the correct user in the right context are processed.
+        // Ensure it's a thread and we have active raid info for it, and the message is from the requester
         if (
             !message.channel.isThread() ||
             !raidInfo ||
-            !raidInfo.awaitingCompletion || // Only process if the close button has been clicked
+            !raidInfo.awaitingCompletion ||
             message.author.id !== raidInfo.requesterId
         ) {
             return;
@@ -440,23 +336,20 @@ export function setupExpLairHandlers(client) {
         const contentLower = message.content.toLowerCase().trim();
         const attachment = message.attachments.first();
 
-        // --- Handle cancellation command ---
-        // If the user types 'cancel' without tagging anyone or attaching a screenshot, the raid is cancelled.
+        // Handle cancellation
         if (contentLower === 'cancel' && message.mentions.users.size === 0 && !attachment) {
             await handleRaidCancellation(message, raidInfo);
             return;
         }
 
-        // --- Handle raid completion details ---
-        // If it's not a cancellation, the message is passed to the raid completion handler for point assignment.
+        // Handle raid completion
         await handleRaidCompletion(message, raidInfo);
     });
 
     // --- Interaction Create Listener (for closeRaidTicket button) ---
-    // This listener triggers the start of the raid completion/cancellation process.
     client.on('interactionCreate', async interaction => {
         if (!interaction.isButton() || interaction.customId !== 'closeRaidTicket') {
-            return; // Only process 'closeRaidTicket' button interactions
+            return;
         }
 
         if (!interaction.channel.isThread()) {
@@ -466,18 +359,29 @@ export function setupExpLairHandlers(client) {
 
         let raidInfo = activeRaidThreads[interaction.channel.id];
 
-        // --- Re-initialize raidInfo if bot restarted and state was lost ---
-        // This block attempts to reconstruct raid details if the bot's in-memory state was cleared
-        // (e.g., after a restart). It fetches information from the thread's parent message embed.
+        // Re-initialize raidInfo if bot restarted and state was lost
         if (!raidInfo) {
-            const threadId = interaction.channel.id;
-            console.warn(`RaidInfo for thread ${threadId} not found in activeRaidThreads. Attempting to reconstruct.`);
+            const threadName = interaction.channel.name.toLowerCase();
+            let taskFromThread = 'unknown';
+
+            // Find task from thread name
+            // Note: This attempts to guess the task from the thread name if state is lost.
+            // It might not perfectly reconstruct complex 'task + task' combinations
+            // but provides a fallback.
+            for (const allowedTask of ALLOWED_TASK_NAMES) {
+                if (threadName.includes(allowedTask.toLowerCase())) {
+                    taskFromThread = allowedTask;
+                    break;
+                }
+            }
+
+            // Attempt to get the original message and parse its embed to reconstruct raidInfo
+            // This is a more robust way to handle bot restarts and missing activeRaidThreads entries
             try {
-                // Fetch the parent message of the thread to get the original raid request embed.
-                // The parentId is the channel ID where the thread was started, and the thread's ID
-                // is often the same as the message ID that *started* it in that channel.
+                // Assuming the parent message is the message that started this thread (which Discord usually links)
+                // This might need adjustment if your thread creation logic has changed significantly
                 const parentChannel = await interaction.client.channels.fetch(interaction.channel.parentId);
-                const parentMessage = await parentChannel.messages.fetch(threadId); // Fetch the message that created the thread
+                const parentMessage = await parentChannel.messages.fetch(interaction.channel.id); // Fetch the message that created the thread, which has the ID of the thread itself
 
                 if (parentMessage && parentMessage.embeds.length > 0) {
                     const originalEmbed = parentMessage.embeds[0];
@@ -487,54 +391,48 @@ export function setupExpLairHandlers(client) {
                     const serverField = originalEmbed.fields.find(field => field.name === 'Server');
                     const descriptionField = originalEmbed.fields.find(field => field.name === 'Description');
 
-                    // Reconstruct raidInfo object
                     raidInfo = {
                         messageId: parentMessage.id,
-                        originalChannelId: parentChannel.id, // This is the parent channel's ID
-                        task: taskField ? taskField.value : 'unknown',
+                        originalChannelId: interaction.channel.parentId, // Corrected to use parentId
+                        task: taskField ? taskField.value : taskFromThread,
                         requesterId: requesterField ? requesterField.value.replace(/<@!?(\d+)>/, '$1') : interaction.user.id,
                         mapName: mapField ? mapField.value : 'N/A',
                         server: serverField ? serverField.value : 'N/A',
                         description: descriptionField ? descriptionField.value : 'N/A',
-                        awaitingCompletion: false
+                        awaitingCompletion: false // Reset this, will be set to true below
                     };
-                    activeRaidThreads[threadId] = raidInfo; // Store the reconstructed info
-                    console.log(`Successfully reconstructed raidInfo for thread ${threadId}.`);
-                } else {
-                    console.warn(`No embed found in parent message for thread ${threadId}.`);
+                    activeRaidThreads[interaction.channel.id] = raidInfo;
+                    console.log(`Reconstructed raidInfo for thread ${interaction.channel.id}`);
                 }
             } catch (error) {
-                console.error(`Failed to reconstruct raidInfo for thread ${threadId} from parent message:`, error);
-                // Fallback to minimal reconstruction if message fetching fails entirely
+                console.warn(`Could not reconstruct raidInfo from parent message for thread ${interaction.channel.id}:`, error);
+                // Fallback to minimal reconstruction if message fetching fails
                 raidInfo = {
-                    task: interaction.channel.name.split(' | ')[0]?.toLowerCase() || 'unknown', // Attempt to guess task from thread name
+                    task: taskFromThread,
                     requesterId: interaction.user.id, // Assume requester is the one clicking for fallback
-                    mapName: 'N/A', server: 'N/A', description: 'N/A',
+                    mapName: 'N/A',
+                    server: 'N/A',
+                    description: 'N/A',
                     awaitingCompletion: false
                 };
-                activeRaidThreads[threadId] = raidInfo;
-                console.log(`Reconstructed minimal raidInfo for thread ${threadId} as fallback.`);
+                activeRaidThreads[interaction.channel.id] = raidInfo;
             }
         }
 
-        // --- Check if the user closing the ticket is the original requester. ---
-        // Ensures only the person who started the raid can finalize its closure.
+        // Check if the user closing the ticket is the requester
         if (interaction.user.id !== raidInfo.requesterId) {
             await interaction.reply({ content: 'Only the user who initiated this raid can close it.', ephemeral: true });
             return;
         }
 
-        await interaction.deferReply({ ephemeral: true }); // Acknowledge the button click
+        await interaction.deferReply({ ephemeral: true });
 
-        // --- Set awaitingCompletion flag and instruct user on next steps. ---
-        // This flag signals to the messageCreate listener that the next message from the requester
-        // should be treated as a raid completion or cancellation instruction.
         raidInfo.awaitingCompletion = true;
         console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
 
         await interaction.editReply({
             content: 'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2` \ninclude a screenshot if possible. Or type "cancel" to close the thread.',
-            ephemeral: false // Make this visible to others in the thread
+            ephemeral: false
         });
     });
 }
