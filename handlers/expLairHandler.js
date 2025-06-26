@@ -4,7 +4,8 @@ import {
     POINTS_CONFIG,
     DAILIES_LIST,
     WEEKLIES_LIST,
-    ALLOWED_TASK_NAMES
+    ALLOWED_TASK_NAMES,
+    TEMPLESHRINE_LIST // <<< NEW: Import TEMPLESHRINE_LIST
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { activeRaidThreads, updateRaidStatus } from './sharedState.js';
@@ -27,13 +28,15 @@ function extractUserIds(text) {
 
 /**
  * Parses the message content to identify helper assignments for tasks.
+ * It also returns any tasks that were not recognized by ALLOWED_TASK_NAMES.
  * @param {string} content - The message content.
- * @returns {{helperAssignments: {[taskName: string]: Set<string>}, globalTaggedUsers: Set<string>, hasValidTags: boolean}}
+ * @returns {{helperAssignments: {[taskName: string]: Set<string>}, globalTaggedUsers: Set<string>, hasValidTags: boolean, unrecognizedTasks: Set<string>}}
  */
 function parseHelperAssignments(content) {
     const helperAssignments = {};
     const globalTaggedUsers = new Set();
     let hasValidTags = false;
+    const unrecognizedTasks = new Set(); 
 
     const lines = content.split('\n');
     for (const line of lines) {
@@ -62,42 +65,45 @@ function parseHelperAssignments(content) {
                 hasValidTags = true;
                 userIds.forEach(userId => {
                     tasks.forEach(taskName => {
+                        // Only add to helperAssignments if it's a known ALLOWED_TASK_NAME
+                        // The deeper validation against original raid tasks happens in handleRaidCompletion
                         if (ALLOWED_TASK_NAMES.includes(taskName)) {
                             if (!helperAssignments[taskName]) {
                                 helperAssignments[taskName] = new Set();
                             }
                             helperAssignments[taskName].add(userId);
                         } else {
-                            console.warn(`Unrecognized task: ${taskName}`);
+                            unrecognizedTasks.add(taskName); 
                         }
                     });
                 });
             }
         }
     }
-    return { helperAssignments, globalTaggedUsers, hasValidTags };
+    return { helperAssignments, globalTaggedUsers, hasValidTags, unrecognizedTasks };
 }
 
 /**
  * Calculates the total points for a given set of tasks.
- * Handles meta-tasks like 'daily' and 'weekly' and combines them with explicit tasks.
+ * Handles meta-tasks like 'daily', 'weekly', and 'templeshrine' and combines them with explicit tasks.
  * @param {string[]} tasks - An array of task names.
  * @returns {number} The total points.
  */
 function calculateTaskPoints(tasks) {
-    let uniqueEffectiveTasks = new Set(); // Use a Set to avoid double counting if a task is listed explicitly and via a meta-task
+    let uniqueEffectiveTasks = new Set(); 
     
-    // First, process all tasks, expanding meta-tasks and adding individual tasks
     tasks.forEach(task => {
         if (task === 'daily' || task === 'dailies') {
             DAILIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         } else if (task === 'weekly' || task === 'weeklies') {
             WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
-        } else if (POINTS_CONFIG[task]) { // Add individual tasks if they exist in POINTS_CONFIG
-            uniqueEffectiveTasks.add(task);
-        } else {
-            console.warn(`Unrecognized task during point calculation: ${task}`);
+        } else if (task === 'templeshrine') { // <<< NEW: Handle 'templeshrine' meta-task
+            TEMPLESHRINE_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         }
+        else if (POINTS_CONFIG[task]) {
+            uniqueEffectiveTasks.add(task);
+        }
+        // No else/warn here, as `parseHelperAssignments` and `handleRaidCompletion` handle filtering
     });
 
     let totalPoints = 0;
@@ -114,7 +120,7 @@ function calculateTaskPoints(tasks) {
  * @param {object} raidInfo - Information about the active raid.
  */
 async function handleRaidCompletion(message, raidInfo) {
-    const { helperAssignments, globalTaggedUsers, hasValidTags } = parseHelperAssignments(message.content);
+    const { helperAssignments, globalTaggedUsers, hasValidTags, unrecognizedTasks } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
@@ -138,11 +144,31 @@ async function handleRaidCompletion(message, raidInfo) {
 
         const pointsAwarded = {};
         const helperSummaries = [];
+        const mismatchedTasks = new Set(); // New set for tasks assigned that weren't in original request
 
-        // Calculate points for 'all' tagged helpers
+        // 1. Determine all effective tasks AND raw requested strings from the ORIGINAL raid request
+        const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
+        const originalRaidEffectiveTasks = new Set(); // For individual task validation (e.g. ultraspeaker)
+        const originalRaidRequestedStrings = new Set(); // For validating meta-tasks like 'daily', 'weekly', etc.
+
+        originalRequestedTasksRaw.forEach(task => {
+            originalRaidRequestedStrings.add(task); // Add the raw string, e.g., 'daily', 'weekly', 'ultraspeaker'
+            if (task === 'daily' || task === 'dailies') {
+                DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            } else if (task === 'weekly' || task === 'weeklies') {
+                WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            } else if (task === 'templeshrine') { 
+                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            }
+            else if (POINTS_CONFIG[task]) { // Add individual tasks if they exist in POINTS_CONFIG
+                originalRaidEffectiveTasks.add(task);
+            }
+        });
+
+        // 2. Calculate points for 'all' tagged helpers
+        // 'all' helpers are assumed to have helped with everything originally requested
         if (globalTaggedUsers.size > 0) {
-            const initialRequestedTasks = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
-            const totalPointsForGlobalHelpers = calculateTaskPoints(initialRequestedTasks);
+            const totalPointsForGlobalHelpers = calculateTaskPoints(Array.from(originalRaidEffectiveTasks));
 
             if (totalPointsForGlobalHelpers > 0) {
                 const helperNames = Array.from(globalTaggedUsers).map(id => `<@${id}>`).join(', ');
@@ -155,13 +181,28 @@ async function handleRaidCompletion(message, raidInfo) {
             }
         }
 
-        // Calculate points for specifically assigned helpers
+        // 3. Calculate points for specifically assigned helpers, validating against original raid tasks
         for (const taskName in helperAssignments) {
             const usersForTask = Array.from(helperAssignments[taskName]);
             if (usersForTask.length === 0) continue;
 
-            // The taskName here might be 'daily', 'weekly', or a specific task.
-            // calculateTaskPoints will handle expansion if it's a meta-task.
+            // --- VALIDATION LOGIC FIX HERE ---
+            let isValidAssignedTask = false;
+            // Check if the assigned task name was one of the *raw strings* originally requested (e.g., 'daily', 'weekly')
+            if (originalRaidRequestedStrings.has(taskName)) {
+                isValidAssignedTask = true;
+            } else {
+                // If not a raw requested string, check if it's an *individual effective task*
+                // that was part of the original request's breakdown (e.g., 'ultraspeaker' if 'daily' was requested)
+                isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
+            }
+
+            if (!isValidAssignedTask) {
+                mismatchedTasks.add(taskName); // Add to mismatched set for feedback
+                continue; // Skip awarding points for this task
+            }
+            // --- END VALIDATION LOGIC FIX ---
+
             const totalPointsForTask = calculateTaskPoints([taskName]); 
 
             if (totalPointsForTask > 0) {
@@ -169,7 +210,9 @@ async function handleRaidCompletion(message, raidInfo) {
                 helperSummaries.push(`**${taskName}:** ${helperNames} (${totalPointsForTask} EXP each)`);
 
                 usersForTask.forEach(userId => {
-                    // Only add points if the user wasn't covered by "all"
+                    // Only add points if the user wasn't covered by "all" to avoid double counting
+                    // This check is fine as it prevents double counting for a *single user*
+                    // who might be tagged with 'all' AND also a specific task.
                     if (!globalTaggedUsers.has(userId)) {
                         pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForTask;
                     }
@@ -178,7 +221,7 @@ async function handleRaidCompletion(message, raidInfo) {
         }
 
         if (Object.keys(pointsAwarded).length === 0) {
-            await message.reply('No valid helpers or tasks specified. Please tag helpers or type "cancel" to close without helpers.');
+            await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
             return;
         }
 
@@ -228,6 +271,19 @@ async function handleRaidCompletion(message, raidInfo) {
         }
 
         await message.reply('Raid closure details posted and points awarded!');
+
+        // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES)
+        if (unrecognizedTasks.size > 0) {
+            const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
+            await expLairChannel.send(`Note: The following tasks mentioned in the completion message were not recognized as valid task names and no points were awarded for them: ${unrecognizedList}. Please use valid task names from \`!raidtasks\`.`);
+        }
+        
+        // Provide feedback for tasks that didn't match the original request (valid task, but not part of *this* raid)
+        if (mismatchedTasks.size > 0) {
+            const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
+            await expLairChannel.send(`Warning: The following tasks were specified in the completion message but were NOT part of the original raid request (**${raidInfo.task}**) and thus no points were awarded for them: ${mismatchedList}.`);
+        }
+
 
         // Clean up and lock original raid thread
         delete activeRaidThreads[threadId];
@@ -320,7 +376,11 @@ export function setupExpLairHandlers(client) {
             // Attempt to get the original message and parse its embed to reconstruct raidInfo
             // This is a more robust way to handle bot restarts and missing activeRaidThreads entries
             try {
-                const parentMessage = await interaction.channel.parent.messages.fetch(interaction.channel.id);
+                // Assuming the parent message is the message that started this thread (which Discord usually links)
+                // This might need adjustment if your thread creation logic has changed significantly
+                const parentChannel = await interaction.client.channels.fetch(interaction.channel.parentId);
+                const parentMessage = await parentChannel.messages.fetch(interaction.channel.id); // Fetch the message that created the thread, which has the ID of the thread itself
+                
                 if (parentMessage && parentMessage.embeds.length > 0) {
                     const originalEmbed = parentMessage.embeds[0];
                     const taskField = originalEmbed.fields.find(field => field.name === 'Task(s)');
@@ -331,7 +391,7 @@ export function setupExpLairHandlers(client) {
 
                     raidInfo = {
                         messageId: parentMessage.id,
-                        originalChannelId: interaction.channel.parent.id,
+                        originalChannelId: interaction.channel.parentId, // Corrected to use parentId
                         task: taskField ? taskField.value : taskFromThread,
                         requesterId: requesterField ? requesterField.value.replace(/<@!?(\d+)>/, '$1') : interaction.user.id,
                         mapName: mapField ? mapField.value : 'N/A',

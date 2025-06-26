@@ -1,43 +1,67 @@
-// utils/fileOps.js
+import fs from 'node:fs/promises'; // Ensure this import is at the top
+import { LEADERBOARD_FILE } from '../config/constants.js'; // Ensure this import is present
 
-// OLD: import { LEADERBOARD_FILE } from '../index.js';
-import { LEADERBOARD_FILE } from '../config/constants.js'; // CORRECTED IMPORT
-
-import fs from 'node:fs/promises';
-
-// Function to read the leaderboard data
+/**
+ * Reads the leaderboard data from the JSON file.
+ * Initializes the file with a basic structure if it doesn't exist.
+ * @returns {Promise<Object>} The leaderboard data.
+ */
 export async function readLeaderboard() {
     try {
         const data = await fs.readFile(LEADERBOARD_FILE, 'utf8');
-        return JSON.parse(data);
+        const parsedData = JSON.parse(data);
+        // Ensure _dailyPoints is always an object, even if missing from old file
+        if (!parsedData._dailyPoints) {
+            parsedData._dailyPoints = {};
+        }
+        return parsedData;
     } catch (error) {
         if (error.code === 'ENOENT') {
-            // File does not exist, return an empty object
-            return {};
+            // File does not exist, return and create an empty leaderboard structure
+            const initialData = { _lastResetDate: null, _dailyPoints: {} };
+            await writeLeaderboard(initialData); // Create the file
+            return initialData;
         }
         console.error('Error reading leaderboard file:', error);
-        return {}; // Return empty on other errors too, to prevent crash
+        throw error;
     }
 }
 
-// Function to write the leaderboard data
-export async function writeLeaderboard(leaderboard) {
+/**
+ * Writes the leaderboard data to the JSON file.
+ * @param {Object} leaderboardData - The data to write.
+ * @returns {Promise<void>}
+ */
+export async function writeLeaderboard(leaderboardData) {
     try {
-        await fs.writeFile(LEADERBOARD_FILE, JSON.stringify(leaderboard, null, 2), 'utf8');
+        await fs.writeFile(LEADERBOARD_FILE, JSON.stringify(leaderboardData, null, 2), 'utf8');
     } catch (error) {
         console.error('Error writing leaderboard file:', error);
+        throw error;
     }
 }
 
-// Function to update the leaderboard for a specific user
-export async function updateLeaderboard(userId, points) {
-    const leaderboard = await readLeaderboard();
-    leaderboard[userId] = (leaderboard[userId] || 0) + points;
-    await writeLeaderboard(leaderboard);
-}
+/**
+ * Updates a user's total points and records daily points.
+ * @param {string} userId - The ID of the user.
+ * @param {number} pointsToAdd - The points to add (can be negative for subtraction).
+ * @returns {Promise<void>}
+ */
+export async function updateLeaderboard(userId, pointsToAdd) {
+    let leaderboard = await readLeaderboard();
 
-// Function to get the leaderboard as a sorted array for display
-export async function getSortedLeaderboard() {
-    const leaderboard = await readLeaderboard();
-    return Object.entries(leaderboard).sort(([, a], [, b]) => b - a);
+    // Update total points
+    leaderboard[userId] = (leaderboard[userId] || 0) + pointsToAdd;
+
+    // Update daily points
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+    if (!leaderboard._dailyPoints) {
+        leaderboard._dailyPoints = {};
+    }
+    if (!leaderboard._dailyPoints[today]) {
+        leaderboard._dailyPoints[today] = {};
+    }
+    leaderboard._dailyPoints[today][userId] = (leaderboard._dailyPoints[today][userId] || 0) + pointsToAdd;
+
+    await writeLeaderboard(leaderboard);
 }

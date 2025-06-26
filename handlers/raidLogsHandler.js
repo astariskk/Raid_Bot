@@ -15,6 +15,8 @@ import {
     RAID_HELPER_ROLE_ID,
     DAILIES_LIST,
     WEEKLIES_LIST,
+    OTHERS_LIST,
+    TEMPLESHRINE_LIST,
     ALLOWED_TASK_NAMES,
     DISPLAY_POINTS_LIST
 } from '../config/constants.js';
@@ -64,6 +66,48 @@ export function setupRaidLogsHandlers(client) {
             }
         }
         
+        if (message.channel.isThread()) {
+            const threadCommand = message.content.toLowerCase().trim(); // Use a single variable for consistency
+
+            let embedToSend;
+
+            if (threadCommand === '!1man') {
+                embedToSend = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('1-Man Raid Chart')
+                    .setImage('https://files.catbox.moe/svrjfx.jpg') // Your Imgur link here
+                    .setFooter({ text: 'Speaker chart for 1-man raids' });
+            } else if (threadCommand === '!2man') {
+                embedToSend = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('2-Man Raid Chart')
+                    .setImage('https://files.catbox.moe/49a6oj.jpg') // Replace with your 2-man Imgur link
+                    .setFooter({ text: 'Speaker chart for 2-man raids' });
+            } else if (threadCommand === '!3man') {
+                embedToSend = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('3-Man Raid Chart')
+                    .setImage('https://files.catbox.moe/5x4grv.jpg') // Replace with your 3-man Imgur link
+                    .setFooter({ text: 'Speaker chart for 3-man raids' });
+            } else if (threadCommand === '!4man') {
+                embedToSend = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('4-Man Raid Chart')
+                    .setImage('https://files.catbox.moe/yi71zh.jpg') // Replace with your 4-man Imgur link
+                    .setFooter({ text: 'Speaker chart for 4-man raids' });
+            }
+
+            if (embedToSend) {
+                try {
+                    await message.channel.send({ embeds: [embedToSend] });
+                } catch (error) {
+                    console.error(`Error sending ${threadCommand} chart:`, error);
+                    await message.channel.send('Failed to send the chart. Please check the link or try again later.');
+                }
+            }
+        }
+
+
         // Command to send the initial Help button
         if (message.channel.id === RAID_CHANNEL_ID && message.content === '!raidhelp') {
             try {
@@ -81,12 +125,14 @@ export function setupRaidLogsHandlers(client) {
             try {
                 const dailiesListFormatted = DAILIES_LIST.map(task => `\`${task}\``).join(', ');
                 const weekliesListFormatted = WEEKLIES_LIST.map(task => `\`${task}\``).join(', ');
+                const othersListFormatted = OTHERS_LIST.map(task => `\`${task}\``).join(', ');
+                const templeShrineListFormatted = TEMPLESHRINE_LIST.map(task => `\`${task}\``).join(', ');
                 await message.channel.send({
-                    content: `**!leaderboard** to show the current ranking in the server.\n\n` +
-                             `**Possible tasks:**\n` +
+                    content: `**Possible tasks:**\n` +
                              `**Weekly or Ultra Weeklies:** ${weekliesListFormatted}\n` +
-                             `**Daily or Ultra Dailies:** ${dailiesListFormatted}\n\n` +
-                             DISPLAY_POINTS_LIST.map(point => `• ${point}`).join('\n')
+                             `**Daily or Ultra Dailies:** ${dailiesListFormatted}\n` +
+                             `**Temple Shrine:** ${templeShrineListFormatted}\n` +
+                             `**Other Tasks:** ${othersListFormatted}\n\n`
                 });
 
                 const formattedPoints = 
@@ -97,15 +143,20 @@ export function setupRaidLogsHandlers(client) {
             }
         }
 
-        // !raidpoints command
-        if (message.channel.id === RAID_CHANNEL_ID && message.content.toLowerCase() === '!raidpoints') {
+        if (message.content.toLowerCase() === '!raidpoints') {
             try {
-                const formattedPoints = DISPLAY_POINTS_LIST.map(point => `• ${point}`).join('\n');
+                await message.channel.send({
+                    content: DISPLAY_POINTS_LIST.map(point => `• ${point}`).join('\n')
+                });
+
+                const formattedPoints = 
                 await message.channel.send({ content: `**${formattedPoints}**` });
+
             } catch (error) {
-                console.error('Error sending message: ', error);
+                console.error('Error sending help message:', error);
             }
-        }
+        }        
+
     });
 
     // --- Interaction Create Listener (for button clicks and modal submissions) ---
