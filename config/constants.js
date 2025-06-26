@@ -30,7 +30,7 @@ export const POINTS_CONFIG = {
 // Use the primary names from POINTS_CONFIG
 export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
 export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'speaker'];
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'Mechabinky'];
+export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky'];
 export const TEMPLESHRINE_LIST = ['templeshrine mid', 'templeshrine left', 'templeshrine right'];
 
 // ALLOWED_TASK_NAMES should include all valid inputs, including aliases if you want them
