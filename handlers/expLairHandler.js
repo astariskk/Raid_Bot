@@ -262,19 +262,19 @@ async function handleRaidCompletion(message, raidInfo) {
             expLairThreadContent += `<@${userId}>: ${pointsAwarded[userId]} EXP\n`;
         }
 
-        expLairThreadContent += `\n**Helper Assignments Breakdown:**\n${helperSummaries.join('\n')}\n`;
+        expLairThreadContent += `\n**Helper Assignments Breakdown:** \n${helperSummaries.join('\n')}\n`;
 
         // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES)
         if (unrecognizedTasks.size > 0) {
             const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`**Note**: The following tasks mentioned in the completion message were not recognized as valid task names and no points were awarded for them: ${unrecognizedList}. Please use valid task names from \`!raidtasks\`.`);
+            expLairThreadContent += (`**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\`.\n`);
         }
 
-        // Provide feedback for tasks that didn't match the original request (valid task, but not part of *this* raid)
         if (mismatchedTasks.size > 0) {
             const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`\n**Warning**: The following tasks were specified in the completion message but were NOT part of the original raid request (**${raidInfo.task}**) and thus no points were awarded for them: ${mismatchedList}.`);
+            expLairThreadContent += (`\n**Warning**: These tasks weren't part of the original raid (**${raidInfo.task}**) and earned no points: ${mismatchedList}.`);
         }
+
 
         // Send the detailed content to the new thread
         await expLairThread.send({ content: expLairThreadContent });

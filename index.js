@@ -1,11 +1,18 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-// --- NEW: Import express and set up a basic web server ---
-import express from 'express';
+// --- Import necessary for online hosting ---
+ import express from 'express';
 const app = express();
-// Use process.env.PORT for Render.com compatibility
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3000; // Use process.env.PORT for Render.com compatibility
+app.get('/', (req, res) => {
+    res.send('Bot is alive!');
+});
+
+app.listen(port, () => {
+    console.log(`Web server listening on port ${port}`);
+});
+
 
 import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import {
@@ -13,19 +20,20 @@ import {
     getTasksEmbed,
     getRaidRequestModal
 } from './handlers/raidLogsHandler.js';
-import { setupExpLairHandlers } => './handlers/expLairHandler.js';
+import { setupExpLairHandlers } from './handlers/expLairHandler.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
-import { RAID_CHANNEL_ID } from './config/constants.js';
+import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID } from './config/constants.js'; // Import RAID_HELPER_ROLE_ID
 
 export const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMembers, // REQUIRED for role management
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
     ],
 });
+
 
 // --- Bot Ready Event ---
 client.on('ready', () => {
@@ -71,7 +79,7 @@ function setupCommandsHandler(client) {
                 .setStyle(ButtonStyle.Secondary);
 
             const commandButtonsRow = new ActionRowBuilder()
-                .addComponents(getHelpRoleButton, startRaidButton, seeRaidTasksButton, howToUseButton);
+                .addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, howToUseButton);
 
             const commandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB)
@@ -203,10 +211,48 @@ function setupCommandsHandler(client) {
 
         switch (interaction.customId) {
             case 'getHelpRole_btn':
-                await interaction.reply({
-                    content: `To request raid assistance, please go to the <#${RAID_CHANNEL_ID}> channel and click the "🏹 Help" button there, or ask a moderator to use \`!raidhelp\`. If you are interested in becoming a Raid Helper, please contact a server administrator!`,
-                    ephemeral: true
-                });
+                // --- NEW LOGIC: Assign RAID_HELPER_ROLE_ID to the user ---
+                // Ensure the bot has 'Manage Roles' permission and its role is higher than RAID_HELPER_ROLE_ID
+                const guild = interaction.guild;
+                const member = interaction.member; // The member who clicked the button
+
+                if (!guild) {
+                    await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+                    return;
+                }
+
+                try {
+                    const role = await guild.roles.fetch(RAID_HELPER_ROLE_ID);
+                    if (!role) {
+                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', ephemeral: true });
+                        return;
+                    }
+
+                    // Check if the bot has permissions to manage this role
+                    const botMember = await guild.members.fetch(client.user.id);
+                    if (!botMember.permissions.has('ManageRoles')) {
+                        await interaction.reply({ content: 'I do not have the necessary permissions (`Manage Roles`) to assign roles. Please ask an administrator to grant me this permission.', ephemeral: true });
+                        return;
+                    }
+                    // Check if bot's role is higher than the role to be assigned
+                    if (botMember.roles.highest.position <= role.position) {
+                        await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the helper role in the server settings.`, ephemeral: true });
+                        return;
+                    }
+
+
+                    if (member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
+                        await member.roles.remove(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
+                        await interaction.reply({ content: `Your \`${role.name}\` role has been removed!`, ephemeral: true });
+                    } else {
+                        await member.roles.add(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
+                        await interaction.reply({ content: `You have been given the \`${role.name}\` role! Welcome to the Raid Helpers!`, ephemeral: true });
+                    }
+
+                } catch (error) {
+                    console.error('Error assigning help role:', error);
+                    await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
+                }
                 break;
             case 'startRaid_btn':
                 const raidModal = getRaidRequestModal();
@@ -222,7 +268,7 @@ function setupCommandsHandler(client) {
 1.  **Request a Raid**: Go to the <#${RAID_CHANNEL_ID}> channel and click the "🏹 Help" button (a moderator can use \`!raidhelp\` to make it appear). Fill out the form.
 2.  **Raid Coordination**: A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.
 3.  **Update Status**: In your raid thread, you (the requester) can type \`waiting\` or \`full\` to update the raid's status in the main log.
-4.  **Complete Raid**: Once the raid is done, click the "🔒 Close Raid" button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot \additionally you can type \`cancel\` to close the raid without tagging helpers.
+4.  **Complete Raid**: Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot.
 5.  **Check Points**: Use \`!leaderboard\` to see top players or \`!checkrewards\` to see your daily EXP.
                     `,
                     ephemeral: true
@@ -234,15 +280,6 @@ function setupCommandsHandler(client) {
         }
     });
 }
-
-// --- NEW: Web server for Render.com health checks ---
-app.get('/', (req, res) => {
-  res.send('Bot is alive!');
-});
-
-app.listen(port, () => {
-  console.log(`Web server listening on port ${port}`);
-});
 
 // --- Login ---
 client.login(process.env.DISCORD_TOKEN);

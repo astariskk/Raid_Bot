@@ -60,7 +60,7 @@ export function getTasksEmbed() { // Exported for use in index.js
     const templeShrineListFormatted = TEMPLESHRINE_LIST.map(task => `\`${task}\``).join(', ');
 
     return new EmbedBuilder()
-        .setColor(0x00FF00) // Green color for a positive information display
+        .setColor(0x3498DB) // Green color for a positive information display
         .setTitle('Available Raid Tasks')
         .setDescription('Here are the tasks you can request assistance for:')
         .addFields(
@@ -207,19 +207,6 @@ export function setupRaidLogsHandlers(client) {
                     console.error(`Error sending ${threadCommand} chart:`, error);
                     await message.channel.send('Failed to send the chart. Please check the link or try again later.');
                 }
-            }
-        }
-
-        // --- Command to send the initial Raid Help button in the designated raid channel ---
-        // This command provides an entry point for users to request raid assistance by clicking a button.
-        if (message.channel.id === RAID_CHANNEL_ID && message.content === '!raidhelp') {
-            try {
-                await message.channel.send({
-                    content: 'Click the button below to request raid assistance:',
-                    components: [helpButtonRow]
-                });
-            } catch (error) {
-                console.error('Error sending help button message:', error);
             }
         }
 
