@@ -127,7 +127,11 @@ async function handleRaidCompletion(message, raidInfo) {
 
     if (!hasValidTags && !attachment) {
         await message.reply(
-            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2` \nYou can use `All` to refer to every requested task \nInclude a screenshot if possible. \nYou can type `cancel` to close the thread without tagging helpers.'
+            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
+            +`\n* You can use \`All\` to refer to every requested task'`
+            +`\n* Include a screenshot if possible.`
+            +`\n* You can type \`cancel\` to close the thread without tagging helpers.`,
+            { ephemeral: true }
         );
         return;
     }
@@ -431,8 +435,12 @@ export function setupExpLairHandlers(client) {
         console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
 
         await interaction.editReply({
-            content: 'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2` \nYou can use `All` to refer to every requested task \nInclude a screenshot if possible. \nYou can type `cancel` to close the thread without tagging helpers.',
-            ephemeral: false
+        content:
+            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
+            + `\n* You can use \`All\` to refer to every requested task`
+            + `\n* Include a screenshot if possible.`
+            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`,
+        ephemeral: true
         });
     });
 }
