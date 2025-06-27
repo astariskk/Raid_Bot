@@ -91,6 +91,7 @@ function setupCommandsHandler(client) {
                         value: `
 \`!raidtasks\`: Lists all available raid tasks and their EXP values.
 \`!raidpoints\`: Displays the EXP values for all configured raid tasks.
+\`!checkrewards\`: Displays the daily EXP for all users.
                         `
                     },
                     {
@@ -125,7 +126,6 @@ function setupCommandsHandler(client) {
 \`!addxp @user <amount>\`: Manually adds EXP to a specified user.
 \`!removexp @user <amount>\`: Manually removes EXP from a specified user.
 \`!reset [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
-\`!checkrewards\`: Displays the daily EXP for all users.
                         `
                     }
                 )
