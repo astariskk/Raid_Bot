@@ -267,10 +267,10 @@ function setupCommandsHandler(client) {
                 const howToUse_embed = new EmbedBuilder()
                     .setTitle('📜 How to Use the Raid Helper Bot')
                     .setDescription(
-                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the "🏹 Help" button (a moderator can use \`!raidhelp\` to make it appear). Fill out the form.\n\n` +
+                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`🏹 Help\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work).\n\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`waiting\` or \`full\` to update the raid's status in the main log.\n\n` +
-                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot.\n\n` +
+                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot or cancel to close the raid.\n\n` +
                         `**5. Check Points:** Use \`!leaderboard\` to see top players or \`!checkrewards\` to see your daily EXP.`
                     )
                     .setColor(0x3498DB);
