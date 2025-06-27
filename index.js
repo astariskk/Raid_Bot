@@ -273,7 +273,7 @@ function setupCommandsHandler(client) {
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot.\n\n` +
                         `**5. Check Points:** Use \`!leaderboard\` to see top players or \`!checkrewards\` to see your daily EXP.`
                     )
-                    .setColor(0x00AE86);
+                    .setColor(0x3498DB);
 
                 await interaction.reply({
                     embeds: [howToUse_embed],
