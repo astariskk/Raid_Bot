@@ -131,8 +131,11 @@ async function handleRaidCompletion(message, raidInfo) {
             +`\n* You can use \`All\` to refer to every requested task'`
             +`\n* Include a screenshot if possible.`
             +`\n* You can type \`cancel\` to close the thread without tagging helpers.`,
-            { ephemeral: true }
         );
+        
+        setTimeout(() => {
+            reply.delete().catch(() => {});
+        }, 10000);        
         return;
     }
 
