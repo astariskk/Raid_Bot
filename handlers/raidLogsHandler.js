@@ -67,7 +67,7 @@ export function getTasksEmbed() { // Exported for use in index.js
             { name: '`Weekly` or `Weeklies`', value: weekliesListFormatted || 'N/A' },
             { name: '`Daily` or `Dailies`', value: dailiesListFormatted || 'N/A' },
             { name: '`TempleShrine`', value: templeShrineListFormatted || 'N/A' },
-            { name: '`Other Tasks`', value: othersListFormatted || 'N/A' }
+            { name: '`Other` Tasks', value: othersListFormatted || 'N/A' }
         )
         .setFooter({ text: 'Use these names in your raid requests!' });
 }

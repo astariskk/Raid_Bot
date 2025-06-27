@@ -125,6 +125,7 @@ function setupCommandsHandler(client) {
 \`!addxp @user <amount>\`: Manually adds EXP to a specified user.
 \`!removexp @user <amount>\`: Manually removes EXP from a specified user.
 \`!reset [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
+\`!checkrewards\`: Displays the daily EXP for all users.
                         `
                     }
                 )
