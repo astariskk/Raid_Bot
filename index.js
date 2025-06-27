@@ -1,23 +1,21 @@
-import express from 'express';
-const app = express();
-const port = 3000;
-
-app.get('/', (req, res) => {
-  res.send('Bot is alive!');
-});
-
-app.listen(port, () => {
-  console.log(`Web server listening on port ${port}`);
-});
-
 import dotenv from "dotenv";
 dotenv.config();
 
-import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'; // Import necessary components
-import { setupRaidLogsHandlers, getTasksEmbed, getPointsEmbed, getRaidRequestModal } from './handlers/raidLogsHandler.js'; // Import new functions
-import { setupExpLairHandlers } from './handlers/expLairHandler.js';
+// --- NEW: Import express and set up a basic web server ---
+import express from 'express';
+const app = express();
+// Use process.env.PORT for Render.com compatibility
+const port = process.env.PORT || 3000;
+
+import { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import {
+    setupRaidLogsHandlers,
+    getTasksEmbed,
+    getRaidRequestModal
+} from './handlers/raidLogsHandler.js';
+import { setupExpLairHandlers } => './handlers/expLairHandler.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
-import { RAID_CHANNEL_ID } from './config/constants.js'; // Import RAID_CHANNEL_ID for button logic
+import { RAID_CHANNEL_ID } from './config/constants.js';
 
 export const client = new Client({
     intents: [
@@ -25,7 +23,7 @@ export const client = new Client({
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.DirectMessages,
-        GatewayIntentBits.MessageContent, // REQUIRED for accessing message.content (Discord.js v13+)
+        GatewayIntentBits.MessageContent,
     ],
 });
 
@@ -36,10 +34,10 @@ client.on('ready', () => {
     console.log('Ready to process commands and interactions.');
 
     // --- Initialize Handlers ---
-    setupRaidLogsHandlers(client); // Setup for raid request and logging
-    setupExpLairHandlers(client);   // Setup for raid completion and EXP awarding
+    setupRaidLogsHandlers(client);
+    setupExpLairHandlers(client);
     setupLeaderboardHandlers(client);
-    setupCommandsHandler(client); // Setup the new !commands handler
+    setupCommandsHandler(client);
 });
 
 /**
@@ -48,21 +46,19 @@ client.on('ready', () => {
  */
 function setupCommandsHandler(client) {
     client.on('messageCreate', async (message) => {
-        // Ignore messages from bots to prevent infinite loops
         if (message.author.bot) return;
 
         // --- Handle the !commands command ---
         if (message.content.toLowerCase() === '!commands') {
-            // --- Define new buttons for the !commands embed ---
             const getHelpRoleButton = new ButtonBuilder()
                 .setCustomId('getHelpRole_btn')
                 .setLabel('📣 Get Help Role')
-                .setStyle(ButtonStyle.Secondary); // A subtle style
+                .setStyle(ButtonStyle.Secondary);
 
             const startRaidButton = new ButtonBuilder()
                 .setCustomId('startRaid_btn')
                 .setLabel('⚔️ Start Raid')
-                .setStyle(ButtonStyle.Primary); // Prominent for starting a raid
+                .setStyle(ButtonStyle.Primary);
 
             const seeRaidTasksButton = new ButtonBuilder()
                 .setCustomId('seeRaidTasks_btn')
@@ -78,7 +74,7 @@ function setupCommandsHandler(client) {
                 .addComponents(getHelpRoleButton, startRaidButton, seeRaidTasksButton, howToUseButton);
 
             const commandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB) // A nice blue color
+                .setColor(0x3498DB)
                 .setTitle('✨ Bot Commands List ✨')
                 .setDescription('Here are the commands you can use with the Raid Helper Bot:')
                 .addFields(
@@ -124,7 +120,7 @@ function setupCommandsHandler(client) {
                         `
                     }
                 )
-                .setTimestamp() // Show when the command was run
+                .setTimestamp()
                 .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
 
             try {
@@ -135,10 +131,9 @@ function setupCommandsHandler(client) {
             }
         }
 
-        // --- Custom GIF Commands (from your original code) ---
         if (message.content === 'The Most Beautiful Thing You Will Ever See') {
             const gifEmbed = new EmbedBuilder()
-                .setColor(0xFF0000) //Red color
+                .setColor(0xFF0000)
                 .setTitle('The Most Beautiful Thing You will Ever See')
                 .setImage('https://files.catbox.moe/7wwm4n.gif')
                 .setFooter({ text: 'Feast your eyes on this' });
@@ -147,11 +142,11 @@ function setupCommandsHandler(client) {
                 setTimeout(async () => {
                     try {
                         await sentMessage.delete();
-                        await message.delete(); // Delete the user's original message after the GIF is gone
+                        await message.delete();
                     } catch (deleteError) {
                         console.error('Error deleting custom GIF message:', deleteError);
                     }
-                }, 7000); // 7 seconds
+                }, 7000);
             } catch (error) {
                 console.error('Error sending custom GIF:', error);
                 await message.channel.send('Could not display the beautiful thing.');
@@ -160,7 +155,7 @@ function setupCommandsHandler(client) {
 
         if (message.content === 'I Need More Bullets') {
             const gifEmbed = new EmbedBuilder()
-                .setColor(0x006400) // Green color
+                .setColor(0x006400)
                 .setTitle("Asta La Vista, Baby")
                 .setImage('https://files.catbox.moe/dnzecs.gif')
                 .setFooter({ text: 'He needs more bullets' });
@@ -173,7 +168,7 @@ function setupCommandsHandler(client) {
                     } catch (deleteError) {
                         console.error('Error deleting custom GIF message:', deleteError);
                     }
-                }, 13000); // 13 seconds
+                }, 13000);
             } catch (error) {
                 console.error('Error sending custom GIF:', error);
                 await message.channel.send('Could not display the beautiful thing.');
@@ -182,7 +177,7 @@ function setupCommandsHandler(client) {
 
         if (message.content === 'Sybau Xychrome') {
             const gifEmbed = new EmbedBuilder()
-                .setColor(0x7e7e7e) // Gray color
+                .setColor(0x7e7e7e)
                 .setTitle("Get Twerked On")
                 .setImage('https://files.catbox.moe/neo4gz.gif')
                 .setFooter({ text: 'Deal with it' });
@@ -195,7 +190,7 @@ function setupCommandsHandler(client) {
                     } catch (deleteError) {
                         console.error('Error deleting custom GIF message:', deleteError);
                     }
-                }, 5000); // 5 seconds
+                }, 5000);
             } catch (error) {
                 console.error('Error sending custom GIF:', error);
                 await message.channel.send('Could not display the beautiful thing.');
@@ -203,9 +198,8 @@ function setupCommandsHandler(client) {
         }
     });
 
-    // --- Interaction Create Listener for the new buttons ---
     client.on('interactionCreate', async (interaction) => {
-        if (!interaction.isButton()) return; // Only handle button interactions
+        if (!interaction.isButton()) return;
 
         switch (interaction.customId) {
             case 'getHelpRole_btn':
@@ -215,12 +209,10 @@ function setupCommandsHandler(client) {
                 });
                 break;
             case 'startRaid_btn':
-                // Directly show the raid request modal
                 const raidModal = getRaidRequestModal();
                 await interaction.showModal(raidModal);
                 break;
             case 'seeRaidTasks_btn':
-                // Get the tasks embed and send it ephemerally
                 const tasksEmbed = getTasksEmbed();
                 await interaction.reply({ embeds: [tasksEmbed], ephemeral: true });
                 break;
@@ -230,18 +222,27 @@ function setupCommandsHandler(client) {
 1.  **Request a Raid**: Go to the <#${RAID_CHANNEL_ID}> channel and click the "🏹 Help" button (a moderator can use \`!raidhelp\` to make it appear). Fill out the form.
 2.  **Raid Coordination**: A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.
 3.  **Update Status**: In your raid thread, you (the requester) can type \`waiting\` or \`full\` to update the raid's status in the main log.
-4.  **Complete Raid**: Once the raid is done, click the "🔒 Close Raid" button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot.
+4.  **Complete Raid**: Once the raid is done, click the "🔒 Close Raid" button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot \additionally you can type \`cancel\` to close the raid without tagging helpers.
 5.  **Check Points**: Use \`!leaderboard\` to see top players or \`!checkrewards\` to see your daily EXP.
                     `,
                     ephemeral: true
                 });
                 break;
             default:
-                // Handle other button interactions if any
+                console.log(`Unhandled button interaction customId: ${interaction.customId}`);
                 break;
         }
     });
 }
+
+// --- NEW: Web server for Render.com health checks ---
+app.get('/', (req, res) => {
+  res.send('Bot is alive!');
+});
+
+app.listen(port, () => {
+  console.log(`Web server listening on port ${port}`);
+});
 
 // --- Login ---
 client.login(process.env.DISCORD_TOKEN);
