@@ -106,9 +106,11 @@ function setupCommandsHandler(client) {
                 )
                 .setTimestamp() // Show when the command was run
                 .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
-
             try {
-                await message.channel.send({ embeds: [commandsEmbed] });
+                await message.channel.send({
+                     embeds: [commandsEmbed],
+                    components: [helpButtonRow]
+                    });
             } catch (error) {
                 console.error('Error sending !commands embed:', error);
                 await message.channel.send('Failed to display commands. Please try again later.');

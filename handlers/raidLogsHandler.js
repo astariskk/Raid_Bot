@@ -113,7 +113,6 @@ export function setupRaidLogsHandlers(client) {
             try {
                 await message.channel.send({
                     content: 'Click the button below to request raid assistance:',
-                    components: [helpButtonRow]
                 });
             } catch (error) {
                 console.error('Error sending help button message:', error);
