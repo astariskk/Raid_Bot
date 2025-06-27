@@ -16,6 +16,8 @@ app.listen(port, () => {
 import dotenv from "dotenv";
 dotenv.config();
 
+import { ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js'; // Import ButtonBuilder and ActionRowBuilder
+
 import { Client, GatewayIntentBits, EmbedBuilder } from 'discord.js'; // Import EmbedBuilder
 import { setupRaidLogsHandlers } from './handlers/raidLogsHandler.js';
 import { setupExpLairHandlers } from './handlers/expLairHandler.js';
@@ -32,6 +34,15 @@ export const client = new Client({
         GatewayIntentBits.MessageContent, // REQUIRED for accessing message.content (Discord.js v13+)
     ],
 });
+
+// --- Buttons ---
+const helpButton = new ButtonBuilder()
+    .setCustomId("showHelpModal")
+    .setLabel('🏹 Help')
+    .setStyle(ButtonStyle.Primary); 
+
+const helpButtonRow = new ActionRowBuilder()
+    .addComponents(helpButton);
 
 // --- Bot Ready Event ---
 client.on('ready', () => {
@@ -108,8 +119,7 @@ function setupCommandsHandler(client) {
                 .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
             try {
                 await message.channel.send({
-                     embeds: [commandsEmbed],
-                    components: [helpButtonRow]
+                     embeds: [commandsEmbed]
                     });
             } catch (error) {
                 console.error('Error sending !commands embed:', error);
