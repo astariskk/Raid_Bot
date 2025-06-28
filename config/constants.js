@@ -1,3 +1,4 @@
+// config/constants.js
 export const RAID_CHANNEL_ID = '1385452423291600966';
 export const RAID_LOGS_CHANNEL_ID = '1387781279919112284';
 export const EXP_LAIR_CHANNEL_ID = '1387799141203181638';
@@ -23,19 +24,25 @@ export const POINTS_CONFIG = {
     'tsmid': 1250,
     'tsleft': 375,
     'tsright': 375,
+    'voidflibbi': 200,
+    'voidnightbane': 200,
+    'voidxyfrag': 300,
+    'voidnerfkitten' : 300,
 };
 
 // --- Separate Task Lists for validation and display ---
 export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
 export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'speaker'];
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky'];
 export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
+export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
+export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky', 'voidnerfkitten'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases
 export const ALLOWED_TASK_NAMES = [
     ...DAILIES_LIST, 'dailies', 'daily',
     ...WEEKLIES_LIST, 'weeklies', 'weekly',
     ...OTHERS_LIST, ...TEMPLESHRINE_LIST, 'templeshrine', 
+    ...ORIGINUL_LIST, 'originul',
 ];
 
 // Dynamically generate DISPLAY_POINTS_LIST from POINTS_CONFIG for consistency

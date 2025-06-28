@@ -1,14 +1,15 @@
-import { EmbedBuilder, ChannelType } from 'discord.js';
+import { EmbedBuilder, ChannelType, MessageFlags } from 'discord.js';
 import {
     EXP_LAIR_CHANNEL_ID,
     POINTS_CONFIG,
     DAILIES_LIST,
     WEEKLIES_LIST,
     ALLOWED_TASK_NAMES,
-    TEMPLESHRINE_LIST // <<< NEW: Import TEMPLESHRINE_LIST
+    TEMPLESHRINE_LIST,
+    ORIGINUL_LIST
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
-import { activeRaidThreads, updateRaidStatus } from './sharedState.js';
+import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from './sharedState.js'; // Changed getAddTaskModal to getEditTaskModal, updateRaidLogEmbedField to updateRaidLogEmbed
 
 // --- Constants for Embed Colors ---
 const COLOR_SUCCESS = 0x57F287; // Green
@@ -29,11 +30,12 @@ function extractUserIds(text) {
 /**
  * Parses the message content to identify helper assignments for tasks.
  * It also returns any tasks that were not recognized by ALLOWED_TASK_NAMES.
+ * Handles 'task = @user' and 'all = @user' assignments.
  * @param {string} content - The message content.
  * @returns {{helperAssignments: {[taskName: string]: Set<string>}, globalTaggedUsers: Set<string>, hasValidTags: boolean, unrecognizedTasks: Set<string>}}
  */
 function parseHelperAssignments(content) {
-    const helperAssignments = {};
+    const helperAssignments = {}; // Stores { 'taskName': Set<string> }
     const globalTaggedUsers = new Set();
     let hasValidTags = false;
     const unrecognizedTasks = new Set();
@@ -66,7 +68,6 @@ function parseHelperAssignments(content) {
                 userIds.forEach(userId => {
                     tasks.forEach(taskName => {
                         // Only add to helperAssignments if it's a known ALLOWED_TASK_NAME
-                        // The deeper validation against original raid tasks happens in handleRaidCompletion
                         if (ALLOWED_TASK_NAMES.includes(taskName)) {
                             if (!helperAssignments[taskName]) {
                                 helperAssignments[taskName] = new Set();
@@ -85,7 +86,7 @@ function parseHelperAssignments(content) {
 
 /**
  * Calculates the total points for a given set of tasks.
- * Handles meta-tasks like 'daily', 'weekly', and 'templeshrine' and combines them with explicit tasks.
+ * Handles meta-tasks like 'daily', 'weekly', 'templeshrine', and 'originul'.
  * @param {string[]} tasks - An array of task names.
  * @returns {number} The total points.
  */
@@ -97,18 +98,19 @@ function calculateTaskPoints(tasks) {
             DAILIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         } else if (task === 'weekly' || task === 'weeklies') {
             WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
-        } else if (task === 'templeshrine') { // <<< NEW: Handle 'templeshrine' meta-task
+        } else if (task === 'templeshrine') {
             TEMPLESHRINE_LIST.forEach(t => uniqueEffectiveTasks.add(t));
+        } else if (task === 'originul') {
+            ORIGINUL_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         }
         else if (POINTS_CONFIG[task]) {
             uniqueEffectiveTasks.add(task);
         }
-        // No else/warn here, as `parseHelperAssignments` and `handleRaidCompletion` handle filtering
     });
 
     let totalPoints = 0;
     uniqueEffectiveTasks.forEach(taskName => {
-        totalPoints += POINTS_CONFIG[taskName] || 0;
+        totalPoints += (POINTS_CONFIG[taskName] || 0);
     });
 
     return totalPoints;
@@ -125,13 +127,37 @@ async function handleRaidCompletion(message, raidInfo) {
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
 
+    // Filter out self-tags and bot tags
+    const filterValidUsers = async (userIds) => {
+        const validUserIds = new Set();
+        for (const userId of userIds) {
+            if (userId === message.author.id) {
+                await message.channel.send(`Heads up! You (the requester) cannot award yourself points. Ignoring <@${userId}> for this submission.`);
+                continue;
+            }
+            try {
+                const user = await message.client.users.fetch(userId, { force: true });
+                /* if (user.bot) {
+                    await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
+                    continue;
+                } */
+                validUserIds.add(userId);
+            } catch (error) {
+                console.error(`Could not fetch user ${userId} during validation:`, error);
+                await message.channel.send(`Warning: Could not verify user <@${userId}>. Skipping them for points.`);
+            }
+        }
+        return validUserIds;
+    };
+
+    // If no valid tags and no screenshot, prompt for input
     if (!hasValidTags && !attachment) {
         await message.reply(
             'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
             +`\n* You can use \`All\` to refer to every requested task'`
             +`\n* Include a screenshot if possible.`
             +`\n* You can type \`cancel\` to close the thread without tagging helpers.`,
-        ); 
+        );
         return;
     }
 
@@ -147,21 +173,23 @@ async function handleRaidCompletion(message, raidInfo) {
 
         const pointsAwarded = {};
         const helperSummaries = [];
-        const mismatchedTasks = new Set(); // New set for tasks assigned that weren't in original request
+        const mismatchedTasks = new Set();
 
         // 1. Determine all effective tasks AND raw requested strings from the ORIGINAL raid request
         const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
         const originalRaidEffectiveTasks = new Set(); // For individual task validation (e.g. ultraspeaker)
-        const originalRaidRequestedStrings = new Set(); // For validating meta-tasks like 'daily', 'weekly', etc.
+        const originalRaidRequestedStrings = new Set(); // For validating meta-tasks like 'daily', 'weekly', 'originul', etc.
 
         originalRequestedTasksRaw.forEach(task => {
-            originalRaidRequestedStrings.add(task); // Add the raw string, e.g., 'daily', 'weekly', 'ultraspeaker'
+            originalRaidRequestedStrings.add(task); // Add the raw string, e.g., 'daily', 'weekly', 'ultraspeaker', 'originul'
             if (task === 'daily' || task === 'dailies') {
                 DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'weekly' || task === 'weeklies') {
                 WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'templeshrine') {
                 TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+            } else if (task === 'originul') {
+                ORIGINUL_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             }
             else if (POINTS_CONFIG[task]) { // Add individual tasks if they exist in POINTS_CONFIG
                 originalRaidEffectiveTasks.add(task);
@@ -170,15 +198,16 @@ async function handleRaidCompletion(message, raidInfo) {
 
         // 2. Calculate points for 'all' tagged helpers
         // 'all' helpers are assumed to have helped with everything originally requested
-        if (globalTaggedUsers.size > 0) {
+        const validGlobalTaggedUsers = await filterValidUsers(globalTaggedUsers);
+        if (validGlobalTaggedUsers.size > 0) {
             const totalPointsForGlobalHelpers = calculateTaskPoints(Array.from(originalRaidEffectiveTasks));
 
             if (totalPointsForGlobalHelpers > 0) {
-                const helperNames = Array.from(globalTaggedUsers).map(id => `<@${id}>`).join(', ');
+                const helperNames = Array.from(validGlobalTaggedUsers).map(id => `<@${id}>`).join(', ');
                 helperSummaries.push(
                     `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task})`
                 );
-                globalTaggedUsers.forEach(userId => {
+                validGlobalTaggedUsers.forEach(userId => {
                     pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
                 });
             }
@@ -186,36 +215,30 @@ async function handleRaidCompletion(message, raidInfo) {
 
         // 3. Calculate points for specifically assigned helpers, validating against original raid tasks
         for (const taskName in helperAssignments) {
-            const usersForTask = Array.from(helperAssignments[taskName]);
-            if (usersForTask.length === 0) continue;
+            const users = helperAssignments[taskName];
+            const usersForTask = await filterValidUsers(users);
+            if (usersForTask.size === 0) continue;
 
-            // --- VALIDATION LOGIC FIX HERE ---
             let isValidAssignedTask = false;
-            // Check if the assigned task name was one of the *raw strings* originally requested (e.g., 'daily', 'weekly')
             if (originalRaidRequestedStrings.has(taskName)) {
                 isValidAssignedTask = true;
             } else {
-                // If not a raw requested string, check if it's an *individual effective task*
-                // that was part of the original request's breakdown (e.g., 'ultraspeaker' if 'daily' was requested)
                 isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
             }
 
             if (!isValidAssignedTask) {
-                mismatchedTasks.add(taskName); // Add to mismatched set for feedback
-                continue; // Skip awarding points for this task
+                mismatchedTasks.add(taskName);
+                continue;
             }
-            // --- END VALIDATION LOGIC FIX ---
 
             const totalPointsForTask = calculateTaskPoints([taskName]);
 
             if (totalPointsForTask > 0) {
-                const helperNames = usersForTask.map(id => `<@${id}>`).join(', ');
+                const helperNames = Array.from(usersForTask).map(id => `<@${id}>`).join(', ');
                 helperSummaries.push(`**${taskName}:** ${helperNames} (${totalPointsForTask} EXP each)`);
 
                 usersForTask.forEach(userId => {
                     // Only add points if the user wasn't covered by "all" to avoid double counting
-                    // This check is fine as it prevents double counting for a *single user*
-                    // who might be tagged with 'all' AND also a specific task.
                     if (!globalTaggedUsers.has(userId)) {
                         pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForTask;
                     }
@@ -223,10 +246,11 @@ async function handleRaidCompletion(message, raidInfo) {
             }
         }
 
-        if (Object.keys(pointsAwarded).length === 0) {
+        if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
             return;
         }
+
 
         // Construct and send embed to EXP Lair Channel
         const allHelperIds = Object.keys(pointsAwarded);
@@ -315,6 +339,7 @@ async function handleRaidCancellation(message, raidInfo) {
     await originalRaidLogThread.setLocked(true);
 }
 
+
 /**
  * Sets up event handlers for EXP Lair functionalities.
  * @param {Client} client - The Discord client.
@@ -330,7 +355,6 @@ export function setupExpLairHandlers(client) {
         if (
             !message.channel.isThread() ||
             !raidInfo ||
-            !raidInfo.awaitingCompletion ||
             message.author.id !== raidInfo.requesterId
         ) {
             return;
@@ -339,55 +363,55 @@ export function setupExpLairHandlers(client) {
         const contentLower = message.content.toLowerCase().trim();
         const attachment = message.attachments.first();
 
-        // Handle cancellation
-        if (contentLower === 'cancel' && message.mentions.users.size === 0 && !attachment) {
+        // Handle cancellation - only if awaiting completion confirmation
+        if (raidInfo.awaitingCompletion && contentLower === 'cancel' && message.mentions.users.size === 0 && !attachment) {
             await handleRaidCancellation(message, raidInfo);
             return;
         }
 
-        // Handle raid completion
-        await handleRaidCompletion(message, raidInfo);
+        // Handle raid completion - only if awaiting completion confirmation
+        if (raidInfo.awaitingCompletion) {
+            await handleRaidCompletion(message, raidInfo);
+            return;
+        }
     });
 
-    // --- Interaction Create Listener (for closeRaidTicket button) ---
+    // --- Interaction Create Listener (for closeRaidTicket and editTask_btn buttons and modals) ---
     client.on('interactionCreate', async interaction => {
-        if (!interaction.isButton() || interaction.customId !== 'closeRaidTicket') {
+        if (!interaction.isButton() && !interaction.isModalSubmit()) {
             return;
         }
 
+        // Check if interaction is in a thread and reply ephemeral if not
         if (!interaction.channel.isThread()) {
-            await interaction.reply({ content: 'This button can only be used in a raid thread.', ephemeral: true });
+            // These buttons/modals are expected only in threads; reply if used elsewhere
+            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) { // Updated customId
+                await interaction.reply({ content: 'This button can only be used in a raid thread.', flags: MessageFlags.Ephemeral });
+                return;
+            }
+            if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') { // Updated customId
+                await interaction.reply({ content: 'This action can only be performed in a raid thread.', flags: MessageFlags.Ephemeral });
+                return;
+            }
             return;
         }
 
         let raidInfo = activeRaidThreads[interaction.channel.id];
 
-        // Re-initialize raidInfo if bot restarted and state was lost
-        if (!raidInfo) {
-            const threadName = interaction.channel.name.toLowerCase();
-            let taskFromThread = 'unknown';
-
-            // Find task from thread name
-            // Note: This attempts to guess the task from the thread name if state is lost.
-            // It might not perfectly reconstruct complex 'task + task' combinations
-            // but provides a fallback.
-            for (const allowedTask of ALLOWED_TASK_NAMES) {
-                if (threadName.includes(allowedTask.toLowerCase())) {
-                    taskFromThread = allowedTask;
-                    break;
-                }
-            }
-
-            // Attempt to get the original message and parse its embed to reconstruct raidInfo
-            // This is a more robust way to handle bot restarts and missing activeRaidThreads entries
+        // Reconstruct raidInfo if bot restarted and state was lost (only for raid threads)
+        if (!raidInfo) { // Removed redundant interaction.channel.isThread() check as it's already done above
+            console.warn(`Raid info not found in activeRaidThreads for thread ${interaction.channel.id}. Attempting to reconstruct.`);
             try {
-                // Assuming the parent message is the message that started this thread (which Discord usually links)
-                // This might need adjustment if your thread creation logic has changed significantly
                 const parentChannel = await interaction.client.channels.fetch(interaction.channel.parentId);
-                const parentMessage = await parentChannel.messages.fetch(interaction.channel.id); // Fetch the message that created the thread, which has the ID of the thread itself
+                if (!parentChannel) {
+                    console.error(`Parent channel ${interaction.channel.parentId} not found or inaccessible for thread ${interaction.channel.id}. Cannot reconstruct raidInfo.`);
+                    await interaction.reply({ content: 'Could not find the original channel for this raid. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+                const originalMessageInParent = await parentChannel.messages.fetch(interaction.channel.id);
 
-                if (parentMessage && parentMessage.embeds.length > 0) {
-                    const originalEmbed = parentMessage.embeds[0];
+                if (originalMessageInParent && originalMessageInParent.embeds.length > 0) {
+                    const originalEmbed = originalMessageInParent.embeds[0];
                     const taskField = originalEmbed.fields.find(field => field.name === 'Task(s)');
                     const requesterField = originalEmbed.fields.find(field => field.name === 'Requested By');
                     const mapField = originalEmbed.fields.find(field => field.name === 'Map Name');
@@ -395,51 +419,112 @@ export function setupExpLairHandlers(client) {
                     const descriptionField = originalEmbed.fields.find(field => field.name === 'Description');
 
                     raidInfo = {
-                        messageId: parentMessage.id,
-                        originalChannelId: interaction.channel.parentId, // Corrected to use parentId
-                        task: taskField ? taskField.value : taskFromThread,
+                        messageId: originalMessageInParent.id,
+                        originalChannelId: interaction.channel.parentId,
+                        task: taskField ? taskField.value : 'unknown',
                         requesterId: requesterField ? requesterField.value.replace(/<@!?(\d+)>/, '$1') : interaction.user.id,
                         mapName: mapField ? mapField.value : 'N/A',
                         server: serverField ? serverField.value : 'N/A',
-                        description: descriptionField ? descriptionField.value : 'N/A',
-                        awaitingCompletion: false // Reset this, will be set to true below
+                        description: descriptionField ? descriptionField.value : 'No description provided.',
+                        awaitingCompletion: false
                     };
                     activeRaidThreads[interaction.channel.id] = raidInfo;
-                    console.log(`Reconstructed raidInfo for thread ${interaction.channel.id}`);
+                    console.log(`Reconstructed raidInfo for thread ${interaction.channel.id}:`, raidInfo);
+                } else {
+                    console.error(`Could not find parent message or embed to reconstruct raidInfo for thread ${interaction.channel.id}`);
+                    await interaction.reply({ content: 'Could not retrieve raid details. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
+                    return;
                 }
             } catch (error) {
-                console.warn(`Could not reconstruct raidInfo from parent message for thread ${interaction.channel.id}:`, error);
-                // Fallback to minimal reconstruction if message fetching fails
-                raidInfo = {
-                    task: taskFromThread,
-                    requesterId: interaction.user.id, // Assume requester is the one clicking for fallback
-                    mapName: 'N/A',
-                    server: 'N/A',
-                    description: 'N/A',
-                    awaitingCompletion: false
-                };
-                activeRaidThreads[interaction.channel.id] = raidInfo;
+                console.error(`Error reconstructing raidInfo for thread ${interaction.channel.id}:`, error);
+                await interaction.reply({ content: 'There was an error retrieving raid details. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
+                return;
             }
         }
 
-        // Check if the user closing the ticket is the requester
+
+        // Ensure the user interacting is the raid requester for critical actions
         if (interaction.user.id !== raidInfo.requesterId) {
-            await interaction.reply({ content: 'Only the user who initiated this raid can close it.', ephemeral: true });
+            await interaction.reply({ content: 'Only the user who initiated this raid can perform this action.', flags: MessageFlags.Ephemeral });
             return;
         }
 
-        await interaction.deferReply({ ephemeral: true });
+        // --- Handle Button Interactions ---
+        if (interaction.isButton()) {
+            switch (interaction.customId) {
+                case 'closeRaidTicket':
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                    raidInfo.awaitingCompletion = true;
+                    console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
 
-        raidInfo.awaitingCompletion = true;
-        console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
+                    await interaction.editReply({
+                        content:
+                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
+                            + `\n* You can use \`All\` to refer to every requested task`
+                            + `\n* Include a screenshot if possible.`
+                            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`,
+                        flags: MessageFlags.Ephemeral
+                    });
+                    break;
 
-        await interaction.editReply({
-        content:
-            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
-            + `\n* You can use \`All\` to refer to every requested task`
-            + `\n* Include a screenshot if possible.`
-            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`,
-        ephemeral: true
-        });
+                case 'editTask_btn': // Updated customId
+                    // Display the modal for editing tasks (from sharedState), pre-filling current tasks
+                    const editTaskModal = getEditTaskModal(raidInfo.task); // Pass current task
+                    await interaction.showModal(editTaskModal);
+                    break;
+
+                default:
+                    console.log(`Unhandled button interaction customId: ${interaction.customId}`);
+                    break;
+            }
+        }
+
+        // --- Handle Modal Submissions ---
+        if (interaction.isModalSubmit()) {
+            switch (interaction.customId) {
+                case 'editTaskModal': // Updated customId
+                    const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase(); // Updated customId
+                    const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
+
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+                    // Validate new tasks
+                    for (const taskName of newTasksArray) {
+                        if (!ALLOWED_TASK_NAMES.includes(taskName)) {
+                            await interaction.editReply({
+                                content: `Invalid task "${taskName}". Please use one of: ${ALLOWED_TASK_NAMES.map(t => `\`${t}\``).join(', ')}. If editing multiple, separate with '+'.`,
+                                flags: MessageFlags.Ephemeral
+                            });
+                            return;
+                        }
+                    }
+
+                    // Update the raidInfo task string directly (replace, not append)
+                    raidInfo.task = newTasksArray.join(' + ');
+
+                    // Update the thread name to reflect edited tasks
+                    const newThreadName = `${raidInfo.task} | ${raidInfo.mapName} | ${raidInfo.server} | ${interaction.user.username}`;
+                    await interaction.channel.setName(newThreadName);
+
+                    // Update the original embed in the raid logs channel using sharedState's function
+                    await updateRaidLogEmbed(
+                        client,
+                        interaction.channel.id,
+                        {
+                            title: `New Raid Request: ${raidInfo.task}`, // Update embed title
+                            fields: [
+                                { name: 'Task(s)', value: raidInfo.task, inline: true } // Update task field
+                            ]
+                        }
+                    );
+
+                    await interaction.editReply({ content: `Successfully updated raid tasks to "${editedTasksInput}"!`, flags: MessageFlags.Ephemeral });
+                    break;
+
+                default:
+                    console.log(`Unhandled modal submission customId: ${interaction.customId}`);
+                    break;
+            }
+        }
     });
 }

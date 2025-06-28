@@ -16,8 +16,9 @@ import {
     WEEKLIES_LIST,
     OTHERS_LIST,
     TEMPLESHRINE_LIST,
+    ORIGINUL_LIST,
     ALLOWED_TASK_NAMES,
-    POINTS_CONFIG // POINTS_CONFIG is essential for getFormattedPointsList
+    POINTS_CONFIG
 } from '../config/constants.js';
 import { activeRaidThreads, updateRaidStatus } from './sharedState.js';
 
@@ -36,8 +37,16 @@ const closeTicketButton = new ButtonBuilder()
     .setLabel('🔒 Close Raid')
     .setStyle(ButtonStyle.Danger);
 
-const closeTicketButtonRow = new ActionRowBuilder()
-    .addComponents(closeTicketButton);
+// --- NEW: Edit Task Button ---
+const editTaskButton = new ButtonBuilder() // Renamed from addTaskButton
+    .setCustomId("editTask_btn") // Changed customId
+    .setLabel('✏️ Edit Task') // Changed label
+    .setStyle(ButtonStyle.Secondary);
+
+
+// --- Updated: Include editTaskButton in the row sent to the thread ---
+const threadActionRow = new ActionRowBuilder()
+    .addComponents(editTaskButton, closeTicketButton); // Now includes both buttons
 
 /**
  * Generates a formatted string of task names and their EXP values.
@@ -58,15 +67,17 @@ export function getTasksEmbed() { // Exported for use in index.js
     const weekliesListFormatted = WEEKLIES_LIST.map(task => `\`${task}\``).join(', ');
     const othersListFormatted = OTHERS_LIST.map(task => `\`${task}\``).join(', ');
     const templeShrineListFormatted = TEMPLESHRINE_LIST.map(task => `\`${task}\``).join(', ');
+    const originulListFormatted = ORIGINUL_LIST.map(task => `\`${task}\``).join(', ');
 
     return new EmbedBuilder()
         .setColor(0x3498DB) // Green color for a positive information display
         .setTitle('Available Raid Tasks')
-        .setDescription('Here are the tasks you can request assistance for:')
+        .setDescription('Tasks shown in backticks (`like this`) are the valid keywords you can use in your raid requests. These Tasks can be:')
         .addFields(
             { name: '`Weekly` or `Weeklies`', value: weekliesListFormatted || 'N/A' },
             { name: '`Daily` or `Dailies`', value: dailiesListFormatted || 'N/A' },
             { name: '`TempleShrine`', value: templeShrineListFormatted || 'N/A' },
+            { name: '`Originul`', value: originulListFormatted || 'N/A' },
             { name: '`Other` Tasks', value: othersListFormatted || 'N/A' }
         )
         .setFooter({ text: 'Use these names in your raid requests!' });
@@ -158,6 +169,9 @@ export function setupRaidLogsHandlers(client) {
             } else if (content === 'full') {
                 newStatus = '🔴 Full';
                 newColor = 0xFF4500; // Red for full
+            } else if (content === 'ongoing') {
+                newStatus = '🟢 Ongoing';
+                newColor = 0x32CD32; // Lime Green for ongoing
             }
 
             if (newStatus) {
@@ -307,11 +321,11 @@ export function setupRaidLogsHandlers(client) {
                             reason: `Raid request from ${interaction.user.tag}`,
                         });
 
-                        // --- Send instructions and a 'Close Raid' button to the new thread ---
-                        // This provides the requester with clear steps on how to manage their raid and close the thread.
+                        // --- Send instructions and buttons to the new thread ---
+                        // Now includes both "Edit Task" and "Close Raid" buttons.
                         await thread.send({
-                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting** or **full** in this thread.\n\nClick the button below once the raid is complete:`,
-                            components: [closeTicketButtonRow]
+                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`, // Updated instruction
+                            components: [threadActionRow] // Use the new threadActionRow
                         });
 
                         // --- Store essential raid information in memory for status updates and completion handling ---

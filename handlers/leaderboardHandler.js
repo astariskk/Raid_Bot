@@ -1,3 +1,4 @@
+// handlers/leaderboardHandler.js
 import { EmbedBuilder, PermissionsBitField } from 'discord.js'; // Import PermissionsBitField
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 import { LEADERBOARD_FILE } from '../config/constants.js'; // Import LEADERBOARD_FILE
