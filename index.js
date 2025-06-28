@@ -205,6 +205,28 @@ function setupCommandsHandler(client) {
                 await message.channel.send('Could not display the beautiful thing.');
             }
         }
+
+        if (message.content === "Ain't No Party Like a Diddy Party" || message.content === "Get Backshotted By Diddy") {
+            const gifEmbed = new EmbedBuilder()
+                .setColor(0xFFFF00)
+                .setTitle("Devious Backshots")
+                .setImage('https://files.catbox.moe/nnxf77.gif')
+                .setFooter({ text: 'Spongebob gone wild' });
+            try {
+                const sentMessage = await message.channel.send({ embeds: [gifEmbed] });
+                setTimeout(async () => {
+                    try {
+                        await sentMessage.delete();
+                        await message.delete();
+                    } catch (deleteError) {
+                        console.error('Error deleting custom GIF message:', deleteError);
+                    }
+                }, 5000);
+            } catch (error) {
+                console.error('Error sending custom GIF:', error);
+                await message.channel.send('Could not display the beautiful thing.');
+            }
+        }        
     });
 
     client.on('interactionCreate', async (interaction) => {
