@@ -9,6 +9,7 @@ import {
     ORIGINUL_LIST
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
+import { getTasksEmbed } from './raidLogsHandler.js';
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from './sharedState.js'; // Changed getAddTaskModal to getEditTaskModal, updateRaidLogEmbedField to updateRaidLogEmbed
 
 // --- Constants for Embed Colors ---
@@ -488,11 +489,12 @@ export function setupExpLairHandlers(client) {
 
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                    // Validate new tasks
+                    // Validate new tasks`
                     for (const taskName of newTasksArray) {
                         if (!ALLOWED_TASK_NAMES.includes(taskName)) {
                             await interaction.editReply({
-                                content: `Invalid task "${taskName}". Please use one of: ${ALLOWED_TASK_NAMES.map(t => `\`${t}\``).join(', ')}. If editing multiple, separate with '+'.`,
+                                content: `Invalid task "${taskName}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
+                                embeds: [getTasksEmbed()],
                                 flags: MessageFlags.Ephemeral
                             });
                             return;

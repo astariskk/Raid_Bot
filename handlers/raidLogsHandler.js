@@ -46,7 +46,7 @@ const editTaskButton = new ButtonBuilder() // Renamed from addTaskButton
 
 // --- Updated: Include editTaskButton in the row sent to the thread ---
 const threadActionRow = new ActionRowBuilder()
-    .addComponents(editTaskButton, closeTicketButton); // Now includes both buttons
+    .addComponents(closeTicketButton, editTaskButton); // Now includes both buttons
 
 /**
  * Generates a formatted string of task names and their EXP values.
@@ -72,7 +72,7 @@ export function getTasksEmbed() { // Exported for use in index.js
     return new EmbedBuilder()
         .setColor(0x3498DB) // Green color for a positive information display
         .setTitle('Available Raid Tasks')
-        .setDescription('Tasks shown in backticks (`like this`) are the valid keywords you can use in your raid requests. These Tasks can be:')
+        .setDescription('Here are the tasks you can request assistance for:')
         .addFields(
             { name: '`Weekly` or `Weeklies`', value: weekliesListFormatted || 'N/A' },
             { name: '`Daily` or `Dailies`', value: dailiesListFormatted || 'N/A' },
@@ -278,7 +278,9 @@ export function setupRaidLogsHandlers(client) {
                 for (const singleTask of requestedTasks) {
                     if (!ALLOWED_TASK_NAMES.includes(singleTask)) {
                         await interaction.editReply({
-                            content: `Invalid task "${singleTask}". Please use one of: ${ALLOWED_TASK_NAMES.map(t => `\`${t}\``).join(', ')}. If requesting multiple, separate with '+'.`,
+                            // MODIFIED: Send getTasksEmbed as embed instead of raw string
+                            content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
+                            embeds: [getTasksEmbed()], // Use the embed here
                             ephemeral: true
                         });
                         return; // Stop processing if any task is invalid
