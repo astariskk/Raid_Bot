@@ -11,7 +11,7 @@ export function setupLeaderboardHandlers(client) {
         const isAdmin = () => message.member.permissions.has(PermissionsBitField.Flags.Administrator);
 
         // Handle Leaderboard Command
-        if (message.content.toLowerCase() === '!leaderboard') {
+        if (message.content.toLowerCase() === '!leaderboard' || message.content.toLowerCase() === '!lb') {
             try {
                 const leaderboardEmbed = await getLeaderboardEmbed(client);
                 await message.channel.send({ embeds: [leaderboardEmbed] });
