@@ -92,13 +92,13 @@ function setupCommandsHandler(client) {
                         value: `
 \`!raidtasks\`: Lists all available raid tasks and their EXP values.
 \`!raidpoints\`: Displays the EXP values for all configured raid tasks.
-\`!checkrewards\`: Displays the daily EXP for all users.
                         `
                     },
                     {
                         name: '💬 Commands Inside Raid Threads (by Raid Requester)',
                         value: `
 \`waiting\`: Set the raid status to '🔵 Waiting'.
+\`ongoing\`: Set the raid status to '🟢 Ongoing'.
 \`full\`: Set the raid status to '🔴 Full'.
 \`cancel\`: Close the raid thread without awarding points.
 \`all\`: Awards EXP for all tasks included in the original raid request to the tagged player(s).
@@ -117,7 +117,7 @@ function setupCommandsHandler(client) {
                         name: '🏆 Leaderboard & Points Check',
                         value: `
 \`!leaderboard\`: Displays the current top 10 players by total EXP.
-\`!checkrewards [today|yesterday|YYYY-MM-DD] [@user]\`: Shows EXP gained on a specific day (overall or for a specific user).
+\`!lbcheck [today|yesterday|YYYY-MM-DD] [@user]\`: Shows EXP gained on a specific day (overall or for a specific user).
                         `
                     },
                     {
@@ -267,10 +267,10 @@ function setupCommandsHandler(client) {
 
                     if (member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                         await member.roles.remove(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
-                        await interaction.reply({ content: `Your \`${role.name}\` role has been removed!`, ephemeral: true });
+                        await interaction.reply({ content: `Your \`${role.name}\` role has been removed! You will no longer get pinged from new raid requests `, ephemeral: true });
                     } else {
                         await member.roles.add(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
-                        await interaction.reply({ content: `You have been given the \`${role.name}\` role!`, ephemeral: true });
+                        await interaction.reply({ content: `You have been given the \`${role.name}\` role! You will now get pinged from new raid requests`, ephemeral: true });
                     }
 
                 } catch (error) {
@@ -287,14 +287,25 @@ function setupCommandsHandler(client) {
                 await interaction.reply({ embeds: [tasksEmbed], ephemeral: true });
                 break;
             case 'howToUse_btn':
+                let raidHelperRoleName = 'unknown Role';
+                if (interaction.guild) {
+                    try {
+                        const role = await interaction.guild.roles.fetch(RAID_HELPER_ROLE_ID);
+                        if (role) {
+                            raidHelperRoleName = role.name;
+                        }
+                    } catch (error) {
+                        console.error('Error fetching RAID_HELPER_ROLE_ID name:', error);
+                    }
+                }                
                 const howToUse_embed = new EmbedBuilder()
                     .setTitle('📜 How to Use the Raid Helper Bot')
                     .setDescription(
-                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work).\n\n` +
+                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work). This will ping the \`@${raidHelperRoleName}\` Role.\n\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`waiting\`, \`ongoing\` or \`full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot or cancel to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
-                        `**5. Check Points:** Use \`!leaderboard\` to see top players or \`!checkrewards\` to see your daily EXP.`
+                        `**5. Check Points:** Use \`!leaderboard\` to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`12000 EXP\` per raid.\n\n`
                     )
                     .setColor(0x3498DB);
 

@@ -326,7 +326,7 @@ export function setupRaidLogsHandlers(client) {
                         // --- Send instructions and buttons to the new thread ---
                         // Now includes both "Edit Task" and "Close Raid" buttons.
                         await thread.send({
-                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`, // Updated instruction
+                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting**, **ongoing** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`, // Updated instruction
                             components: [threadActionRow] // Use the new threadActionRow
                         });
 

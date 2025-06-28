@@ -6,7 +6,8 @@ import {
     WEEKLIES_LIST,
     ALLOWED_TASK_NAMES,
     TEMPLESHRINE_LIST,
-    ORIGINUL_LIST
+    ORIGINUL_LIST,
+    MAX_XP_PER_RAID
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { getTasksEmbed } from './raidLogsHandler.js';
@@ -114,7 +115,7 @@ function calculateTaskPoints(tasks) {
         totalPoints += (POINTS_CONFIG[taskName] || 0);
     });
 
-    return totalPoints;
+    return Math.min(totalPoints, MAX_XP_PER_RAID);
 }
 
 /**
@@ -138,6 +139,7 @@ async function handleRaidCompletion(message, raidInfo) {
             }
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
+                // remove the commented-out bot check if you want to allow bots to be tagged
                 /* if (user.bot) {
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;

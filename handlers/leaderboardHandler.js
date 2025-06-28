@@ -127,7 +127,7 @@ export function setupLeaderboardHandlers(client) {
         }
 
         // Handle Check Rewards Command
-        if (message.content.toLowerCase().startsWith('!checkrewards')) {
+        if (message.content.toLowerCase().startsWith('!lbcheck')) {
             const args = message.content.toLowerCase().split(/\s+/);
             let targetDate = new Date(); // Default to today
             let targetUserId = null;

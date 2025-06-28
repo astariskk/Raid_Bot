@@ -47,3 +47,5 @@ export const ALLOWED_TASK_NAMES = [
 
 // Dynamically generate DISPLAY_POINTS_LIST from POINTS_CONFIG for consistency
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, points]) => `${task} = ${points} EXP`);
+
+export const MAX_XP_PER_RAID = 12000; 
