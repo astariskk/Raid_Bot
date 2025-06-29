@@ -1,7 +1,7 @@
 // handlers/leaderboardHandler.js
 import { EmbedBuilder } from 'discord.js';
-import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js'; // Ensure updateLeaderboard is imported
-import { LEADERBOARD_FILE } from '../config/constants.js'; // Assuming LEADERBOARD_FILE is defined here
+import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
+import { LEADERBOARD_FILE } from '../config/constants.js';
 
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for leaderboard cache
 let leaderboardCache = null;
@@ -50,11 +50,13 @@ function getSortedLeaderboard(leaderboard, limit) {
 
 /**
  * Creates and returns the Leaderboard Embed.
+ * @param {import('discord.js').Client} client The Discord client instance.
+ * @param {import('discord.js').Guild} guild The guild where the command was invoked.
  * @param {Array<{userId: string, totalExp: number}>} topPlayers - Sorted array of top players.
  * @param {string} resetInfo - Information about the last reset.
- * @returns {EmbedBuilder} The leaderboard embed.
+ * @returns {Promise<EmbedBuilder>} The leaderboard embed.
  */
-function createLeaderboardEmbed(topPlayers, resetInfo) {
+async function createLeaderboardEmbed(client, guild, topPlayers, resetInfo) {
     const embed = new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle('🏆 Raid Leaderboard 🏆')
@@ -64,13 +66,29 @@ function createLeaderboardEmbed(topPlayers, resetInfo) {
     if (topPlayers.length === 0) {
         embed.addFields({ name: 'No Data Yet', value: 'The leaderboard is empty. Start earning some EXP!' });
     } else {
-        topPlayers.forEach((player, index) => {
+        for (let i = 0; i < topPlayers.length; i++) {
+            const player = topPlayers[i];
+            let userName = `<@${player.userId}>`; // Default to mention if resolution fails
+            try {
+                // Fetch the guild member to get their display name (nickname)
+                const member = await guild.members.fetch(player.userId);
+                userName = member.displayName; // Use displayName which prioritizes nickname
+            } catch (error) {
+                // If member not found (e.g., left guild) or bot lacks permissions, fallback to username or mention
+                try {
+                    const user = await client.users.fetch(player.userId);
+                    userName = user.username;
+                } catch (userError) {
+                    console.error(`Could not resolve user ID ${player.userId}:`, userError);
+                    // Keep as mention tag if all else fails
+                }
+            }
             embed.addFields({
-                name: `${index + 1}. ${player.userId === 'bot-id' ? 'Bot User' : `<@${player.userId}>`}`, // Example for bot exclusion/naming
+                name: `${i + 1}. ${userName}`,
                 value: `${player.totalExp} EXP`,
                 inline: false
             });
-        });
+        }
     }
     embed.setFooter({ text: 'Raid Helper Bot | Keep raiding for more points!' });
     return embed;
@@ -121,13 +139,18 @@ export function setupLeaderboardHandlers(client) {
 
         // --- Handle Leaderboard Command (!leaderboard / !lb) ---
         if (message.content.toLowerCase() === '!leaderboard' || message.content.toLowerCase() === '!lb') {
+            // Ensure the command is used in a guild
+            if (!message.guild) {
+                return message.reply("This command can only be used in a server.");
+            }
             try {
                 const leaderboard = await getCachedLeaderboard();
                 const topPlayers = getSortedLeaderboard(leaderboard, 10);
                 const lastResetDate = leaderboard._lastResetDate ?
                     new Date(leaderboard._lastResetDate).toLocaleDateString() : 'Never';
                 const resetInfo = `Last reset: ${lastResetDate}`;
-                const embed = createLeaderboardEmbed(topPlayers, resetInfo);
+                // Pass client and guild to createLeaderboardEmbed
+                const embed = await createLeaderboardEmbed(client, message.guild, topPlayers, resetInfo);
                 await message.channel.send({ embeds: [embed] });
             } catch (error) {
                 console.error('Error displaying leaderboard:', error);
@@ -306,6 +329,12 @@ export function setupLeaderboardHandlers(client) {
                 try {
                     const channel = await client.channels.fetch(announcementChannelId);
                     if (channel && channel.isTextBased()) {
+                        // Fetch the top players just before reset for the announcement
+                        const oldLeaderboard = await getCachedLeaderboard(); // Get the state BEFORE reset
+                        const topPlayersBeforeReset = getSortedLeaderboard(oldLeaderboard, 10);
+                        const embed = await createLeaderboardEmbed(client, channel.guild, topPlayersBeforeReset, "Final Leaderboard for Last Month"); // Pass guild here
+
+                        await channel.send({ embeds: [embed] });
                         await channel.send('📈 The monthly leaderboard has been automatically reset! Good luck this month, raiders!');
                     }
                 } catch (channelError) {

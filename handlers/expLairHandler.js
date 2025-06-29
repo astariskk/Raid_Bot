@@ -176,10 +176,11 @@ async function handleRaidCompletion(message, raidInfo) {
     // If no valid tags and no screenshot, prompt for input
     if (!hasValidTags && !attachment) {
         await message.reply(
-            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
+            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
             +`\n* You can use \`All\` to refer to every requested task`
             +`\n* Include a screenshot if possible.`
-            +`\n* You can type \`cancel\` to close the thread without tagging helpers.`,
+            +`\n* You can type \`cancel\` to close the thread without tagging helpers.`
+            +`\n* for multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`,
         );
         return;
     }
@@ -491,10 +492,11 @@ export function setupExpLairHandlers(client) {
 
                     await interaction.editReply({
                         content:
-                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
+                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
                             + `\n* You can use \`All\` to refer to every requested task`
                             + `\n* Include a screenshot if possible.`
-                            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`,
+                            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
+                            + `\n* for multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`,                        
                         flags: MessageFlags.Ephemeral
                     });
                     break;

@@ -259,7 +259,7 @@ export function setupGeneralCommandsHandler(client) {
                         `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work). This will ping the \`@${raidHelperRoleName}\` Role.\n\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`waiting\`, \`ongoing\` or \`full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
-                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`taskname = @user3\`) and optionally attach a screenshot or cancel to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
+                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`tasknamex5 = @user3\`) and optionally attach a screenshot or cancel to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
                         `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`12000 EXP\` per raid.\n\n`
                     )
                     .setColor(0x3498DB);
