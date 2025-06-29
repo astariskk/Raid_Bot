@@ -1,3 +1,4 @@
+// handlers/expLairHandler.js
 import { EmbedBuilder, ChannelType, MessageFlags } from 'discord.js';
 import {
     EXP_LAIR_CHANNEL_ID,
@@ -10,8 +11,8 @@ import {
     MAX_XP_PER_RAID
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
-import { getTasksEmbed } from './raidLogsHandler.js';
-import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from './sharedState.js'; // Changed getAddTaskModal to getEditTaskModal, updateRaidLogEmbedField to updateRaidLogEmbed
+import { getTasksEmbed } from './raidLogsHandler.js'; // Still needed for validation feedback
+import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
 
 // --- Constants for Embed Colors ---
 const COLOR_SUCCESS = 0x57F287; // Green
@@ -30,14 +31,14 @@ function extractUserIds(text) {
 }
 
 /**
- * Parses the message content to identify helper assignments for tasks.
+ * Parses the message content to identify helper assignments for tasks, including multipliers.
  * It also returns any tasks that were not recognized by ALLOWED_TASK_NAMES.
- * Handles 'task = @user' and 'all = @user' assignments.
+ * Handles 'task = @user', 'taskxN = @user', and 'all = @user' assignments.
  * @param {string} content - The message content.
- * @returns {{helperAssignments: {[taskName: string]: Set<string>}, globalTaggedUsers: Set<string>, hasValidTags: boolean, unrecognizedTasks: Set<string>}}
+ * @returns {{helperAssignments: {[taskName: string]: {users: Set<string>, multiplier: number}}, globalTaggedUsers: Set<string>, hasValidTags: boolean, unrecognizedTasks: Set<string>}}
  */
 function parseHelperAssignments(content) {
-    const helperAssignments = {}; // Stores { 'taskName': Set<string> }
+    const helperAssignments = {}; // Stores { 'taskName': { users: Set<string>, multiplier: number } }
     const globalTaggedUsers = new Set();
     let hasValidTags = false;
     const unrecognizedTasks = new Set();
@@ -56,11 +57,20 @@ function parseHelperAssignments(content) {
             continue;
         }
 
-        // Handle "task1+task2 = @user1" assignments
-        const taskMatch = trimmedLine.match(/^(.+?)\s*=\s*(.*)/i);
+        // Handle "task1+task2 = @user1" or "task1xN = @user1" assignments
+        // Regex: captures task part (e.g., "voidnerfkittenx5", "task1+task2"), optional multiplier, and user mentions
+        const taskMatch = trimmedLine.match(/^(.+?)(x(\d+))?\s*=\s*(.*)/i);
         if (taskMatch) {
-            const taskPart = taskMatch[1].trim();
-            const userMentionPart = taskMatch[2].trim();
+            let taskPart = taskMatch[1].trim(); // e.g., "voidnerfkitten", "task1+task2"
+            const multiplierStr = taskMatch[3]; // e.g., "5" if "x5" is present
+            const userMentionPart = taskMatch[4].trim();
+
+            const multiplier = multiplierStr ? parseInt(multiplierStr, 10) : 1;
+            if (isNaN(multiplier) || multiplier < 1) { // Ensure multiplier is a valid positive number
+                // Treat as unrecognized or invalid format if multiplier is bad
+                unrecognizedTasks.add(taskPart + (multiplierStr ? 'x' + multiplierStr : ''));
+                continue;
+            }
 
             const tasks = taskPart.split('+').map(t => t.trim().toLowerCase());
             const userIds = extractUserIds(userMentionPart);
@@ -72,9 +82,19 @@ function parseHelperAssignments(content) {
                         // Only add to helperAssignments if it's a known ALLOWED_TASK_NAME
                         if (ALLOWED_TASK_NAMES.includes(taskName)) {
                             if (!helperAssignments[taskName]) {
-                                helperAssignments[taskName] = new Set();
+                                helperAssignments[taskName] = { users: new Set(), multiplier: 1 };
                             }
-                            helperAssignments[taskName].add(userId);
+                            helperAssignments[taskName].users.add(userId);
+                            // If a multiplier is specified for this task, use it.
+                            // If multiple specific tasks are on one line like "task1+task2x3",
+                            // the multiplier applies to all of them on that line.
+                            // The current regex captures xN *after* the whole task group.
+                            // So, "task1+task2x3" means task1 *and* task2 are multiplied by 3.
+                            // If individual multipliers are needed like "task1x2+task2x3", the regex needs adjustment.
+                            // For now, it assumes the multiplier applies to all tasks in the 'taskPart'.
+                            // The current regex `(.+?)(x(\d+))?` will capture `task1+task2` as taskPart and `x3` as the multiplier part.
+                            // If the user means `task1` and `task2` separate multipliers, they should use separate lines.
+                            helperAssignments[taskName].multiplier = multiplier; // Store the multiplier
                         } else {
                             unrecognizedTasks.add(taskName);
                         }
@@ -115,7 +135,7 @@ function calculateTaskPoints(tasks) {
         totalPoints += (POINTS_CONFIG[taskName] || 0);
     });
 
-    return Math.min(totalPoints, MAX_XP_PER_RAID);
+    return totalPoints; // Do not apply MAX_XP_PER_RAID here, apply it per user later
 }
 
 /**
@@ -157,7 +177,7 @@ async function handleRaidCompletion(message, raidInfo) {
     if (!hasValidTags && !attachment) {
         await message.reply(
             'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dage = @user1 @user2`'
-            +`\n* You can use \`All\` to refer to every requested task'`
+            +`\n* You can use \`All\` to refer to every requested task`
             +`\n* Include a screenshot if possible.`
             +`\n* You can type \`cancel\` to close the thread without tagging helpers.`,
         );
@@ -174,9 +194,11 @@ async function handleRaidCompletion(message, raidInfo) {
             return;
         }
 
-        const pointsAwarded = {};
+        const pointsAwarded = {}; // Stores total points per user
         const helperSummaries = [];
-        const mismatchedTasks = new Set();
+        const mismatchedTasks = new Set(); // Tasks mentioned in completion but not in original request
+        const invalidFormatTasks = new Set(); // Tasks with invalid multiplier format (from parseHelperAssignments)
+
 
         // 1. Determine all effective tasks AND raw requested strings from the ORIGINAL raid request
         const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
@@ -190,9 +212,9 @@ async function handleRaidCompletion(message, raidInfo) {
             } else if (task === 'weekly' || task === 'weeklies') {
                 WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'templeshrine') {
-                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t)); // Fixed: changed uniqueEffectiveTasks to originalRaidEffectiveTasks
             } else if (task === 'originul') {
-                ORIGINUL_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+                ORIGINUL_LIST.forEach(t => originalRaidEffectiveTasks.add(t)); // Fixed: changed uniqueEffectiveTasks to originalRaidEffectiveTasks
             }
             else if (POINTS_CONFIG[task]) { // Add individual tasks if they exist in POINTS_CONFIG
                 originalRaidEffectiveTasks.add(task);
@@ -218,33 +240,35 @@ async function handleRaidCompletion(message, raidInfo) {
 
         // 3. Calculate points for specifically assigned helpers, validating against original raid tasks
         for (const taskName in helperAssignments) {
-            const users = helperAssignments[taskName];
+            const { users, multiplier } = helperAssignments[taskName];
             const usersForTask = await filterValidUsers(users);
             if (usersForTask.size === 0) continue;
 
             let isValidAssignedTask = false;
+            // Check if the raw task name (e.g., 'daily', 'dage') was part of the original request
             if (originalRaidRequestedStrings.has(taskName)) {
                 isValidAssignedTask = true;
             } else {
+                // If not a raw string match, check if it's one of the effective individual tasks (e.g., 'ezrajal' if 'daily' was requested)
                 isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
             }
 
             if (!isValidAssignedTask) {
-                mismatchedTasks.add(taskName);
+                mismatchedTasks.add(taskName + (multiplier > 1 ? `x${multiplier}` : ''));
                 continue;
             }
 
-            const totalPointsForTask = calculateTaskPoints([taskName]);
+            let pointsForThisTask = calculateTaskPoints([taskName]); // Calculate base points for the single task
+            pointsForThisTask *= multiplier; // Apply the multiplier
 
-            if (totalPointsForTask > 0) {
+            if (pointsForThisTask > 0) {
                 const helperNames = Array.from(usersForTask).map(id => `<@${id}>`).join(', ');
-                helperSummaries.push(`**${taskName}:** ${helperNames} (${totalPointsForTask} EXP each)`);
+                helperSummaries.push(`**${taskName}${multiplier > 1 ? `x${multiplier}` : ''}:** ${helperNames} (${pointsForThisTask} EXP each)`);
 
                 usersForTask.forEach(userId => {
-                    // Only add points if the user wasn't covered by "all" to avoid double counting
-                    if (!globalTaggedUsers.has(userId)) {
-                        pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForTask;
-                    }
+                    // Always add points for specific tasks. The logic for 'all' already handles
+                    // not double counting its own points, but specific tags should always add.
+                    pointsAwarded[userId] = (pointsAwarded[userId] || 0) + pointsForThisTask;
                 });
             }
         }
@@ -252,6 +276,11 @@ async function handleRaidCompletion(message, raidInfo) {
         if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
             return;
+        }
+
+        // Apply MAX_XP_PER_RAID limit to each user's total points awarded in this completion
+        for (const userId in pointsAwarded) {
+            pointsAwarded[userId] = Math.min(pointsAwarded[userId], MAX_XP_PER_RAID);
         }
 
 
@@ -388,11 +417,11 @@ export function setupExpLairHandlers(client) {
         // Check if interaction is in a thread and reply ephemeral if not
         if (!interaction.channel.isThread()) {
             // These buttons/modals are expected only in threads; reply if used elsewhere
-            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) { // Updated customId
+            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
                 await interaction.reply({ content: 'This button can only be used in a raid thread.', flags: MessageFlags.Ephemeral });
                 return;
             }
-            if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') { // Updated customId
+            if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') {
                 await interaction.reply({ content: 'This action can only be performed in a raid thread.', flags: MessageFlags.Ephemeral });
                 return;
             }
@@ -402,7 +431,7 @@ export function setupExpLairHandlers(client) {
         let raidInfo = activeRaidThreads[interaction.channel.id];
 
         // Reconstruct raidInfo if bot restarted and state was lost (only for raid threads)
-        if (!raidInfo) { // Removed redundant interaction.channel.isThread() check as it's already done above
+        if (!raidInfo) {
             console.warn(`Raid info not found in activeRaidThreads for thread ${interaction.channel.id}. Attempting to reconstruct.`);
             try {
                 const parentChannel = await interaction.client.channels.fetch(interaction.channel.parentId);
@@ -470,9 +499,8 @@ export function setupExpLairHandlers(client) {
                     });
                     break;
 
-                case 'editTask_btn': // Updated customId
-                    // Display the modal for editing tasks (from sharedState), pre-filling current tasks
-                    const editTaskModal = getEditTaskModal(raidInfo.task); // Pass current task
+                case 'editTask_btn':
+                    const editTaskModal = getEditTaskModal(raidInfo.task); // Use getEditTaskModal from activeRaidState
                     await interaction.showModal(editTaskModal);
                     break;
 
@@ -485,13 +513,13 @@ export function setupExpLairHandlers(client) {
         // --- Handle Modal Submissions ---
         if (interaction.isModalSubmit()) {
             switch (interaction.customId) {
-                case 'editTaskModal': // Updated customId
-                    const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase(); // Updated customId
+                case 'editTaskModal':
+                    const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
                     const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
 
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                    // Validate new tasks`
+                    // Validate new tasks
                     for (const taskName of newTasksArray) {
                         if (!ALLOWED_TASK_NAMES.includes(taskName)) {
                             await interaction.editReply({

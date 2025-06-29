@@ -1,4 +1,8 @@
+// activeRaidState.js
 import { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { ALLOWED_TASK_NAMES } from './config/constants.js'; // Needed for validation in getEditTaskModal
+import { getTasksEmbed } from './handlers/raidLogsHandler.js'; // Needed for validation in getEditTaskModal
+
 
 /**
  * Shared state for active raid threads.
@@ -9,7 +13,9 @@ import { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRow
  * task: 'weekly', // This will now accumulate all tasks (e.g., 'weekly + speaker + speaker x2')
  * requesterId: 'user_id',
  * awaitingCompletion: true/false,
- * ...otherDetails
+ * mapName: 'map_name',
+ * server: 'server_name',
+ * description: 'raid_description',
  * }
  */
 export const activeRaidThreads = {};
@@ -65,12 +71,12 @@ export async function updateRaidStatus(client, threadId, newStatus, newColor) {
  */
 export function getEditTaskModal(currentTasks = '') {
     const modal = new ModalBuilder()
-        .setCustomId('editTaskModal') // Changed customId
-        .setTitle('Edit Raid Task(s)'); // Changed title
+        .setCustomId('editTaskModal')
+        .setTitle('Edit Raid Task(s)');
 
     const taskInput = new TextInputBuilder()
-        .setCustomId('editedTaskInput') // Changed customId for input
-        .setLabel("Current Task(s): ") // Changed label
+        .setCustomId('editedTaskInput')
+        .setLabel("Current Task(s): ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder(`Enter task(s) like 'speaker' or 'dage + darkon'`)

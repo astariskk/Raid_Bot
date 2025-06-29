@@ -14,8 +14,8 @@ export const POINTS_CONFIG = {
     'tyndarius': 300,    
     'speaker': 3000,
     'mechabinky': 3000,
+    'darkon': 2000,    
     'drago': 1000,
-    'darkon': 2000,
     'dage': 1000,
     'nulgath': 1000,
     'drakath': 1000,
@@ -24,10 +24,12 @@ export const POINTS_CONFIG = {
     'tsmid': 1250,
     'tsleft': 375,
     'tsright': 375,
-    'voidflibbi': 200,
-    'voidnightbane': 200,
-    'voidxyfrag': 300,
-    'voidnerfkitten' : 300,
+    'voidflibbi': 100,
+    'voidnightbane': 100,
+    'voidxyfrag': 150,
+    'voidnerfkitten' : 150,
+    'gramiel': 2000,
+    'azalith': 300,
 };
 
 // --- Separate Task Lists for validation and display ---
@@ -35,7 +37,7 @@ export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
 export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'speaker'];
 export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky', 'voidnerfkitten'];
+export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky', 'azalith','voidnerfkitten', 'gramiel'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases
 export const ALLOWED_TASK_NAMES = [
