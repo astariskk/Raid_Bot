@@ -1,21 +1,29 @@
 // handlers/leaderboardHandler.js
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'; // Added ActionRowBuilder, ButtonBuilder, ButtonStyle
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
-import { LEADERBOARD_FILE } from '../config/constants.js';
+import { LEADERBOARD_FILE, MODERATOR_ROLE_ID } from '../config/constants.js'; 
 
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for leaderboard cache
 let leaderboardCache = null;
 let lastCacheTime = 0;
 
+// Store pending reset confirmations: Map<userId, { timestamp: Date, fullReset: boolean, channelId: string }>
+const pendingResets = new Map();
+const RESET_CONFIRMATION_TIMEOUT_MS = 30 * 1000; // 30 seconds
+
+// New: Store active !lbcheck sessions for pagination
+// Map<messageId (of the bot's sent embed), { currentPage: number, totalPages: number, usersData: Array, dateInfo: Object, originalRequesterId: string, timeoutId: NodeJS.Timeout }>
+const activeLbCheckSessions = new Map(); 
+const LBCHECK_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for !lbcheck pagination session
+
 /**
- * Checks if the message author has administrator permissions.
+ * Checks if the message author has the designated MODERATOR_ROLE_ID.
  * @param {import('discord.js').Message} message The Discord message object.
- * @returns {boolean} True if the author is an administrator, false otherwise.
+ * @returns {boolean} True if the author has the MODERATOR_ROLE_ID, false otherwise.
  */
 function isAdmin(message) {
-    // This function assumes the bot has access to guild member permissions.
-    // Ensure GatewayIntentBits.GuildMembers is enabled in your client.
-    return message.member && message.member.permissions.has('Administrator');
+    // Now exclusively checks for the MODERATOR_ROLE_ID
+    return message.member && message.member.roles.cache.has(MODERATOR_ROLE_ID);
 }
 
 /**
@@ -124,6 +132,160 @@ async function resetLeaderboard(fullReset = false) {
     leaderboardCache = null; // Invalidate cache
 }
 
+/**
+ * Helper function to parse date arguments for !lbcheck.
+ * It determines the start/end dates and a description string.
+ * @param {string} content - The full message content after `!lbcheck`.
+ * @param {import('discord.js').Message} message - The Discord message object.
+ * @returns {{startDateISO: string, endDateISO: string, description: string, rawStartDate: Date, rawEndDate: Date} | {error: string}}
+ */
+function getDateRangeFromArgs(content, message) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+    let startDate = null;
+    let endDate = null;
+    let description = '';
+
+    // Remove the command prefix and any mentions for cleaner parsing of date args
+    let cleanContent = content.toLowerCase().replace('!lbcheck', '').trim();
+    message.mentions.users.forEach(user => {
+        cleanContent = cleanContent.replace(new RegExp(`<@!?${user.id}>`, 'g'), '').trim();
+    });
+    
+    const parts = cleanContent.split(/\s+/).filter(p => p !== ''); // Split by space, remove empty parts
+
+    if (parts.length === 0 || parts[0] === 'today') {
+        startDate = new Date(today);
+        endDate = new Date(today);
+        description = 'Today';
+    } else if (parts[0] === 'yesterday') {
+        const yesterday = new Date(today);
+        yesterday.setDate(today.getDate() - 1);
+        startDate = yesterday;
+        endDate = yesterday;
+        description = 'Yesterday';
+    } else if (parts[0] === 'from' && parts[1] && parts[2] === 'to' && parts[3]) {
+        // !lbcheck from X to Y (day numbers)
+        const startDay = parseInt(parts[1], 10);
+        const endDay = parseInt(parts[3], 10);
+
+        if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31 || startDay > endDay) {
+            return { error: 'Invalid date range. Use `from <day> to <day>` (e.g., `from 10 to 15`). Days must be between 1 and 31.' };
+        }
+        startDate = new Date(today.getFullYear(), today.getMonth(), startDay);
+        endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
+        description = `From Day ${startDay} to Day ${endDay} of this month`;
+    } else if (parts.length === 1 && !isNaN(parseInt(parts[0], 10))) {
+        // !lbcheck X (single day number)
+        const day = parseInt(parts[0], 10);
+        if (isNaN(day) || day < 1 || day > 31) {
+            return { error: 'Invalid day number. Use a number between 1 and 31.' };
+        }
+        startDate = new Date(today.getFullYear(), today.getMonth(), day);
+        endDate = new Date(today.getFullYear(), today.getMonth(), day);
+        description = `On Day ${day} of this month`;
+    } else if (/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+        // Allow YYYY-MM-DD for explicit date
+        const dateParts = parts[0].split('-');
+        const year = parseInt(dateParts[0], 10);
+        const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
+        const day = parseInt(dateParts[2], 10);
+
+        const parsedDate = new Date(year, month, day);
+        // Basic validation for date existence
+        if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month || parsedDate.getDate() !== day) {
+            return { error: 'Invalid date format. Use `YYYY-MM-DD`.' };
+        }
+        startDate = parsedDate;
+        endDate = parsedDate;
+        description = `On ${parts[0]}`;
+    }
+    else {
+        return { error: 'Invalid usage. Use `!lbcheck [today|yesterday|<day>|from <start> to <end>] [@user(s)]`' };
+    }
+
+    // Normalize dates to ISO string for lookup if needed, but primarily use Date objects for iteration
+    const formatToISO = (d) => d.toISOString().split('T')[0];
+
+    return {
+        startDateISO: formatToISO(startDate), // ISO string for the first day
+        endDateISO: formatToISO(endDate),     // ISO string for the last day
+        description: description,
+        rawStartDate: startDate, // Keep full Date objects for iteration
+        rawEndDate: endDate
+    };
+}
+
+
+/**
+ * Creates the !lbcheck embed and buttons for a given page.
+ * @param {Object} sessionData - The session data for !lbcheck.
+ * @param {import('discord.js').Client} client - The Discord client instance.
+ * @param {import('discord.js').Guild} guild - The guild where the command was invoked.
+ * @returns {Promise<{embeds: EmbedBuilder[], components: ActionRowBuilder[]}>}
+ */
+async function createLbCheckResponse(sessionData, client, guild) {
+    const { currentPage, totalPages, usersData, dateInfo } = sessionData;
+    const USERS_PER_PAGE = 5;
+
+    const startIndex = (currentPage - 1) * USERS_PER_PAGE;
+    const endIndex = Math.min(startIndex + USERS_PER_PAGE, usersData.length);
+    const usersOnPage = usersData.slice(startIndex, endIndex);
+
+    const embed = new EmbedBuilder()
+        .setColor(0x0099FF)
+        .setTitle(`📊 EXP Check ${dateInfo.description} 📊`)
+        .setTimestamp()
+        .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Helper Bot | EXP Breakdown` });
+
+    let descriptionContent = '';
+
+    if (usersOnPage.length === 0) {
+        descriptionContent = 'No EXP data found for this page.';
+    } else {
+        for (const userData of usersOnPage) {
+            descriptionContent += `**${userData.displayName}**\n`;
+            if (dateInfo.rawStartDate.getTime() === dateInfo.rawEndDate.getTime()) { // Single day
+                descriptionContent += `• EXP Gained: ${userData.totalPointsForRange} EXP\n`;
+            } else { // Date range
+                descriptionContent += `• Total EXP in range: ${userData.totalPointsForRange} EXP\n`;
+                // Only add breakdown if there's more than one day in the range and points exist
+                if (userData.dailyBreakdown.length > 1 && userData.totalPointsForRange > 0) {
+                    descriptionContent += `  Breakdown:\n`;
+                    // Limit breakdown lines to prevent embed overflow
+                    const maxBreakdownLines = 5; 
+                    if (userData.dailyBreakdown.length > maxBreakdownLines) {
+                        descriptionContent += userData.dailyBreakdown.slice(0, maxBreakdownLines / 2).join('\n') + '\n';
+                        descriptionContent += `  ... (${userData.dailyBreakdown.length - maxBreakdownLines} more days) ...\n`;
+                        descriptionContent += userData.dailyBreakdown.slice(-maxBreakdownLines / 2).join('\n') + '\n';
+                    } else {
+                        descriptionContent += userData.dailyBreakdown.join('\n') + '\n';
+                    }
+                }
+            }
+            descriptionContent += `• Overall Total EXP: ${userData.overallTotal} EXP\n\n`;
+        }
+    }
+    embed.setDescription(descriptionContent);
+
+    const row = new ActionRowBuilder()
+        .addComponents(
+            new ButtonBuilder()
+                .setCustomId(`lbcheck_prev_${sessionData.originalRequesterId}_${sessionData.timestamp}`)
+                .setLabel('⬅️ Previous')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === 1),
+            new ButtonBuilder()
+                .setCustomId(`lbcheck_next_${sessionData.originalRequesterId}_${sessionData.timestamp}`)
+                .setLabel('Next ➡️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === totalPages)
+        );
+
+    return { embeds: [embed], components: [row] };
+}
+
 
 /**
  * Sets up event handlers for leaderboard functionalities.
@@ -160,82 +322,163 @@ export function setupLeaderboardHandlers(client) {
 
         // --- Handle Leaderboard Check Command (!lbcheck) ---
         if (message.content.toLowerCase().startsWith('!lbcheck')) {
-            const args = message.content.split(/\s+/);
-            let dateString = 'today'; // Default to today
-            let targetUser = message.author; // Default to command invoker
-
-            // Parse date (today, yesterday, YYYY-MM-DD)
-            if (args.length > 1 && !message.mentions.users.first()) {
-                dateString = args[1].toLowerCase();
+            // Ensure the command is used in a guild for member resolution
+            if (!message.guild) {
+                return message.reply("This command can only be used in a server.");
             }
 
-            // Parse user mention if present (can be after date or directly after !lbcheck)
-            if (message.mentions.users.first()) {
-                targetUser = message.mentions.users.first();
-                // If a user is mentioned as the second argument, and no date was explicitly given
-                // as a keyword, then assume it's !lbcheck @user
-                if (args.length === 2 && args[1].startsWith('<@')) {
-                    dateString = 'today'; // Default to today if only user is mentioned
-                } else if (args.length > 2 && args[2].startsWith('<@')) {
-                    // if it's !lbcheck <date> @user, the dateString is already set
-                } else if (args.length > 1 && args[1].startsWith('<@')) {
-                    // if it's !lbcheck @user, dateString remains 'today'
-                }
+            let targetUsers = [];
+            if (message.mentions.users.size > 0) {
+                message.mentions.users.forEach(user => targetUsers.push(user));
             }
 
+            const dateInfo = getDateRangeFromArgs(message.content, message); // Pass full message content for parsing
 
-            let dateToFetch;
-            const today = new Date();
-            today.setHours(0, 0, 0, 0); // Normalize to start of day UTC
-
-            if (dateString === 'today') {
-                dateToFetch = today.toISOString().split('T')[0];
-            } else if (dateString === 'yesterday') {
-                const yesterday = new Date(today);
-                yesterday.setDate(today.getDate() - 1);
-                dateToFetch = yesterday.toISOString().split('T')[0];
-            } else if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
-                // Validate custom date format YYYY-MM-DD
-                const parts = dateString.split('-');
-                const checkDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
-                if (checkDate.getFullYear() != parts[0] || checkDate.getMonth() != parseInt(parts[1]) - 1 || checkDate.getDate() != parts[2]) {
-                    return message.reply('Invalid date format. Use `YYYY-MM-DD`, `today`, or `yesterday`.');
-                }
-                dateToFetch = dateString;
-            } else {
-                // If the second arg is not a recognized date keyword or mention, it's invalid usage
-                return message.reply('Invalid usage. Usage: `!lbcheck [today|yesterday|YYYY-MM-DD] [@user]`');
+            if (dateInfo.error) {
+                return message.reply(dateInfo.error);
             }
 
             try {
                 const leaderboard = await getCachedLeaderboard();
-                const dailyPoints = leaderboard._dailyPoints && leaderboard._dailyPoints[dateToFetch] ?
-                    leaderboard._dailyPoints[dateToFetch][targetUser.id] || 0 : 0;
-                const totalPoints = leaderboard[targetUser.id] || 0;
+                
+                // Determine effective target users for the query
+                let effectiveTargetUserIds = new Set();
+                if (targetUsers.length > 0) { // Specific users were mentioned
+                    targetUsers.forEach(user => effectiveTargetUserIds.add(user.id));
+                } else { // No specific users mentioned, show all for specified date(s) who have points
+                    let currentDate = new Date(dateInfo.rawStartDate);
+                    while (currentDate <= dateInfo.rawEndDate) {
+                        const dateISO = currentDate.toISOString().split('T')[0];
+                        const dailyData = leaderboard._dailyPoints && leaderboard._dailyPoints[dateISO];
+                        if (dailyData) {
+                            for (const userId in dailyData) {
+                                if (!userId.startsWith('_')) {
+                                    effectiveTargetUserIds.add(userId);
+                                }
+                            }
+                        }
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+                }
 
-                const checkEmbed = new EmbedBuilder()
-                    .setColor(0x00FF00)
-                    .setTitle(`📊 EXP Check for ${targetUser.username} 📊`)
-                    .setDescription(`For Date: \`${dateToFetch}\``)
-                    .addFields(
-                        { name: 'EXP Gained Today', value: `${dailyPoints} EXP`, inline: true },
-                        { name: 'Total EXP', value: `${totalPoints} EXP`, inline: true }
-                    )
-                    .setTimestamp()
-                    .setFooter({ text: 'Raid Helper Bot | Daily EXP' });
+                if (effectiveTargetUserIds.size === 0) {
+                    return message.reply(`No EXP recorded for anyone ${dateInfo.description}.`);
+                }
 
-                await message.channel.send({ embeds: [checkEmbed] });
+                // Prepare an array of promises for user resolution and point calculation
+                const userPromises = Array.from(effectiveTargetUserIds).map(async userId => {
+                    let userDisplayName = `<@${userId}>`;
+                    try {
+                        const member = await message.guild.members.fetch(userId);
+                        userDisplayName = member.displayName;
+                    } catch (err) {
+                        try {
+                            const user = await client.users.fetch(userId);
+                            userDisplayName = user.username;
+                        } catch (fetchErr) {
+                            console.error(`Could not resolve user ID ${userId}:`, fetchErr);
+                        }
+                    }
+
+                    let userTotalPointsForRange = 0;
+                    let dailyBreakdown = [];
+
+                    let currentDate = new Date(dateInfo.rawStartDate);
+                    while (currentDate <= dateInfo.rawEndDate) {
+                        const dateISO = currentDate.toISOString().split('T')[0];
+                        const dailyPoints = leaderboard._dailyPoints && leaderboard._dailyPoints[dateISO] && leaderboard._dailyPoints[dateISO][userId] || 0;
+                        userTotalPointsForRange += dailyPoints;
+                        dailyBreakdown.push(`\`${dateISO}\`: ${dailyPoints} EXP`);
+                        currentDate.setDate(currentDate.getDate() + 1);
+                    }
+
+                    return {
+                        id: userId,
+                        displayName: userDisplayName,
+                        totalPointsForRange: userTotalPointsForRange,
+                        dailyBreakdown: dailyBreakdown,
+                        overallTotal: leaderboard[userId] || 0
+                    };
+                });
+
+                const usersData = await Promise.all(userPromises);
+
+                // Filter out users with 0 points if no specific users were mentioned and it's a general lookup
+                // (This prevents showing everyone if they have no points)
+                const finalUsersData = (targetUsers.length === 0) 
+                    ? usersData.filter(u => u.totalPointsForRange > 0)
+                    : usersData;
+
+                if (finalUsersData.length === 0) {
+                    return message.reply(`No EXP recorded for the specified users/date ${dateInfo.description}.`);
+                }
+
+                // Sort users by points gained in the specified range for better readability
+                finalUsersData.sort((a, b) => b.totalPointsForRange - a.totalPointsForRange);
+
+                const USERS_PER_PAGE = 5;
+                const totalPages = Math.ceil(finalUsersData.length / USERS_PER_PAGE);
+                const initialPage = 1;
+
+                const sessionTimestamp = Date.now(); // Unique ID for this session
+
+                const sessionData = {
+                    currentPage: initialPage,
+                    totalPages: totalPages,
+                    usersData: finalUsersData, // Store all data
+                    dateInfo: dateInfo,
+                    originalRequesterId: message.author.id,
+                    timestamp: sessionTimestamp // Used in customId for uniqueness
+                };
+                
+                const { embeds, components } = await createLbCheckResponse(sessionData, client, message.guild);
+                const sentMessage = await message.channel.send({ embeds, components });
+
+                // Store session data using the sent message's ID
+                activeLbCheckSessions.set(sentMessage.id, sessionData);
+
+                // Set a timeout to clear the session and disable buttons
+                const timeoutId = setTimeout(async () => {
+                    activeLbCheckSessions.delete(sentMessage.id);
+                    try {
+                        // Re-fetch message to ensure it's not deleted already
+                        const expiredMessage = await sentMessage.channel.messages.fetch(sentMessage.id).catch(() => null);
+                        if (expiredMessage) {
+                            // Re-create buttons, but all disabled
+                            const disabledRow = new ActionRowBuilder()
+                                .addComponents(
+                                    new ButtonBuilder()
+                                        .setCustomId(`lbcheck_prev_disabled_${sessionTimestamp}`)
+                                        .setLabel('⬅️ Previous')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(true),
+                                    new ButtonBuilder()
+                                        .setCustomId(`lbcheck_next_disabled_${sessionTimestamp}`)
+                                        .setLabel('Next ➡️')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(true)
+                                );
+                            await expiredMessage.edit({ components: [disabledRow] });
+                            console.log(`!lbcheck session for message ${sentMessage.id} expired and buttons disabled.`);
+                        }
+                    } catch (err) {
+                        console.error(`Error disabling buttons for expired !lbcheck session ${sentMessage.id}:`, err);
+                    }
+                }, LBCHECK_SESSION_LIFETIME_MS);
+                sessionData.timeoutId = timeoutId; // Store timeout ID for potential clearing
 
             } catch (error) {
-                console.error('Error checking daily XP:', error);
-                await message.reply('Failed to check XP. Please try again later.');
+                console.error('Error checking EXP:', error);
+                await message.reply('Failed to check EXP. Please try again later.');
             }
+            return;
         }
 
         // --- Handle Add XP Command ---
         if (message.content.toLowerCase().startsWith('!addxp')) {
             if (!checkAdmin()) {
-                return message.reply("You don't have permission to use this command.");
+                // Removed reply for non-moderators
+                return; 
             }
 
             const mentions = message.mentions.users;
@@ -265,7 +508,8 @@ export function setupLeaderboardHandlers(client) {
         // --- Handle Remove XP Command ---
         if (message.content.toLowerCase().startsWith('!removexp')) {
             if (!checkAdmin()) {
-                return message.reply("You don't have permission to use this command.");
+                // Removed reply for non-moderators
+                return;
             }
 
             const mentions = message.mentions.users;
@@ -292,24 +536,172 @@ export function setupLeaderboardHandlers(client) {
             }
         }
 
-        // --- Handle Reset Command ---
+        // --- Handle Reset Command (!reset) ---
         if (message.content.toLowerCase().startsWith('!reset')) {
             if (!checkAdmin()) {
-                return message.reply("You don't have permission to use this command.");
+                return; // Removed ephemeral reply for non-moderators
             }
 
             const args = message.content.toLowerCase().split(/\s+/);
-            const fullReset = args.includes('all');
+            const fullReset = args.includes('all'); // Check for '!reset all'
+
+            // Store the pending reset request
+            pendingResets.set(message.author.id, {
+                timestamp: Date.now(),
+                fullReset: fullReset,
+                channelId: message.channel.id // Store channel ID for later context
+            });
+
+            await message.reply({
+                content: `Are you sure you want to ${fullReset ? '**fully** ' : ''}reset the leaderboard? This action is irreversible. Type \`!confirm\` in this channel within ${RESET_CONFIRMATION_TIMEOUT_MS / 1000} seconds to proceed, or \`!cancel\` to abort.`,
+                ephemeral: true
+            });
+
+            // Set a timeout to clear the pending request if not confirmed
+            setTimeout(() => {
+                const currentPending = pendingResets.get(message.author.id);
+                if (currentPending && currentPending.channelId === message.channel.id && Date.now() - currentPending.timestamp < RESET_CONFIRMATION_TIMEOUT_MS) {
+                    pendingResets.delete(message.author.id);
+                    message.author.send(`Your leaderboard reset confirmation in <#${message.channel.id}> has expired. Please try \`!reset\` again if you wish to proceed.`).catch(err => console.error(`Failed to send expiration message to user ${message.author.id}:`, err));
+                }
+            }, RESET_CONFIRMATION_TIMEOUT_MS);
+
+            return; // No further processing here, waiting for !confirm or !cancel
+        }
+
+        // --- Handle Confirmation Command (!confirm) ---
+        if (message.content.toLowerCase() === '!confirm') {
+            const pending = pendingResets.get(message.author.id);
+
+            // Check if there's a pending reset for this user and if the command is in the same channel and not expired
+            if (!pending || pending.channelId !== message.channel.id || Date.now() - pending.timestamp > RESET_CONFIRMATION_TIMEOUT_MS) {
+                 // Check admin here to prevent non-admins from getting "no pending reset" and then "no perm"
+                if (!checkAdmin()) { 
+                    return; // Removed ephemeral reply for non-moderators
+                }
+                return message.reply({ content: 'No pending leaderboard reset confirmation found or it has expired. Please use `!reset` first.', ephemeral: true });
+            }
+
+            if (!checkAdmin()) { 
+                pendingResets.delete(message.author.id); 
+                return; // Removed ephemeral reply for non-moderators
+            }
+
+            pendingResets.delete(message.author.id); // Clear the pending request
 
             try {
-                await resetLeaderboard(fullReset);
-                await message.reply(`Leaderboard ${fullReset ? 'fully' : 'monthly'} reset successfully!`);
+                await resetLeaderboard(pending.fullReset);
+                await message.reply({ content: `Leaderboard ${pending.fullReset ? 'fully' : 'monthly'} reset successfully!`, ephemeral: true });
             } catch (error) {
                 console.error('Error resetting leaderboard:', error);
-                await message.reply('Failed to reset leaderboard. Please try again later.');
+                await message.reply({ content: 'Failed to reset leaderboard. Please try again later.', ephemeral: true });
             }
+            return;
+        }
+
+        // --- Handle Cancellation Command (!cancel) ---
+        if (message.content.toLowerCase() === '!cancel') {
+            const pending = pendingResets.get(message.author.id);
+
+            // Check if there's a pending reset for this user and if the command is in the same channel and not expired
+            if (!pending || pending.channelId !== message.channel.id || Date.now() - pending.timestamp > RESET_CONFIRMATION_TIMEOUT_MS) {
+                if (!checkAdmin()) { 
+                    return; // Removed ephemeral reply for non-moderators
+                }
+                return message.reply({ content: 'No pending leaderboard reset to cancel.', ephemeral: true });
+            }
+
+            if (!checkAdmin()) { 
+                pendingResets.delete(message.author.id); 
+                return; // Removed ephemeral reply for non-moderators
+            }
+
+            pendingResets.delete(message.author.id); // Clear the pending request
+            await message.reply({ content: 'Leaderboard reset cancelled.', ephemeral: true });
+            return;
         }
     });
+
+    // --- Interaction Create Listener (for buttons) ---
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isButton()) return;
+
+        // Check if the button is for !lbcheck pagination
+        if (interaction.customId.startsWith('lbcheck_')) {
+            const [ command, action, requesterId, timestamp ] = interaction.customId.split('_');
+            const sessionKey = interaction.message.id; // Use the message ID as the session key
+
+            const sessionData = activeLbCheckSessions.get(sessionKey);
+
+            if (!sessionData) {
+                // Session expired or invalid, disable buttons
+                const disabledRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder().setCustomId('expired_prev').setLabel('⬅️ Previous').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_next').setLabel('Next ➡️').setStyle(ButtonStyle.Secondary).setDisabled(true)
+                    );
+                await interaction.update({ components: [disabledRow] }).catch(e => console.error("Error updating expired lbcheck message:", e));
+                return interaction.followUp({ content: 'This leaderboard session has expired. Please run `!lbcheck` again.', ephemeral: true });
+            }
+
+            // Ensure only the original requester can interact with their pagination
+            if (interaction.user.id !== sessionData.originalRequesterId) {
+                return interaction.reply({ content: 'You can only navigate your own leaderboard checks!', ephemeral: true });
+            }
+
+            // Ensure the session hasn't genuinely timed out from the set interval
+            if (Date.now() - sessionData.timestamp > LBCHECK_SESSION_LIFETIME_MS) {
+                // If it somehow passed the map check but is too old, clean up
+                clearTimeout(sessionData.timeoutId); // Clear any pending timeout
+                activeLbCheckSessions.delete(sessionKey);
+                const disabledRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder().setCustomId('expired_prev_2').setLabel('⬅️ Previous').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_next_2').setLabel('Next ➡️').setStyle(ButtonStyle.Secondary).setDisabled(true)
+                    );
+                await interaction.update({ components: [disabledRow] }).catch(e => console.error("Error updating expired lbcheck message (timeout check):", e));
+                return interaction.followUp({ content: 'This leaderboard session has expired. Please run `!lbcheck` again.', ephemeral: true });
+            }
+
+            // Reset the timeout for the session on interaction
+            clearTimeout(sessionData.timeoutId);
+            sessionData.timeoutId = setTimeout(async () => {
+                activeLbCheckSessions.delete(sessionKey);
+                try {
+                    const expiredMessage = await interaction.channel.messages.fetch(sessionKey).catch(() => null);
+                    if (expiredMessage) {
+                        const disabledRow = new ActionRowBuilder()
+                            .addComponents(
+                                new ButtonBuilder().setCustomId('expired_prev_3').setLabel('⬅️ Previous').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                                new ButtonBuilder().setCustomId('expired_next_3').setLabel('Next ➡️').setStyle(ButtonStyle.Secondary).setDisabled(true)
+                            );
+                        await expiredMessage.edit({ components: [disabledRow] });
+                        console.log(`!lbcheck session for message ${sessionKey} expired and buttons disabled.`);
+                    }
+                } catch (err) {
+                    console.error(`Error disabling buttons for expired !lbcheck session ${sessionKey}:`, err);
+                }
+            }, LBCHECK_SESSION_LIFETIME_MS);
+
+
+            if (action === 'next') {
+                sessionData.currentPage++;
+            } else if (action === 'prev') {
+                sessionData.currentPage--;
+            }
+
+            // Ensure current page is within bounds
+            sessionData.currentPage = Math.max(1, Math.min(sessionData.currentPage, sessionData.totalPages));
+
+            // Update the session data in the map
+            activeLbCheckSessions.set(sessionKey, sessionData);
+
+            // Re-render the embed and components
+            const { embeds, components } = await createLbCheckResponse(sessionData, client, interaction.guild);
+            await interaction.update({ embeds, components });
+        }
+    });
+
 
     // --- Monthly Leaderboard Reset Logic (Scheduled Task) ---
     // This is a simple in-memory check. For production, consider a more robust scheduler (e.g., cron job).
@@ -319,10 +711,12 @@ export function setupLeaderboardHandlers(client) {
             const lastReset = leaderboard._lastResetDate ? new Date(leaderboard._lastResetDate) : null;
             const now = new Date();
 
+            // Check if it's a new month (or if lastReset is null/invalid for initial run)
+            // This also handles cases where bot was offline during a reset window
             if (!lastReset || lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-                // If it's a new month or no reset date, perform a monthly reset
+                // Perform a monthly reset (not full reset)
                 console.log('Performing automatic monthly leaderboard reset...');
-                await resetLeaderboard(false); // Perform a monthly reset (not full reset)
+                await resetLeaderboard(false);
 
                 // Optional: Announce the reset in a specific channel
                 const announcementChannelId = 'YOUR_ANNOUNCEMENT_CHANNEL_ID'; // <--- IMPORTANT: Configure this!

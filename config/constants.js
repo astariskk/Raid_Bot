@@ -3,6 +3,7 @@ export const RAID_CHANNEL_ID = '1385452423291600966';
 export const RAID_LOGS_CHANNEL_ID = '1387781279919112284';
 export const EXP_LAIR_CHANNEL_ID = '1387799141203181638';
 export const RAID_HELPER_ROLE_ID = '1385471833192792115';
+export const MODERATOR_ROLE_ID = '1274384274333630565';
 
 // --- IMPORTANT: Using forward slash for cross-platform compatibility ---
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
