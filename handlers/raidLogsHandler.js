@@ -19,7 +19,8 @@ import {
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
     ALLOWED_TASK_NAMES,
-    POINTS_CONFIG
+    POINTS_CONFIG,
+    CUSTOM_TASK_PREFIX // Import CUSTOM_TASK_PREFIX
 } from '../config/constants.js';
 import { activeRaidThreads, updateRaidStatus } from '../activeRaidState.js';
 // Removed updateRaidLogEmbed from here as it's not used directly by this handler's modal logic anymore
@@ -106,7 +107,8 @@ export function getTasksEmbed() {
             { name: '`Daily` or `Dailies`', value: dailiesListFormatted || 'N/A' },
             { name: '`TempleShrine`', value: templeShrineListFormatted || 'N/A' },
             { name: '`Originul` Dailies:', value: originulListFormatted || 'N/A' },
-            { name: 'Other Tasks', value: othersListFormatted || 'N/A' }
+            { name: 'Other Tasks', value: othersListFormatted || 'N/A' },
+            { name: 'Custom Tasks', value: `You can also request custom tasks using the format \`${CUSTOM_TASK_PREFIX}yourtaskname\`.\n*Points for custom tasks are assigned manually by moderators.*` }
         )
         .setFooter({ text: 'Use these names in your raid requests!' });
 }
@@ -117,7 +119,7 @@ export function getTasksEmbed() {
  */
 export function getPointsOverviewEmbed() {
     return new EmbedBuilder()
-        .setColor(0xFFA500) // Orange color for a noticeable informational embed
+        .setColor(0x0099FF) // Orange color for a noticeable informational embed
         .setTitle('Raid Task EXP Values Overview')
         .setDescription('Click a button below to see the EXP values for specific task categories:')
         .setTimestamp()
@@ -197,21 +199,21 @@ export function getRaidRequestModal() {
 
     const taskInput = new TextInputBuilder()
         .setCustomId('taskInput')
-        .setLabel("Task (see !raidtasks for all options)")
+        .setLabel("Task(s) (!raidtasks for options): ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder(`Enter task(s) like 'daily' or 'nulgath + drakath'`);
 
     const mapNameInput = new TextInputBuilder()
         .setCustomId('mapNameInput')
-        .setLabel("Map Name")
+        .setLabel("Map Name: ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder('e.g., ultraspeaker, championdrakath, etc.');
 
     const serverInput = new TextInputBuilder()
         .setCustomId('serverInput')
-        .setLabel("Server (e.g., Artix, Yorumi, Safiria)")
+        .setLabel("Server: ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder('e.g., Artix, Yorumi, Safiria');
@@ -310,7 +312,8 @@ export function setupRaidLogsHandlers(client) {
         // --- Command to list all available raid tasks with their categories ---
         if (message.content.toLowerCase() === '!raidtasks') {
             try {
-                await message.channel.send({ embeds: [getTasksEmbed()] });
+                // Now getTasksEmbed includes custom task info
+                await message.channel.send({ embeds: [getTasksEmbed()] }); 
             } catch (error) {
                 console.error('Error sending !raidtasks message:', error);
                 await message.channel.send('Failed to display raid tasks. Please try again later.');
@@ -387,7 +390,8 @@ export function setupRaidLogsHandlers(client) {
 
                 const requestedTasks = task.split(/\s*\+\s*/).map(t => t.trim());
                 for (const singleTask of requestedTasks) {
-                    if (!ALLOWED_TASK_NAMES.includes(singleTask)) {
+                    // MODIFIED: Validate against ALLOWED_TASK_NAMES OR CUSTOM_TASK_PREFIX
+                    if (!ALLOWED_TASK_NAMES.includes(singleTask) && !singleTask.startsWith(CUSTOM_TASK_PREFIX)) {
                         await interaction.editReply({
                             content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
                             embeds: [getTasksEmbed()],

@@ -3,6 +3,11 @@ import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } fr
 import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID } from '../config/constants.js';
 import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; // Re-import these as they are needed for the !commands buttons
 
+// Define a Map to store cooldowns for GIF commands
+const gifCooldowns = new Map();
+// Cooldown duration in milliseconds (e.g., 60 seconds)
+const GIF_COOLDOWN_DURATION = 10 * 60000;
+
 /**
  * Sets up the handler for general bot commands and interactions,
  * including the !commands list, custom GIF triggers, and the "Get Help Role" button.
@@ -97,88 +102,61 @@ export function setupGeneralCommandsHandler(client) {
         }
 
         // --- Custom GIF Commands ---
-        if (message.content === 'The Most Beautiful Thing You Will Ever See') {
-            const gifEmbed = new EmbedBuilder()
-                .setColor(0xFF0000)
-                .setTitle('The Most Beautiful Thing You will Ever See')
-                .setImage('https://files.catbox.moe/7wwm4n.gif')
-                .setFooter({ text: 'Feast your eyes on this' });
-            try {
-                const sentMessage = await message.channel.send({ embeds: [gifEmbed] });
-                setTimeout(async () => {
-                    try {
-                        await sentMessage.delete();
-                        await message.delete();
-                    } catch (deleteError) {
-                        console.error('Error deleting custom GIF message:', deleteError);
-                    }
-                }, 7000);
-            } catch (error) {
-                console.error('Error sending custom GIF:', error);
-                await message.channel.send('Could not display the beautiful thing.');
+        const gifCommands = {
+            'the most beautiful thing you will ever see': {
+                title: 'The Most Beautiful Thing You will Ever See',
+                image: 'https://files.catbox.moe/5tsmuk.gif',
+                footer: 'Feast your eyes on this',
+                color: 0xFF0000
+            },
+            'i need more bullets': {
+                title: "Asta La Vista, Baby",
+                image: 'https://files.catbox.moe/dnzecs.gif',
+                footer: 'He needs more bullets',
+                color: 0x006400
+            },
+            'sybau xychrome': {
+                title: "Get Twerked On",
+                image: 'https://files.catbox.moe/neo4gz.gif',
+                footer: 'Deal with it',
+                color: 0x7e7e7e
+            },
+            "ain't no party like a diddy party": {
+                title: "Devious Backshots",
+                image: 'https://files.catbox.moe/nnxf77.gif',
+                footer: 'Spongebob gone wild',
+                color: 0xFFFF00
+            },
+            "get backshotted by diddy": {
+                title: "Devious Backshots",
+                image: 'https://files.catbox.moe/nnxf77.gif',
+                footer: 'Spongebob gone wild',
+                color: 0xFFFF00
             }
-        }
+        };
 
-        if (message.content === 'I Need More Bullets') {
-            const gifEmbed = new EmbedBuilder()
-                .setColor(0x006400)
-                .setTitle("Asta La Vista, Baby")
-                .setImage('https://files.catbox.moe/dnzecs.gif')
-                .setFooter({ text: 'He needs more bullets' });
-            try {
-                const sentMessage = await message.channel.send({ embeds: [gifEmbed] });
-                setTimeout(async () => {
-                    try {
-                        await sentMessage.delete();
-                        await message.delete();
-                    } catch (deleteError) {
-                        console.error('Error deleting custom GIF message:', deleteError);
-                    }
-                }, 13000);
-            } catch (error) {
-                console.error('Error sending custom GIF:', error);
-                await message.channel.send('Could not display the beautiful thing.');
+        const commandContent = message.content.toLowerCase();
+        if (gifCommands[commandContent]) {
+            const userId = message.author.id;
+            const now = Date.now();
+            const lastUsed = gifCooldowns.get(userId);
+
+            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
+                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
+                await message.reply({ content: `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`, ephemeral: true });
+                return;
             }
-        }
 
-        if (message.content === 'Sybau Xychrome') {
-            const gifEmbed = new EmbedBuilder()
-                .setColor(0x7e7e7e)
-                .setTitle("Get Twerked On")
-                .setImage('https://files.catbox.moe/neo4gz.gif')
-                .setFooter({ text: 'Deal with it' });
-            try {
-                const sentMessage = await message.channel.send({ embeds: [gifEmbed] });
-                setTimeout(async () => {
-                    try {
-                        await sentMessage.delete();
-                        await message.delete();
-                    } catch (deleteError) {
-                        console.error('Error deleting custom GIF message:', deleteError);
-                    }
-                }, 5000);
-            } catch (error) {
-                console.error('Error sending custom GIF:', error);
-                await message.channel.send('Could not display the beautiful thing.');
-            }
-        }
+            gifCooldowns.set(userId, now);
 
-        if (message.content === "Ain't No Party Like A Diddy Party" || message.content === "Get Backshotted By Diddy") {
+            const gifInfo = gifCommands[commandContent];
             const gifEmbed = new EmbedBuilder()
-                .setColor(0xFFFF00)
-                .setTitle("Devious Backshots")
-                .setImage('https://files.catbox.moe/nnxf77.gif')
-                .setFooter({ text: 'Spongebob gone wild' });
+                .setColor(gifInfo.color)
+                .setTitle(gifInfo.title)
+                .setImage(gifInfo.image)
+                .setFooter({ text: gifInfo.footer });
             try {
-                const sentMessage = await message.channel.send({ embeds: [gifEmbed] });
-                setTimeout(async () => {
-                    try {
-                        await sentMessage.delete();
-                        await message.delete();
-                    } catch (deleteError) {
-                        console.error('Error deleting custom GIF message:', deleteError);
-                    }
-                }, 5000);
+                await message.channel.send({ embeds: [gifEmbed] });
             } catch (error) {
                 console.error('Error sending custom GIF:', error);
                 await message.channel.send('Could not display the beautiful thing.');

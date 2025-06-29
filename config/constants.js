@@ -1,12 +1,15 @@
 // config/constants.js
-export const RAID_CHANNEL_ID = '1385452423291600966';
+export const RAID_CHANNEL_ID = '1388854499023519847';
 export const RAID_LOGS_CHANNEL_ID = '1387781279919112284';
 export const EXP_LAIR_CHANNEL_ID = '1387799141203181638';
 export const RAID_HELPER_ROLE_ID = '1385471833192792115';
-export const MODERATOR_ROLE_ID = '1274384274333630565';
+export const MODERATOR_ROLE_ID = '1274384274333630565'; // Your Moderator Role ID
 
 // --- IMPORTANT: Using forward slash for cross-platform compatibility ---
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
+
+// --- Custom Task Prefix ---
+export const CUSTOM_TASK_PREFIX = 'custom:'; // Define the prefix for custom tasks
 
 export const POINTS_CONFIG = {
     'ezrajal': 200,
@@ -40,15 +43,16 @@ export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
 export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky', 'azalith','voidnerfkitten', 'gramiel'];
 
-// ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases
+// ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases and dynamic check for custom tasks
 export const ALLOWED_TASK_NAMES = [
     ...DAILIES_LIST, 'dailies', 'daily',
     ...WEEKLIES_LIST, 'weeklies', 'weekly',
     ...OTHERS_LIST, ...TEMPLESHRINE_LIST, 'templeshrine', 
     ...ORIGINUL_LIST, 'originul',
+    // Custom tasks are validated dynamically by checking for CUSTOM_TASK_PREFIX
 ];
 
 // Dynamically generate DISPLAY_POINTS_LIST from POINTS_CONFIG for consistency
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, points]) => `${task} = ${points} EXP`);
 
-export const MAX_XP_PER_RAID = 12000; 
+export const MAX_XP_PER_RAID = 12000;

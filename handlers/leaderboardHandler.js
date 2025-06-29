@@ -1,7 +1,8 @@
 // handlers/leaderboardHandler.js
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'; // Added ActionRowBuilder, ButtonBuilder, ButtonStyle
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
-import { LEADERBOARD_FILE, MODERATOR_ROLE_ID } from '../config/constants.js'; 
+// Import RAID_CHANNEL_ID along with other constants
+import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js'; 
 
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for leaderboard cache
 let leaderboardCache = null;
@@ -45,7 +46,7 @@ async function getCachedLeaderboard() {
  * @param {Object} leaderboard - The raw leaderboard object.
  * @param {number} limit - The number of top entries to return.
  * @returns {Array<{userId: string, totalExp: number}>} Sorted array of top players.
- */
+*/
 function getSortedLeaderboard(leaderboard, limit) {
     // Filter out internal keys like _lastResetDate and _dailyPoints
     const userEntries = Object.entries(leaderboard).filter(([key]) => !key.startsWith('_'));
@@ -186,7 +187,7 @@ function getDateRangeFromArgs(content, message) {
         endDate = new Date(today.getFullYear(), today.getMonth(), day);
         description = `On Day ${day} of this month`;
     } else if (/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
-        // Allow YYYY-MM-DD for explicit date
+        // AllowYYYY-MM-DD for explicit date
         const dateParts = parts[0].split('-');
         const year = parseInt(dateParts[0], 10);
         const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
@@ -620,6 +621,45 @@ export function setupLeaderboardHandlers(client) {
             await message.reply({ content: 'Leaderboard reset cancelled.', ephemeral: true });
             return;
         }
+
+        // --- Handle !pretendnewmonth Command --- //remove this code later
+        if (message.content.toLowerCase() === '!pretendnewmonth') {
+            if (!checkAdmin() || !message.member.roles.cache.has(MODERATOR_ROLE_ID)) {
+                return; // Only allow administrators to use this command
+            }
+
+            if (!message.guild) {
+                return message.reply("This command can only be used in a server.");
+            }
+
+            try {
+                await message.reply({ content: 'Simulating monthly leaderboard reset and announcement...', ephemeral: true });
+
+                const raidChannel = await client.channels.fetch(RAID_CHANNEL_ID);
+                if (raidChannel && raidChannel.isTextBased()) {
+                    const oldLeaderboard = await getCachedLeaderboard(); 
+                    const topPlayersBeforeReset = getSortedLeaderboard(oldLeaderboard, 10);
+                    const guild = message.guild; // Use the guild where the command was invoked
+
+                    if (guild) {
+                        const embed = await createLeaderboardEmbed(client, guild, topPlayersBeforeReset, "Final Leaderboard for Last Month (Simulated Reset)"); 
+                        await raidChannel.send({ embeds: [embed] });
+                        await raidChannel.send('📈 The monthly leaderboard has been automatically reset (simulated)! Good luck this month, raiders!');
+                    } else {
+                        console.warn('No guild context to create leaderboard embed for simulated announcement.');
+                    }
+                } else {
+                    console.warn(`RAID_CHANNEL_ID (${RAID_CHANNEL_ID}) is not a text channel or could not be fetched for simulated reset.`);
+                }
+
+                await resetLeaderboard(false); // Perform a monthly reset
+                await message.channel.send({ content: 'Simulated monthly reset complete.', ephemeral: true });
+            } catch (error) {
+                console.error('Error simulating new month reset:', error);
+                await message.reply('Failed to simulate new month reset. Please check console for errors.');
+            }
+            return;
+        }
     });
 
     // --- Interaction Create Listener (for buttons) ---
@@ -673,7 +713,8 @@ export function setupLeaderboardHandlers(client) {
                         const disabledRow = new ActionRowBuilder()
                             .addComponents(
                                 new ButtonBuilder().setCustomId('expired_prev_3').setLabel('⬅️ Previous').setStyle(ButtonStyle.Secondary).setDisabled(true),
-                                new ButtonBuilder().setCustomId('expired_next_3').setLabel('Next ➡️').setStyle(ButtonStyle.Secondary).setDisabled(true)
+                                new ButtonBuilder().setCustomId('expired_next_3').setLabel('Next ➡️')
+                                .setStyle(ButtonStyle.Secondary).setDisabled(true)
                             );
                         await expiredMessage.edit({ components: [disabledRow] });
                         console.log(`!lbcheck session for message ${sessionKey} expired and buttons disabled.`);
@@ -714,26 +755,36 @@ export function setupLeaderboardHandlers(client) {
             // Check if it's a new month (or if lastReset is null/invalid for initial run)
             // This also handles cases where bot was offline during a reset window
             if (!lastReset || lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-                // Perform a monthly reset (not full reset)
                 console.log('Performing automatic monthly leaderboard reset...');
-                await resetLeaderboard(false);
 
-                // Optional: Announce the reset in a specific channel
-                const announcementChannelId = 'YOUR_ANNOUNCEMENT_CHANNEL_ID'; // <--- IMPORTANT: Configure this!
+                // Announce the reset in the RAID_CHANNEL_ID
                 try {
-                    const channel = await client.channels.fetch(announcementChannelId);
-                    if (channel && channel.isTextBased()) {
+                    const raidChannel = await client.channels.fetch(RAID_CHANNEL_ID);
+                    if (raidChannel && raidChannel.isTextBased()) {
                         // Fetch the top players just before reset for the announcement
                         const oldLeaderboard = await getCachedLeaderboard(); // Get the state BEFORE reset
                         const topPlayersBeforeReset = getSortedLeaderboard(oldLeaderboard, 10);
-                        const embed = await createLeaderboardEmbed(client, channel.guild, topPlayersBeforeReset, "Final Leaderboard for Last Month"); // Pass guild here
-
-                        await channel.send({ embeds: [embed] });
-                        await channel.send('📈 The monthly leaderboard has been automatically reset! Good luck this month, raiders!');
+                        // Ensure we have a guild to pass to createLeaderboardEmbed, ideally from a cached guild
+                        // For a scheduled task, you might need to fetch a relevant guild or assume one if the bot is in only one guild.
+                        // A more robust solution might pass guild IDs to this handler or fetch the guild.
+                        // For now, let's try to get a guild from the client's cache.
+                        const guild = client.guilds.cache.first(); // Gets the first guild the bot is in
+                        if (guild) {
+                            const embed = await createLeaderboardEmbed(client, guild, topPlayersBeforeReset, "Final Leaderboard for Last Month"); // Pass guild here
+                            await raidChannel.send({ embeds: [embed] });
+                            await raidChannel.send('📈 The monthly leaderboard has been automatically reset! Good luck this month, raiders!');
+                        } else {
+                            console.warn('No guild found to create leaderboard embed for announcement.');
+                        }
+                    } else {
+                        console.warn(`RAID_CHANNEL_ID (${RAID_CHANNEL_ID}) is not a text channel or could not be fetched.`);
                     }
                 } catch (channelError) {
                     console.error('Error sending leaderboard reset announcement:', channelError);
                 }
+
+                // Perform a monthly reset (not full reset) AFTER sending the embed
+                await resetLeaderboard(false);
             }
         } catch (error) {
             console.error('Error in monthly leaderboard reset check:', error);
