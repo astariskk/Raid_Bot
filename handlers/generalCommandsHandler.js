@@ -166,6 +166,24 @@ export function setupGeneralCommandsHandler(client) {
             }
         };
 
+        // --- Handle the !raidmaps command ---
+        if (message.content.toLowerCase() === '!raidmaps' && message.channel.id === RAID_CHANNEL_ID) {
+            const raidMapsEmbed = new EmbedBuilder()
+                .setColor(0x0099FF) // A suitable color
+                .setTitle('🗺️ Raid Maps for AQW')
+                .setDescription('Clicking the link will lead you to a tool that makes joining maps easier:')
+                .setURL('https://neiru.vercel.app/aqw/raid/maps') // The link you provided
+                .setTimestamp()
+                .setFooter({ text: 'Raid Helper Bot | Raid Maps' });
+
+            try {
+                await message.channel.send({ embeds: [raidMapsEmbed] });
+            } catch (error) {
+                console.error('Error sending !raidmaps embed:', error);
+                await message.channel.send('Failed to display raid maps. Please try again later.');
+            }
+        }
+
         const commandContent = message.content.toLowerCase();
         if (gifCommands[commandContent]) {
             const userId = message.author.id;
