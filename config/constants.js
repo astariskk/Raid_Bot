@@ -5,12 +5,10 @@ export const EXP_LAIR_CHANNEL_ID = '1388865498065666059';
 export const RAID_HELPER_ROLE_ID = ''; // Your Raid Helper Role ID 1373205396298141696
 export const MODERATOR_ROLE_ID = ''; // Your Moderator Role ID 1373356500252098670
 export const OFFICER_ROLE_ID = ''; // Your Officer Role ID 1373011008888639568
+export const RAID_MANAGER_ROLE_ID = ''; // Your Raid Manager Role ID 1388819716008706129
 
 // --- IMPORTANT: Using forward slash for cross-platform compatibility ---
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
-
-// --- Custom Task Prefix ---
-export const CUSTOM_TASK_PREFIX = 'custom:'; // Define the prefix for custom tasks
 
 export const POINTS_CONFIG = {
     'ezrajal': 200,

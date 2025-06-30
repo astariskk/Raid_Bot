@@ -17,7 +17,8 @@ import {
     ORIGINUL_LIST,
     MAX_XP_PER_RAID,
     MODERATOR_ROLE_ID, // Import Moderator Role ID
-    OFFICER_ROLE_ID
+    OFFICER_ROLE_ID,
+    RAID_MANAGER_ROLE_ID, // Import Raid Manager Role ID
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { getTasksEmbed } from './raidLogsHandler.js'; // Still needed for validation feedback
@@ -485,10 +486,11 @@ export function setupExpLairHandlers(client) {
 
 
         // Ensure the user interacting is the raid requester for critical actions
-        //if the requester or moderator or officer
+        //if the requester or moderator or officer or raid manager
         if (interaction.user.id !== raidInfo.requesterId &&
             !interaction.member.roles.cache.has(OFFICER_ROLE_ID) &&
-            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID)) {
+            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID) 
+            && !interaction.member.roles.cache.has(RAID_MANAGER_ROLE_ID)) {
             await interaction.reply({ content: 'Only the user who initiated this raid or a staff member can perform this action.', flags: MessageFlags.Ephemeral });
             return;
         }

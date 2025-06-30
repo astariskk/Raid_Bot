@@ -2,7 +2,12 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'; // Added ActionRowBuilder, ButtonBuilder, ButtonStyle
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 // Import RAID_CHANNEL_ID along with other constants
-import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, OFFICER_ROLE_ID,RAID_CHANNEL_ID } from '../config/constants.js'; 
+import { LEADERBOARD_FILE, 
+    MODERATOR_ROLE_ID, 
+    OFFICER_ROLE_ID,
+    RAID_MANAGER_ROLE_ID,
+    RAID_CHANNEL_ID 
+    } from '../config/constants.js'; 
 
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for leaderboard cache
 let leaderboardCache = null;
@@ -24,7 +29,7 @@ const LBCHECK_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for !lbcheck pag
  */
 function isAdmin(message) {
     // Now exclusively checks for the MODERATOR_ROLE_ID
-    return message.member && (message.member.roles.cache.has(MODERATOR_ROLE_ID) || message.member.roles.cache.has(OFFICER_ROLE_ID));
+    return message.member && (message.member.roles.cache.has(MODERATOR_ROLE_ID) || message.member.roles.cache.has(OFFICER_ROLE_ID) || message.member.roles.cache.has(RAID_MANAGER_ROLE_ID));
 }
 
 /**
