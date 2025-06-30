@@ -8,7 +8,7 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'disc
 // Import file operations utilities for reading and writing leaderboard data.
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 // Import constants for file paths, role IDs, and channel IDs.
-import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js';
+import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_CHANNEL_ID, RAID_MANAGER_ROLE_ID} from '../config/constants.js';
 import fs from 'node:fs/promises'; // Import Node.js 'fs/promises' for file operations.
 
 
@@ -37,8 +37,8 @@ const LBCHECK_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for `!lbcheck` p
  * @returns {boolean} True if the author has either role, false otherwise.
  */
 function isAdmin(message) {
-    // Checks if the member exists and has either the Moderator, Officer, or Raid Manager role.
-    return message.member && (message.member.roles.cache.has(MODERATOR_ROLE_ID) || message.member.roles.cache.has(OFFICER_ROLE_ID) || message.member.roles.cache.has(RAID_MANAGER_ROLE_ID));
+    // Checks if the member exists and has either the Moderator or Officer role.
+    return message.member && (message.member.roles.cache.has(MODERATOR_ROLE_ID) || message.member.roles.cache.has(OFFICER_ROLE_ID) || message.member.roles.cache.has(RAID_MANAGER_ROLE_ID)); // Raid Helper Role ID
 }
 
 /**
@@ -133,23 +133,17 @@ async function createLeaderboardEmbed(client, guild, topPlayers, resetInfo) {
 async function resetLeaderboard(fullReset = false) {
     let leaderboard = await readLeaderboard(); // Get current leaderboard data.
 
+    // Always create a new leaderboard object for a clean slate, preserving only necessary metadata.
+    // This effectively removes all user entries.
+    leaderboard = {
+        _lastResetDate: new Date().toISOString(), // Update last reset date.
+        _dailyPoints: {} // Clear daily points entirely.
+    };
+
     if (fullReset) {
-        // For a full reset, create a brand new leaderboard object.
-        leaderboard = {
-            _lastResetDate: new Date().toISOString(), // Update last reset date.
-            _dailyPoints: {} // Clear daily points entirely.
-        };
-        console.log('Full leaderboard reset initiated.');
+        console.log('Full leaderboard reset initiated (all user entries removed).');
     } else {
-        // For a monthly reset, iterate through users and set their total EXP to 0.
-        for (const userId in leaderboard) {
-            if (!userId.startsWith('_')) { // Ensure we don't reset internal fields like `_lastResetDate`.
-                leaderboard[userId] = 0;
-            }
-        }
-        leaderboard._dailyPoints = {}; // Clear daily points for the new month.
-        leaderboard._lastResetDate = new Date().toISOString(); // Update last reset date.
-        console.log('Monthly leaderboard reset initiated.');
+        console.log('Monthly leaderboard reset initiated (all user entries removed).');
     }
 
     await writeLeaderboard(leaderboard); // Write the updated leaderboard back to file.
@@ -213,7 +207,7 @@ function getDateRangeFromArgs(content, message) {
         endDate = new Date(today.getFullYear(), today.getMonth(), day);
         description = `On Day ${day} of this month`;
     } else if (/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
-        // Example: `2023-11-20` (explicit date inastype-MM-DD format).
+        // Example: `2023-11-20` (explicit date inYYYY-MM-DD format).
         const dateParts = parts[0].split('-');
         const year = parseInt(dateParts[0], 10);
         const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed in JavaScript Date.
@@ -234,7 +228,7 @@ function getDateRangeFromArgs(content, message) {
         return { error: 'Invalid usage. Use `!lbcheck [today|yesterday|<day>|from <start> to <end>|YYYY-MM-DD] [@user(s)]`' };
     }
 
-    // Helper to format Date objects intoastype-MM-DD ISO strings.
+    // Helper to format Date objects intoYYYY-MM-DD ISO strings.
     const formatToISO = (d) => d.toISOString().split('T')[0];
 
     return {
@@ -796,8 +790,15 @@ export function setupLeaderboardHandlers(client) {
                     if (expiredMessage) {
                         const disabledRow = new ActionRowBuilder()
                             .addComponents(
-                                new ButtonBuilder().setCustomId(`lbcheck_prev_disabled_${sessionTimestamp}`).setLabel('⬅️ Previous').setStyle(ButtonStyle.Primary).setDisabled(true),
-                                new ButtonBuilder().setCustomId(`lbcheck_next_disabled_${sessionTimestamp}`).setLabel('Next ➡️').setStyle(ButtonStyle.Primary).setDisabled(true)
+                                new ButtonBuilder().setCustomId(`lbcheck_prev_disabled_${sessionTimestamp}`)
+                                    .setLabel('⬅️ Previous')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+                                new ButtonBuilder()
+                                    .setCustomId(`lbcheck_next_disabled_${sessionTimestamp}`)
+                                    .setLabel('Next ➡️')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true)
                             );
                         await expiredMessage.edit({ components: [disabledRow] });
                         console.log(`!lbcheck session for message ${sessionKey} expired and buttons disabled.`);
