@@ -355,6 +355,24 @@ export function setupRaidLogsHandlers(client) {
                     await message.channel.send('Failed to send the chart. Please check the link or try again later.');
                 }
             }
+
+        // --- Handle the !raidmaps command ---
+        if (message.content.toLowerCase() === '!raidmaps') {
+            const raidMapsEmbed = new EmbedBuilder()
+                .setColor(0x0099FF) // A suitable color
+                .setTitle('🗺️ Raid Maps for AQW')
+                .setDescription('Clicking the link will lead you to a tool that makes joining maps easier:')
+                .setURL('https://neiru.vercel.app/aqw/raid/maps') // The link you provided
+                .setTimestamp()
+                .setFooter({ text: 'Raid Helper Bot | Raid Maps' });
+
+            try {
+                await message.channel.send({ embeds: [raidMapsEmbed] });
+            } catch (error) {
+                console.error('Error sending !raidmaps embed:', error);
+                await message.channel.send('Failed to display raid maps. Please try again later.');
+            }
+        }            
         }
 
         // --- Command to list all available raid tasks with their categories (`!raidtasks`) ---
