@@ -42,16 +42,17 @@ function extractUserIds(text) {
 
 /**
  * Parses the message content to identify helper assignments for tasks, including multipliers.
- * Handles 'task = @user', 'taskxN = @user', and 'all = @user' assignments, and 'custom:taskname = @user'.
+ * Handles 'task = @user', 'taskxN = @user', and 'all = @user' assignments.
  * @param {string} content - The message content.
- * @returns {{helperAssignments: {[taskName: string]: {users: Set<string>, multiplier: number}}, globalTaggedUsers: Set<string>, globalMultiplier: number, hasValidTags: boolean, unrecognizedTasks: Set<string>}}
+ * @returns {{helperAssignments: {[taskName: string]: {users: Set<string>, multiplier: number}}, globalTaggedUsers: Set<string>, globalMultiplier: number, hasValidTags: boolean, unrecognizedTasks: Set<string>, linesWithNoValidUsers: Set<string>}}
  */
 function parseHelperAssignments(content) {
     const helperAssignments = {}; // Stores { 'taskName': { users: Set<string>, multiplier: number } }
     const globalTaggedUsers = new Set();
-    let globalMultiplier = 1; // New: to store multiplier for 'all'
+    let globalMultiplier = 1;
     let hasValidTags = false;
-    const unrecognizedTasks = new Set();
+    const unrecognizedTasks = new Set(); // For tasks that are not in ALLOWED_TASK_NAMES or malformed task strings
+    const linesWithNoValidUsers = new Set(); // For lines where no actual users were tagged
 
     const lines = content.split('\n');
     for (const line of lines) {
@@ -67,48 +68,72 @@ function parseHelperAssignments(content) {
                 globalMultiplier = 1; // Reset to default
                 continue;
             }
-            const userIds = extractUserIds(allMatch[3]); // user mentions are now at index 3
+            const userIds = extractUserIds(allMatch[3]);
             userIds.forEach(userId => globalTaggedUsers.add(userId));
             if (userIds.length > 0) hasValidTags = true;
             continue;
         }
 
         // Handle "task1+task2 = @user1" or "task1xN = @user1" assignments
-        const taskMatch = trimmedLine.match(/^(.+?)(x(\d+))?\s*=\s*(.*)/i);
-        if (taskMatch) {
-            let taskPart = taskMatch[1].trim();
-            const multiplierStr = taskMatch[3];
-            const userMentionPart = taskMatch[4].trim();
-
-            const multiplier = multiplierStr ? parseInt(multiplierStr, 10) : 1;
-            if (isNaN(multiplier) || multiplier < 1) {
-                unrecognizedTasks.add(taskPart + (multiplierStr ? 'x' + multiplierStr : ''));
-                continue;
+        // Split by the first '=' to separate task part from user part
+        const parts = trimmedLine.split('=');
+        if (parts.length < 2) {
+            // This line doesn't conform to the "task = user" pattern
+            if (trimmedLine.length > 0) {
+                 unrecognizedTasks.add(trimmedLine); // Still add here if no '='
             }
-
-            const tasks = taskPart.split('+').map(t => t.trim().toLowerCase());
-            const userIds = extractUserIds(userMentionPart);
-
-            if (userIds.length > 0 && tasks.length > 0) {
-                hasValidTags = true;
-                userIds.forEach(userId => {
-                    tasks.forEach(taskName => {
-                        // Check only for known ALLOWED_TASK_NAMES
-                        if (ALLOWED_TASK_NAMES.includes(taskName)) { // Removed custom task prefix check
-                            if (!helperAssignments[taskName]) {
-                                helperAssignments[taskName] = { users: new Set(), multiplier: 1 };
-                            }
-                            helperAssignments[taskName].users.add(userId);
-                            helperAssignments[taskName].multiplier = multiplier;
-                        } else {
-                            unrecognizedTasks.add(taskName);
-                        }
-                    });
-                });
-            }
+            continue;
         }
+
+        const taskString = parts[0].trim();
+        const userMentionPart = parts.slice(1).join('=').trim();
+
+        const userIds = extractUserIds(userMentionPart); // This only extracts USER IDs
+
+        if (userIds.length === 0) {
+            // If no *users* are tagged, this line is invalid for point assignment.
+            // Add the original line to a new set for specific feedback.
+            linesWithNoValidUsers.add(trimmedLine);
+            continue; // Skip processing this line further for point assignment
+        }
+        hasValidTags = true;
+
+        // Split the taskString by '+' to handle multiple tasks in one line
+        const individualTaskEntries = taskString.split('+').map(t => t.trim());
+
+        userIds.forEach(userId => {
+            individualTaskEntries.forEach(entry => {
+                // Now, parse each individual entry for its name and potential multiplier
+                const individualTaskMatch = entry.match(/^(.+?)(x(\d+))?$/i);
+                if (!individualTaskMatch) {
+                    unrecognizedTasks.add(entry); // Malformed individual task entry
+                    return;
+                }
+
+                let taskName = individualTaskMatch[1].trim().toLowerCase();
+                const taskMultiplierStr = individualTaskMatch[3];
+                const taskMultiplier = taskMultiplierStr ? parseInt(taskMultiplierStr, 10) : 1;
+
+                if (isNaN(taskMultiplier) || taskMultiplier < 1) {
+                    unrecognizedTasks.add(entry); // Invalid multiplier
+                    return;
+                }
+
+                if (ALLOWED_TASK_NAMES.includes(taskName)) {
+                    if (!helperAssignments[taskName]) {
+                        helperAssignments[taskName] = { users: new Set(), multiplier: taskMultiplier };
+                    }
+                    helperAssignments[taskName].users.add(userId);
+                    // If a task is mentioned multiple times with different multipliers, the last one will win.
+                    helperAssignments[taskName].multiplier = taskMultiplier;
+
+                } else {
+                    unrecognizedTasks.add(entry); // Unrecognized task name
+                }
+            });
+        });
     }
-    return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks };
+    return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
 /**
@@ -117,7 +142,7 @@ function parseHelperAssignments(content) {
  * unless explicitly defined in POINTS_CONFIG.
  * @param {string[]} tasks - An array of task names.
  * @returns {number} The total points.
- */
+*/
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -153,7 +178,7 @@ function calculateTaskPoints(tasks) {
  */
 async function handleRaidCompletion(message, raidInfo) {
     // Updated: get globalMultiplier, removed customTasksDetected
-    const { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks } = parseHelperAssignments(message.content);
+    const { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
@@ -252,9 +277,11 @@ async function handleRaidCompletion(message, raidInfo) {
             if (usersForTask.size === 0) continue;
 
             let isValidAssignedTask = false;
+            // Check if the assigned task (e.g., 'daily', 'ezrajal') was part of the original request
             if (originalRaidRequestedStrings.has(taskName)) {
                 isValidAssignedTask = true;
             } else {
+                // Also check if it's an effective task (e.g., 'ezrajal' if 'daily' was requested)
                 isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
             }
 
@@ -334,7 +361,13 @@ async function handleRaidCompletion(message, raidInfo) {
         // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES)
         if (unrecognizedTasks.size > 0) {
             const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\`.\n`); // Updated instruction
+            expLairThreadContent += (`**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\`.\n`);
+        }
+
+        // Provide feedback for lines where no valid users were tagged
+        if (linesWithNoValidUsers.size > 0) {
+            const invalidUserLinesList = Array.from(linesWithNoValidUsers).map(line => `\`${line}\``).join('\n');
+            expLairThreadContent += (`\n**Warning**: The following lines were ignored because no valid users were tagged (e.g., only roles were mentioned, or no one was tagged):\n${invalidUserLinesList}\n`);
         }
 
         if (mismatchedTasks.size > 0) {
@@ -486,7 +519,7 @@ export function setupExpLairHandlers(client) {
         //if the requester or moderator or officer or raid manager
         if (interaction.user.id !== raidInfo.requesterId &&
             !interaction.member.roles.cache.has(OFFICER_ROLE_ID) &&
-            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID) 
+            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID)
             && !interaction.member.roles.cache.has(RAID_MANAGER_ROLE_ID)) {
             await interaction.reply({ content: 'Only the user who initiated this raid or a staff member can perform this action.', flags: MessageFlags.Ephemeral });
             return;
@@ -507,7 +540,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;

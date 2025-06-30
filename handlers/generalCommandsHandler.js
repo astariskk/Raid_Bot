@@ -1,6 +1,6 @@
 // handlers/generalCommandsHandler.js
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID } from '../config/constants.js';
+import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID, LEADERBOARD_CHANNEL_ID } from '../config/constants.js';
 import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; // Re-import these as they are needed for the !commands buttons
 
 // Define a Map to store cooldowns for GIF commands
@@ -75,14 +75,6 @@ export function setupGeneralCommandsHandler(client) {
                         `
                     },
                     {
-                        name: '🏆 Leaderboard & Points Check',
-                        value: `
-\`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
-\`!lbcheck [@user] [today/yesterday/day# | YYYY-MM-DD | from <start> to <end>]\`: Shows EXP gained on a specific day or date range (overall or for specific user(s)).
-**Example: \`!lbcheck @user1 @user2 from 10 to 15\`**
-                        `
-                    },
-                    {
                         name: '🛡️ Moderator Commands (Administrator/Officer Only)',
                         value: `
 \`!raidhelp\`: Shows a button to request raid assistance (in raid channel).
@@ -99,7 +91,7 @@ export function setupGeneralCommandsHandler(client) {
 • \`📣 Get Help Role\`: To opt-in/out of pings for new raid requests.
 • \`📋 See Raid Tasks\`: To see a list of all recognized raid tasks.
 • \`❓ How to Use\`: For detailed instructions on using the bot.`
-                    }                    
+                    }
 
                 )
                 .setTimestamp()
@@ -110,6 +102,33 @@ export function setupGeneralCommandsHandler(client) {
             } catch (error) {
                 console.error('Error sending !raidcommands embed:', error);
                 await message.channel.send('Failed to display commands. Please try again later.');
+            }
+        }
+
+        // --- Handle the !commandslb command ---
+        if (message.content.toLowerCase() === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
+            const leaderboardCommandsEmbed = new EmbedBuilder()
+                .setColor(0x3498DB) // A different color for distinction, e.g., green
+                .setTitle('🏆 Leaderboard Commands List 🏆')
+                .setDescription('`!lbcommands`: Here are the commands to check raid experience and rankings:')
+                .addFields(
+                    {
+                        name: 'Leaderboard & Points Check',
+                        value: `
+\`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
+\`!lbcheck [@user] [today/yesterday/day# | YYYY-MM-DD | from <start> to <end>]\`: Shows EXP gained on a specific day or date range (overall or for specific user(s)).
+**Example: \`!lbcheck @user1 @user2 from 10 to 15\`**
+                        `
+                    }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Raid Helper Bot | Leaderboard Commands' });
+
+            try {
+                await message.channel.send({ embeds: [leaderboardCommandsEmbed] });
+            } catch (error) {
+                console.error('Error sending !commandslb embed:', error);
+                await message.channel.send('Failed to display leaderboard commands. Please try again later.');
             }
         }
 
@@ -248,9 +267,9 @@ export function setupGeneralCommandsHandler(client) {
                     .setDescription(
                         `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form. Only tasks listed in \`📋 See Raid Tasks\` button will be accepted.` +
                         `\nfor tasks not included in the list you can use the following generic tasks:\n` +
-                        `  • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
-                        `  • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-                        `  • \`hard\`: Raids expected to take 30 minutes or more.\n\n` +
+                        `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
+                        `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
+                        `   • \`hard\`: Raids expected to take 30 minutes or more.\n\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`waiting\`, \`ongoing\` or \`full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
