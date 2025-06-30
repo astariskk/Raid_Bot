@@ -1,9 +1,10 @@
 // config/constants.js
 export const RAID_CHANNEL_ID = '1388854499023519847';
-export const RAID_LOGS_CHANNEL_ID = '1387781279919112284';
-export const EXP_LAIR_CHANNEL_ID = '1387799141203181638';
-export const RAID_HELPER_ROLE_ID = '1385471833192792115';
-export const MODERATOR_ROLE_ID = '1274384274333630565'; // Your Moderator Role ID
+export const RAID_LOGS_CHANNEL_ID = '1388865288115847322';
+export const EXP_LAIR_CHANNEL_ID = '1388865498065666059';
+export const RAID_HELPER_ROLE_ID = ''; // Your Raid Helper Role ID 1373205396298141696
+export const MODERATOR_ROLE_ID = ''; // Your Moderator Role ID 1373356500252098670
+export const OFFICER_ROLE_ID = ''; // Your Officer Role ID 1373011008888639568
 
 // --- IMPORTANT: Using forward slash for cross-platform compatibility ---
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
@@ -34,6 +35,9 @@ export const POINTS_CONFIG = {
     'voidnerfkitten' : 150,
     'gramiel': 2000,
     'azalith': 300,
+    'simple': 200,
+    'moderate': 500,
+    'hard': 1000,
 };
 
 // --- Separate Task Lists for validation and display ---
@@ -42,6 +46,7 @@ export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', '
 export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
 export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky', 'azalith','voidnerfkitten', 'gramiel'];
+export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases and dynamic check for custom tasks
 export const ALLOWED_TASK_NAMES = [
@@ -49,6 +54,7 @@ export const ALLOWED_TASK_NAMES = [
     ...WEEKLIES_LIST, 'weeklies', 'weekly',
     ...OTHERS_LIST, ...TEMPLESHRINE_LIST, 'templeshrine', 
     ...ORIGINUL_LIST, 'originul',
+    ...GENERIC_TASKS_LIST,
     // Custom tasks are validated dynamically by checking for CUSTOM_TASK_PREFIX
 ];
 

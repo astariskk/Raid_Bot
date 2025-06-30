@@ -1,4 +1,9 @@
 // handlers/expLairHandler.js
+// This file is responsible for handling the completion and cancellation of raid threads,
+// calculating and awarding EXP points to raid helpers, updating the leaderboard,
+// and allowing the raid requester to edit raid tasks.
+
+// Import necessary Discord.js components for UI elements and message types.
 import { EmbedBuilder, ChannelType, MessageFlags } from 'discord.js';
 import {
     EXP_LAIR_CHANNEL_ID,
@@ -6,11 +11,13 @@ import {
     DAILIES_LIST,
     WEEKLIES_LIST,
     ALLOWED_TASK_NAMES,
+    GENERIC_TASKS_LIST,
+    OTHERS_LIST,
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
     MAX_XP_PER_RAID,
-    CUSTOM_TASK_PREFIX, // Import the new custom task prefix
-    MODERATOR_ROLE_ID // Import Moderator Role ID
+    MODERATOR_ROLE_ID, // Import Moderator Role ID
+    OFFICER_ROLE_ID
 } from '../config/constants.js';
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { getTasksEmbed } from './raidLogsHandler.js'; // Still needed for validation feedback
@@ -34,27 +41,32 @@ function extractUserIds(text) {
 
 /**
  * Parses the message content to identify helper assignments for tasks, including multipliers.
- * It also returns any tasks that were not recognized by ALLOWED_TASK_NAMES OR the custom prefix.
  * Handles 'task = @user', 'taskxN = @user', and 'all = @user' assignments, and 'custom:taskname = @user'.
  * @param {string} content - The message content.
- * @returns {{helperAssignments: {[taskName: string]: {users: Set<string>, multiplier: number}}, globalTaggedUsers: Set<string>, hasValidTags: boolean, unrecognizedTasks: Set<string>, customTasksDetected: boolean}}
+ * @returns {{helperAssignments: {[taskName: string]: {users: Set<string>, multiplier: number}}, globalTaggedUsers: Set<string>, globalMultiplier: number, hasValidTags: boolean, unrecognizedTasks: Set<string>}}
  */
 function parseHelperAssignments(content) {
     const helperAssignments = {}; // Stores { 'taskName': { users: Set<string>, multiplier: number } }
     const globalTaggedUsers = new Set();
+    let globalMultiplier = 1; // New: to store multiplier for 'all'
     let hasValidTags = false;
     const unrecognizedTasks = new Set();
-    let customTasksDetected = false; // New flag for custom tasks
 
     const lines = content.split('\n');
     for (const line of lines) {
         const trimmedLine = line.trim();
         if (!trimmedLine) continue;
 
-        // Handle "all = @user1 @user2" assignments
-        const allMatch = trimmedLine.match(/^all\s*=\s*(.*)/i);
+        // Handle "all xN = @user1 @user2" assignments
+        const allMatch = trimmedLine.match(/^all(x(\d+))?\s*=\s*(.*)/i); // Added (x(\d+))?
         if (allMatch) {
-            const userIds = extractUserIds(allMatch[1]);
+            globalMultiplier = allMatch[2] ? parseInt(allMatch[2], 10) : 1;
+            if (isNaN(globalMultiplier) || globalMultiplier < 1) {
+                unrecognizedTasks.add(`all${allMatch[1] || ''}`); // Add "all xInvalid" to unrecognized
+                globalMultiplier = 1; // Reset to default
+                continue;
+            }
+            const userIds = extractUserIds(allMatch[3]); // user mentions are now at index 3
             userIds.forEach(userId => globalTaggedUsers.add(userId));
             if (userIds.length > 0) hasValidTags = true;
             continue;
@@ -63,12 +75,12 @@ function parseHelperAssignments(content) {
         // Handle "task1+task2 = @user1" or "task1xN = @user1" assignments
         const taskMatch = trimmedLine.match(/^(.+?)(x(\d+))?\s*=\s*(.*)/i);
         if (taskMatch) {
-            let taskPart = taskMatch[1].trim(); 
-            const multiplierStr = taskMatch[3]; 
+            let taskPart = taskMatch[1].trim();
+            const multiplierStr = taskMatch[3];
             const userMentionPart = taskMatch[4].trim();
 
             const multiplier = multiplierStr ? parseInt(multiplierStr, 10) : 1;
-            if (isNaN(multiplier) || multiplier < 1) { 
+            if (isNaN(multiplier) || multiplier < 1) {
                 unrecognizedTasks.add(taskPart + (multiplierStr ? 'x' + multiplierStr : ''));
                 continue;
             }
@@ -80,17 +92,13 @@ function parseHelperAssignments(content) {
                 hasValidTags = true;
                 userIds.forEach(userId => {
                     tasks.forEach(taskName => {
-                        // Check for known ALLOWED_TASK_NAMES or a custom task prefix
-                        if (ALLOWED_TASK_NAMES.includes(taskName) || taskName.startsWith(CUSTOM_TASK_PREFIX)) {
+                        // Check only for known ALLOWED_TASK_NAMES
+                        if (ALLOWED_TASK_NAMES.includes(taskName)) { // Removed custom task prefix check
                             if (!helperAssignments[taskName]) {
                                 helperAssignments[taskName] = { users: new Set(), multiplier: 1 };
                             }
                             helperAssignments[taskName].users.add(userId);
-                            helperAssignments[taskName].multiplier = multiplier; 
-                            
-                            if (taskName.startsWith(CUSTOM_TASK_PREFIX)) {
-                                customTasksDetected = true; // Mark that a custom task was found
-                            }
+                            helperAssignments[taskName].multiplier = multiplier;
                         } else {
                             unrecognizedTasks.add(taskName);
                         }
@@ -99,14 +107,13 @@ function parseHelperAssignments(content) {
             }
         }
     }
-    return { helperAssignments, globalTaggedUsers, hasValidTags, unrecognizedTasks, customTasksDetected };
+    return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks };
 }
 
 /**
  * Calculates the total points for a given set of tasks.
  * Handles meta-tasks like 'daily', 'weekly', 'templeshrine', and 'originul'.
- * Custom tasks (starting with CUSTOM_TASK_PREFIX) will return 0 points here,
- * as their points need to be manually assigned by a moderator.
+ * unless explicitly defined in POINTS_CONFIG.
  * @param {string[]} tasks - An array of task names.
  * @returns {number} The total points.
  */
@@ -114,20 +121,15 @@ function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
     tasks.forEach(task => {
-        if (task.startsWith(CUSTOM_TASK_PREFIX)) {
-            // Custom tasks initially award 0 points. Moderator needs to intervene.
-            uniqueEffectiveTasks.add(task); // Add to unique tasks to track it
-            return; 
-        }
-
+        // No special handling for custom tasks; if they're not in POINTS_CONFIG, they give 0 points.
         if (task === 'daily' || task === 'dailies') {
             DAILIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         } else if (task === 'weekly' || task === 'weeklies') {
             WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         } else if (task === 'templeshrine') {
-            TEMPLESHRINE_LIST.forEach(t => uniqueEffectiveTasks.add(t)); 
+            TEMPLESHRINE_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         } else if (task === 'originul') {
-            ORIGINUL_LIST.forEach(t => uniqueEffectiveTasks.add(t)); 
+            ORIGINUL_LIST.forEach(t => uniqueEffectiveTasks.add(t));
         }
         else if (POINTS_CONFIG[task]) {
             uniqueEffectiveTasks.add(task);
@@ -136,11 +138,11 @@ function calculateTaskPoints(tasks) {
 
     let totalPoints = 0;
     uniqueEffectiveTasks.forEach(taskName => {
-        // If it's a custom task, its POINTS_CONFIG[taskName] will be undefined, resulting in 0 points.
-        totalPoints += (POINTS_CONFIG[taskName] || 0); 
+        totalPoints += (POINTS_CONFIG[taskName] || 0); // Custom/unrecognized tasks will be 0 here.
     });
 
-    return totalPoints; 
+    // Ensure total points do not exceed MAX_XP_PER_RAID
+    return Math.min(totalPoints, MAX_XP_PER_RAID);
 }
 
 /**
@@ -149,7 +151,8 @@ function calculateTaskPoints(tasks) {
  * @param {object} raidInfo - Information about the active raid.
  */
 async function handleRaidCompletion(message, raidInfo) {
-    const { helperAssignments, globalTaggedUsers, hasValidTags, unrecognizedTasks, customTasksDetected } = parseHelperAssignments(message.content);
+    // Updated: get globalMultiplier, removed customTasksDetected
+    const { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
@@ -164,10 +167,10 @@ async function handleRaidCompletion(message, raidInfo) {
             }
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
-                 if (user.bot) {
+                if (user.bot) {
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
-                } 
+                }
                 validUserIds.add(userId);
             } catch (error) {
                 console.error(`Could not fetch user ${userId} during validation:`, error);
@@ -178,14 +181,13 @@ async function handleRaidCompletion(message, raidInfo) {
     };
 
     // If no valid tags and no screenshot, prompt for input
-    if (!hasValidTags && !attachment) {
+    if (!hasValidTags && !attachment) { // Removed customTasksDetected check
         await message.reply(
             'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
-            +`\n* You can use \`All\` to refer to every requested task`
-            +`\n* Include a screenshot if possible.`
-            +`\n* You can type \`cancel\` to close the thread without tagging helpers.`
-            +`\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`
-            +`\n* For custom tasks, use \`custom:yourtaskname = @user\` (Moderators will assign points manually).`,
+            + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)` // Updated for xN on all
+            + `\n* Include a screenshot if possible.`
+            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
+            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`
         );
         return;
     }
@@ -203,27 +205,25 @@ async function handleRaidCompletion(message, raidInfo) {
         const pointsAwarded = {}; // Stores total points per user
         const helperSummaries = [];
         const mismatchedTasks = new Set(); // Tasks mentioned in completion but not in original request
-        const customTasksInCompletion = new Set(); // Stores actual custom tasks found in completion submission
+        // Removed customTasksInCompletion
 
         // 1. Determine all effective tasks AND raw requested strings from the ORIGINAL raid request
         const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
-        const originalRaidEffectiveTasks = new Set(); 
-        const originalRaidRequestedStrings = new Set(); 
+        const originalRaidEffectiveTasks = new Set();
+        const originalRaidRequestedStrings = new Set();
 
         originalRequestedTasksRaw.forEach(task => {
-            originalRaidRequestedStrings.add(task); 
+            originalRaidRequestedStrings.add(task);
             if (task === 'daily' || task === 'dailies') {
                 DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'weekly' || task === 'weeklies') {
                 WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'templeshrine') {
-                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t)); 
+                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'originul') {
-                ORIGINUL_LIST.forEach(t => originalRaidEffectiveTasks.add(t)); 
-            } else if (task.startsWith(CUSTOM_TASK_PREFIX)) {
-                originalRaidEffectiveTasks.add(task); // Custom tasks are part of original effective tasks
+                ORIGINUL_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             }
-            else if (POINTS_CONFIG[task]) { 
+            else if (ALLOWED_TASK_NAMES.includes(task)) { // Check against ALLOWED_TASK_NAMES (without custom prefix)
                 originalRaidEffectiveTasks.add(task);
             }
         });
@@ -232,14 +232,12 @@ async function handleRaidCompletion(message, raidInfo) {
         const validGlobalTaggedUsers = await filterValidUsers(globalTaggedUsers);
         if (validGlobalTaggedUsers.size > 0) {
             const tasksForGlobalHelpers = Array.from(originalRaidEffectiveTasks);
-            const totalPointsForGlobalHelpers = calculateTaskPoints(tasksForGlobalHelpers); // Custom tasks will be 0 here
-
-            // Identify if any custom tasks were assigned globally
-            tasksForGlobalHelpers.filter(t => t.startsWith(CUSTOM_TASK_PREFIX)).forEach(t => customTasksInCompletion.add(t));
+            let totalPointsForGlobalHelpers = calculateTaskPoints(tasksForGlobalHelpers);
+            totalPointsForGlobalHelpers *= globalMultiplier; // Apply global multiplier
 
             const helperNames = Array.from(validGlobalTaggedUsers).map(id => `<@${id}>`).join(', ');
             helperSummaries.push(
-                `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task})`
+                `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task}${globalMultiplier > 1 ? ` x${globalMultiplier}` : ''})`
             );
             validGlobalTaggedUsers.forEach(userId => {
                 pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
@@ -253,12 +251,9 @@ async function handleRaidCompletion(message, raidInfo) {
             if (usersForTask.size === 0) continue;
 
             let isValidAssignedTask = false;
-            // Check if the raw task name (e.g., 'daily', 'dage') was part of the original request
             if (originalRaidRequestedStrings.has(taskName)) {
                 isValidAssignedTask = true;
             } else {
-                // If not a raw string match, check if it's one of the effective individual tasks (e.g., 'ezrajal' if 'daily' was requested)
-                // This also covers custom tasks if they were in the original request
                 isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
             }
 
@@ -266,30 +261,22 @@ async function handleRaidCompletion(message, raidInfo) {
                 mismatchedTasks.add(taskName + (multiplier > 1 ? `x${multiplier}` : ''));
                 continue;
             }
-            
-            // If it's a custom task, add it to the set for moderator notification
-            if (taskName.startsWith(CUSTOM_TASK_PREFIX)) {
-                customTasksInCompletion.add(taskName);
-            }
 
             let pointsForThisTask = calculateTaskPoints([taskName]); // Custom tasks will yield 0 points here
-            pointsForThisTask *= multiplier; 
+            pointsForThisTask *= multiplier;
 
-            if (pointsForThisTask > 0 || taskName.startsWith(CUSTOM_TASK_PREFIX)) { // Include custom tasks in summary even if 0 points
+            if (pointsForThisTask > 0) {
                 const helperNames = Array.from(usersForTask).map(id => `<@${id}>`).join(', ');
-                const expText = taskName.startsWith(CUSTOM_TASK_PREFIX) ? `**MANUAL EXP Needed**` : `${pointsForThisTask} EXP`;
-                helperSummaries.push(`**${taskName}${multiplier > 1 ? `x${multiplier}` : ''}:** ${helperNames} (${expText} each)`);
+                helperSummaries.push(`**${taskName}${multiplier > 1 ? `x${multiplier}` : ''}:** ${helperNames} (${pointsForThisTask} EXP each)`);
 
-                // Only add points if it's not a custom task (or if POINTS_CONFIG has a value for it)
-                if (pointsForThisTask > 0) { 
-                    usersForTask.forEach(userId => {
-                        pointsAwarded[userId] = (pointsAwarded[userId] || 0) + pointsForThisTask;
-                    });
-                }
+                usersForTask.forEach(userId => {
+                    pointsAwarded[userId] = (pointsAwarded[userId] || 0) + pointsForThisTask;
+                });
             }
         }
 
-        if (Object.keys(pointsAwarded).length === 0 && !hasValidTags && customTasksInCompletion.size === 0) {
+        // Updated condition to not check for customTasksInCompletion
+        if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
             return;
         }
@@ -343,10 +330,10 @@ async function handleRaidCompletion(message, raidInfo) {
 
         expLairThreadContent += `\n**Helper Assignments Breakdown:** \n${helperSummaries.join('\n')}\n`;
 
-        // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES or custom prefix)
+        // Provide feedback for unrecognized tasks (parsed but not in ALLOWED_TASK_NAMES)
         if (unrecognizedTasks.size > 0) {
             const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\` or \`custom:taskname\`.\n`);
+            expLairThreadContent += (`**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\`.\n`); // Updated instruction
         }
 
         if (mismatchedTasks.size > 0) {
@@ -354,12 +341,7 @@ async function handleRaidCompletion(message, raidInfo) {
             expLairThreadContent += (`\n**Warning**: These tasks weren't part of the original raid (**${raidInfo.task}**) and earned no points: ${mismatchedList}.`);
         }
 
-        // MODIFICATION: Add a special message and tag moderator if custom tasks were detected
-        if (customTasksInCompletion.size > 0) {
-            const customTasksList = Array.from(customTasksInCompletion).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += `\n\n<@&${MODERATOR_ROLE_ID}> **Moderator Attention Required:**
-This raid completion included custom tasks: ${customTasksList}. Please manually review and assign EXP using \`!addxp\` if necessary.`;
-        }
+        // Removed MODIFICATION: Add a special message and tag moderator if custom tasks were detected.
 
 
         // Send the detailed content to the new thread
@@ -503,8 +485,11 @@ export function setupExpLairHandlers(client) {
 
 
         // Ensure the user interacting is the raid requester for critical actions
-        if (interaction.user.id !== raidInfo.requesterId) {
-            await interaction.reply({ content: 'Only the user who initiated this raid can perform this action.', flags: MessageFlags.Ephemeral });
+        //if the requester or moderator or officer
+        if (interaction.user.id !== raidInfo.requesterId &&
+            !interaction.member.roles.cache.has(OFFICER_ROLE_ID) &&
+            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID)) {
+            await interaction.reply({ content: 'Only the user who initiated this raid or a staff member can perform this action.', flags: MessageFlags.Ephemeral });
             return;
         }
 
@@ -519,17 +504,16 @@ export function setupExpLairHandlers(client) {
                     await interaction.editReply({
                         content:
                             'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
-                            + `\n* You can use \`All\` to refer to every requested task`
+                            + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)` // Updated for xN on all
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
-                            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`
-                            + `\n* For custom tasks, use \`custom:yourtaskname = @user\` (Moderators will assign points manually).`, // Added custom task instruction
+                            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
 
                 case 'editTask_btn':
-                    const editTaskModal = getEditTaskModal(raidInfo.task); 
+                    const editTaskModal = getEditTaskModal(raidInfo.task);
                     await interaction.showModal(editTaskModal);
                     break;
 
@@ -548,9 +532,9 @@ export function setupExpLairHandlers(client) {
 
                     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-                    // Validate new tasks, including custom tasks
+                    // Validate new tasks, excluding custom tasks.
                     for (const taskName of newTasksArray) {
-                        if (!ALLOWED_TASK_NAMES.includes(taskName) && !taskName.startsWith(CUSTOM_TASK_PREFIX)) { // Check for custom prefix
+                        if (!ALLOWED_TASK_NAMES.includes(taskName)) { // Removed custom prefix check
                             await interaction.editReply({
                                 content: `Invalid task "${taskName}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
                                 embeds: [getTasksEmbed()],

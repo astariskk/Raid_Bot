@@ -2,7 +2,7 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js'; // Added ActionRowBuilder, ButtonBuilder, ButtonStyle
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 // Import RAID_CHANNEL_ID along with other constants
-import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js'; 
+import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, OFFICER_ROLE_ID,RAID_CHANNEL_ID } from '../config/constants.js'; 
 
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for leaderboard cache
 let leaderboardCache = null;
@@ -24,7 +24,7 @@ const LBCHECK_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for !lbcheck pag
  */
 function isAdmin(message) {
     // Now exclusively checks for the MODERATOR_ROLE_ID
-    return message.member && message.member.roles.cache.has(MODERATOR_ROLE_ID);
+    return message.member && (message.member.roles.cache.has(MODERATOR_ROLE_ID) || message.member.roles.cache.has(OFFICER_ROLE_ID));
 }
 
 /**
@@ -537,14 +537,14 @@ export function setupLeaderboardHandlers(client) {
             }
         }
 
-        // --- Handle Reset Command (!reset) ---
-        if (message.content.toLowerCase().startsWith('!reset')) {
+        // --- Handle Reset Command (!resetlb) ---
+        if (message.content.toLowerCase().startsWith('!resetlb')) {
             if (!checkAdmin()) {
                 return; // Removed ephemeral reply for non-moderators
             }
 
             const args = message.content.toLowerCase().split(/\s+/);
-            const fullReset = args.includes('all'); // Check for '!reset all'
+            const fullReset = args.includes('all'); // Check for '!resetlb all'
 
             // Store the pending reset request
             pendingResets.set(message.author.id, {
@@ -563,7 +563,7 @@ export function setupLeaderboardHandlers(client) {
                 const currentPending = pendingResets.get(message.author.id);
                 if (currentPending && currentPending.channelId === message.channel.id && Date.now() - currentPending.timestamp < RESET_CONFIRMATION_TIMEOUT_MS) {
                     pendingResets.delete(message.author.id);
-                    message.author.send(`Your leaderboard reset confirmation in <#${message.channel.id}> has expired. Please try \`!reset\` again if you wish to proceed.`).catch(err => console.error(`Failed to send expiration message to user ${message.author.id}:`, err));
+                    message.author.send(`Your leaderboard reset confirmation in <#${message.channel.id}> has expired. Please try \`!resetlb\` again if you wish to proceed.`).catch(err => console.error(`Failed to send expiration message to user ${message.author.id}:`, err));
                 }
             }, RESET_CONFIRMATION_TIMEOUT_MS);
 
@@ -580,7 +580,7 @@ export function setupLeaderboardHandlers(client) {
                 if (!checkAdmin()) { 
                     return; // Removed ephemeral reply for non-moderators
                 }
-                return message.reply({ content: 'No pending leaderboard reset confirmation found or it has expired. Please use `!reset` first.', ephemeral: true });
+                return message.reply({ content: 'No pending leaderboard reset confirmation found or it has expired. Please use `!resetlb` first.', ephemeral: true });
             }
 
             if (!checkAdmin()) { 

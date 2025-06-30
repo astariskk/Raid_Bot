@@ -6,7 +6,7 @@ import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; // Re
 // Define a Map to store cooldowns for GIF commands
 const gifCooldowns = new Map();
 // Cooldown duration in milliseconds (e.g., 60 seconds)
-const GIF_COOLDOWN_DURATION = 10 * 60000;
+const GIF_COOLDOWN_DURATION = 10 * 6000;
 
 /**
  * Sets up the handler for general bot commands and interactions,
@@ -77,7 +77,7 @@ export function setupGeneralCommandsHandler(client) {
                         name: '🏆 Leaderboard & Points Check',
                         value: `
 \`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
-\`!lbcheck [today|yesterday|YYYY-MM-DD] [@user]\`: Shows EXP gained on a specific day (overall or for a specific user).
+\`!lbcheck [@user] [today/yesterday/date]\`: Shows EXP gained on a specific day (overall or for a specific user) you can also tag multiple people \`!lbcheck [@user1] [@user2] date.
                         `
                     },
                     {
@@ -86,7 +86,7 @@ export function setupGeneralCommandsHandler(client) {
 \`!raidhelp\`: Shows a button to request raid assistance (in raid channel).
 \`!addxp @user <amount>\`: Manually adds EXP to a specified user.
 \`!removexp @user <amount>\`: Manually removes EXP from a specified user.
-\`!reset [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
+\`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
                         `
                     }
                 )
@@ -234,10 +234,13 @@ export function setupGeneralCommandsHandler(client) {
                 const howToUse_embed = new EmbedBuilder()
                     .setTitle('📜 How to Use the Raid Helper Bot')
                     .setDescription(
-                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work). This will ping the \`@${raidHelperRoleName}\` Role.\n\n` +
+                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work). This will ping the \`@${raidHelperRoleName}\` Role. Additionally you can use the following for tasks not explicitly mentioned\n` +
+                        `  • \`simple\`: Raids expected to take less than 15 minutes. Example Deimos\n` +
+                        `  • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
+                        `  • \`hard\`: Raids expected to take 30 minutes or more. Example archmage spamming gold\n\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`waiting\`, \`ongoing\` or \`full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
-                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`tasknamex5 = @user3\`) and optionally attach a screenshot or cancel to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
+                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`tasknamex5 = @user3\`) and optionally attach a screenshot or typing  \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
                         `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`12000 EXP\` per raid.\n\n`
                     )
                     .setColor(0x3498DB);
