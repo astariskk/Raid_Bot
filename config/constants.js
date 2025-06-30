@@ -3,39 +3,39 @@ export const RAID_CHANNEL_ID = '1388854499023519847';
 export const RAID_LOGS_CHANNEL_ID = '1388865288115847322';
 export const EXP_LAIR_CHANNEL_ID = '1388865498065666059';
 export const RAID_HELPER_ROLE_ID = ''; // Your Raid Helper Role ID 1373205396298141696
-export const MODERATOR_ROLE_ID = ''; // Your Moderator Role ID 1373356500252098670
-export const OFFICER_ROLE_ID = ''; // Your Officer Role ID 1373011008888639568
-export const RAID_MANAGER_ROLE_ID = ''; // Your Raid Manager Role ID 1388819716008706129
+export const MODERATOR_ROLE_ID = '1373356500252098670'; // Your Moderator Role ID 1373356500252098670
+export const OFFICER_ROLE_ID = '1373011008888639568'; // Your Officer Role ID 1373011008888639568
+export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; // Your Raid Manager Role ID 1388819716008706129
 
 // --- IMPORTANT: Using forward slash for cross-platform compatibility ---
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
 
 export const POINTS_CONFIG = {
-    'ezrajal': 200,
+    'ezrajal': 300,
     'warden': 300,
-    'engineer': 200,
+    'engineer': 300,
     'tyndarius': 300,    
-    'speaker': 3000,
-    'mechabinky': 3000,
+    'speaker': 4000,
+    'mechabinky': 5000,
+    'gramiel': 3000,    
     'darkon': 2000,    
     'drago': 1000,
     'dage': 1000,
     'nulgath': 1000,
     'drakath': 1000,
-    'kathool': 300,
-    'astralshrine': 300,
+    'kathool': 1000,
+    'astralshrine': 1000,
     'tsmid': 1250,
     'tsleft': 375,
     'tsright': 375,
-    'voidflibbi': 100,
-    'voidnightbane': 100,
-    'voidxyfrag': 150,
-    'voidnerfkitten' : 150,
-    'gramiel': 2000,
-    'azalith': 300,
-    'simple': 200,
-    'moderate': 500,
-    'hard': 1000,
+    'voidflibbi': 300,
+    'voidnightbane': 300,
+    'voidxyfrag': 300,
+    'voidnerfkitten' : 300,
+    'azalith': 600,
+    'simple': 300,
+    'moderate': 2000,
+    'hard': 6000,
 };
 
 // --- Separate Task Lists for validation and display ---
@@ -53,7 +53,6 @@ export const ALLOWED_TASK_NAMES = [
     ...OTHERS_LIST, ...TEMPLESHRINE_LIST, 'templeshrine', 
     ...ORIGINUL_LIST, 'originul',
     ...GENERIC_TASKS_LIST,
-    // Custom tasks are validated dynamically by checking for CUSTOM_TASK_PREFIX
 ];
 
 // Dynamically generate DISPLAY_POINTS_LIST from POINTS_CONFIG for consistency

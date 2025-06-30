@@ -85,12 +85,17 @@ const othersPointsButton = new ButtonBuilder()
     .setLabel('Other Tasks Points')
     .setStyle(ButtonStyle.Primary);
 
+const genericTasksPointsButton = new ButtonBuilder()
+    .setCustomId('genericTasksPoints_btn')
+    .setLabel('Generic Tasks Points')
+    .setStyle(ButtonStyle.Primary); 
+
 // Action rows to organize the `!raidpoints` buttons.
 const raidPointsButtonsRow1 = new ActionRowBuilder()
     .addComponents(dailiesPointsButton, weekliesPointsButton, templeshrinePointsButton);
 
 const raidPointsButtonsRow2 = new ActionRowBuilder()
-    .addComponents(originulPointsButton, othersPointsButton);
+    .addComponents(originulPointsButton, othersPointsButton, genericTasksPointsButton);
 
 
 /**
@@ -209,6 +214,13 @@ export function getOthersPointsEmbed() {
         .setFooter({ text: 'Points for miscellaneous tasks.' });
 }
 
+export function getGenericPointsEmbed() {
+    return new EmbedBuilder()
+        .setColor(0xFF8C00) // Dark Orange.
+        .setTitle('Generic Raid Tasks EXP Values')
+        .setDescription(formatTaskListPoints(GENERIC_TASKS_LIST))
+        .setFooter({ text: 'Points for generic tasks.' });
+}
 
 /**
  * Creates and returns the Modal for submitting new raid assistance requests.
@@ -403,6 +415,9 @@ export function setupRaidLogsHandlers(client) {
                     break;
                 case 'othersPoints_btn':
                     await interaction.reply({ embeds: [getOthersPointsEmbed()], ephemeral: true });
+                    break;
+                case 'genericTasksPoints_btn':
+                    await interaction.reply({ embeds: [getGenericPointsEmbed()], ephemeral: true });
                     break;
 
                 // The 'startRaid_btn' is handled in `generalCommandsHandler.js`.

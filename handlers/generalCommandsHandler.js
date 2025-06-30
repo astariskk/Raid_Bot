@@ -10,15 +10,15 @@ const GIF_COOLDOWN_DURATION = 10 * 6000;
 
 /**
  * Sets up the handler for general bot commands and interactions,
- * including the !commands list, custom GIF triggers, and the "Get Help Role" button.
+ * including the !raidcommands list, custom GIF triggers, and the "Get Help Role" button.
  * @param {Client} client The Discord client instance.
  */
 export function setupGeneralCommandsHandler(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
-        // --- Handle the !commands command ---
-        if (message.content.toLowerCase() === '!commands' && message.channel.id === RAID_CHANNEL_ID) {
+        // --- Handle the !raidcommands command ---
+        if (message.content.toLowerCase() === '!raidcommands' && message.channel.id === RAID_CHANNEL_ID) {
             const getHelpRoleButton = new ButtonBuilder()
                 .setCustomId('getHelpRole_btn')
                 .setLabel('📣 Get Help Role')
@@ -50,8 +50,8 @@ export function setupGeneralCommandsHandler(client) {
                     {
                         name: '📊 General Raid & Status Commands',
                         value: `
-\`!raidtasks\`: Lists all available raid tasks and their EXP values.
-\`!raidpoints\`: Displays the EXP values for all configured raid tasks.
+\`!raidtasks\`: Lists all available raid tasks **by category**.
+\`!raidpoints\`: Displays the EXP values for all configured raid tasks **with interactive buttons to view by category.**
                         `
                     },
                     {
@@ -61,7 +61,8 @@ export function setupGeneralCommandsHandler(client) {
 \`ongoing\`: Set the raid status to '🟢 Ongoing'.
 \`full\`: Set the raid status to '🔴 Full'.
 \`cancel\`: Close the raid thread without awarding points.
-\`all\`: Awards EXP for all tasks included in the original raid request to the tagged player(s).
+\`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s). **You can also add a multiplier: \`all xN = @user1\`.**
+\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s). **You can also add a multiplier: \`taskname xN = @user1\`.**
                         `
                     },
                     {
@@ -69,7 +70,7 @@ export function setupGeneralCommandsHandler(client) {
                         value: `
 \`!1man\`: Displays the 1-man raid chart.
 \`!2man\`: Displays the 2-man raid chart.
-\`!3man\`: Displays the 3-man raid chart.
+\`!!3man\`: Displays the 3-man raid chart.
 \`!4man\`: Displays the 4-man raid chart.
                         `
                     },
@@ -77,18 +78,29 @@ export function setupGeneralCommandsHandler(client) {
                         name: '🏆 Leaderboard & Points Check',
                         value: `
 \`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
-\`!lbcheck [@user] [today/yesterday/date]\`: Shows EXP gained on a specific day (overall or for a specific user) you can also tag multiple people \`!lbcheck [@user1] [@user2] date.
+\`!lbcheck [@user] [today/yesterday/day# | YYYY-MM-DD | from <start> to <end>]\`: Shows EXP gained on a specific day or date range (overall or for specific user(s)).
+**Example: \`!lbcheck @user1 @user2 from 10 to 15\`**
                         `
                     },
                     {
-                        name: '🛡️ Moderator Commands (Administrator Only)',
+                        name: '🛡️ Moderator Commands (Administrator/Officer Only)',
                         value: `
 \`!raidhelp\`: Shows a button to request raid assistance (in raid channel).
 \`!addxp @user <amount>\`: Manually adds EXP to a specified user.
 \`!removexp @user <amount>\`: Manually removes EXP from a specified user.
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
+\`!getlb\`: Uploads a copy of the leaderboard file to the channel.
                         `
-                    }
+                    },
+                    {
+                        name: '\u200B', // Unicode for a zero-width space, used as a spacer
+                        value: `**Press the buttons below to interact with the bot:**
+• \`⚔️ Start Raid\`: To request assistance for a raid.
+• \`📣 Get Help Role\`: To opt-in/out of pings for new raid requests.
+• \`📋 See Raid Tasks\`: To see a list of all recognized raid tasks.
+• \`❓ How to Use\`: For detailed instructions on using the bot.`
+                    }                    
+
                 )
                 .setTimestamp()
                 .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
@@ -96,7 +108,7 @@ export function setupGeneralCommandsHandler(client) {
             try {
                 await message.channel.send({ embeds: [commandsEmbed], components: [commandButtonsRow] });
             } catch (error) {
-                console.error('Error sending !commands embed:', error);
+                console.error('Error sending !raidcommands embed:', error);
                 await message.channel.send('Failed to display commands. Please try again later.');
             }
         }
@@ -234,13 +246,14 @@ export function setupGeneralCommandsHandler(client) {
                 const howToUse_embed = new EmbedBuilder()
                     .setTitle('📜 How to Use the Raid Helper Bot')
                     .setDescription(
-                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form (Only the tasks mentioned in the Raid Tasks button will work). This will ping the \`@${raidHelperRoleName}\` Role. Additionally you can use the following for tasks not explicitly mentioned\n` +
-                        `  • \`simple\`: Raids expected to take less than 15 minutes. Example Deimos\n` +
-                        `  • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-                        `  • \`hard\`: Raids expected to take 30 minutes or more. Example archmage spamming gold\n\n` +
+                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form. Only tasks listed in \`📋 See Raid Tasks\` button will be accepted.` +
+                        `\nfor tasks not included in the list you can use the following generic tasks:\n` +
+                        `  • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
+                        `  • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
+                        `  • \`hard\`: Raids expected to take 30 minutes or more.\n\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`waiting\`, \`ongoing\` or \`full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
-                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all = @user1 @user2\` or \`tasknamex5 = @user3\`) and optionally attach a screenshot or typing  \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
+                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
                         `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`12000 EXP\` per raid.\n\n`
                     )
                     .setColor(0x3498DB);

@@ -59,7 +59,7 @@ function parseHelperAssignments(content) {
         if (!trimmedLine) continue;
 
         // Handle "all xN = @user1 @user2" assignments
-        const allMatch = trimmedLine.match(/^all(x(\d+))?\s*=\s*(.*)/i); // Added (x(\d+))?
+        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*=\s*(.*)/i);
         if (allMatch) {
             globalMultiplier = allMatch[2] ? parseInt(allMatch[2], 10) : 1;
             if (isNaN(globalMultiplier) || globalMultiplier < 1) {
@@ -238,7 +238,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
             const helperNames = Array.from(validGlobalTaggedUsers).map(id => `<@${id}>`).join(', ');
             helperSummaries.push(
-                `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task}${globalMultiplier > 1 ? ` x${globalMultiplier}` : ''})`
+                `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: (${raidInfo.task}${globalMultiplier > 1 ? `) x${globalMultiplier}` : ''}`
             );
             validGlobalTaggedUsers.forEach(userId => {
                 pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
@@ -341,9 +341,6 @@ async function handleRaidCompletion(message, raidInfo) {
             const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
             expLairThreadContent += (`\n**Warning**: These tasks weren't part of the original raid (**${raidInfo.task}**) and earned no points: ${mismatchedList}.`);
         }
-
-        // Removed MODIFICATION: Add a special message and tag moderator if custom tasks were detected.
-
 
         // Send the detailed content to the new thread
         await expLairThread.send({ content: expLairThreadContent });
@@ -509,7 +506,8 @@ export function setupExpLairHandlers(client) {
                             + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)` // Updated for xN on all
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
-                            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`,
+                            + `\n* For multiple tasks, use \`task1 + task2 = @user\``
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
