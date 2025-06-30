@@ -111,7 +111,7 @@ export function setupGeneralCommandsHandler(client) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // A different color for distinction, e.g., green
                 .setTitle('🏆 Leaderboard Commands List 🏆')
-                .setDescription('`!lbcommands`: Here are the commands to check raid experience and rankings:')
+                .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
                 .addFields(
                     {
                         name: 'Leaderboard & Points Check',
