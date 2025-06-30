@@ -66,12 +66,13 @@ export function setupGeneralCommandsHandler(client) {
                         `
                     },
                     {
-                        name: '⚔️ Boss Mechanic Charts (Inside Raid Threads)',
+                        name: '⚔️ Commands Inside Raid Threads',
                         value: `
 \`!1man\`: Displays the 1-man raid chart.
 \`!2man\`: Displays the 2-man raid chart.
 \`!!3man\`: Displays the 3-man raid chart.
 \`!4man\`: Displays the 4-man raid chart.
+\`!raidmaps\`: Displays the link for the tool that makes joining maps easier.
                         `
                     },
                     {
