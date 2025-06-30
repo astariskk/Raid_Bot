@@ -263,7 +263,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
             const helperNames = Array.from(validGlobalTaggedUsers).map(id => `<@${id}>`).join(', ');
             helperSummaries.push(
-                `**All Helpers:** ${helperNames} (Total ${totalPointsForGlobalHelpers} EXP each from tasks: (${raidInfo.task}${globalMultiplier > 1 ? `) x${globalMultiplier}` : ''}`
+                `**All Helpers:** ${helperNames} Total ${totalPointsForGlobalHelpers} EXP each from tasks: (${raidInfo.task}${globalMultiplier > 1 ? `) x${globalMultiplier}` : ')'}`
             );
             validGlobalTaggedUsers.forEach(userId => {
                 pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
