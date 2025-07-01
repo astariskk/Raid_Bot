@@ -144,7 +144,6 @@ export function setupGeneralCommandsHandler(client) {
                     {
                         name: ' Moderation Commands (Administrator/Officer/Manager Only)',
                         value: `
-\`!raidhelp\`: Shows a button to request raid assistance (in raid channel).
 \`!addxp @user @user <amount>\`: Manually adds EXP to a specified user.
 \`!removexp @user @user <amount>\`: Manually removes EXP from a specified user.
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
