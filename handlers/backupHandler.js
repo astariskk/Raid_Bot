@@ -165,7 +165,7 @@ export function setupBackupHandlers(client) {
                 // Write the new data to the leaderboard file, effectively restoring it.
                 await writeLeaderboard(newLeaderboardData);
 
-                await message.reply('Leaderboard successfully restored from the attached file! Please restart the bot to ensure the changes take effect.');
+                await message.reply('Leaderboard successfully restored from the attached file! Please wait for the changes to take effect.');
                 console.log(`Leaderboard restored by ${message.author.tag} from attached file.`);
 
             } catch (error) {
