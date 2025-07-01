@@ -138,11 +138,11 @@ export function setupGeneralCommandsHandler(client) {
         if (message.content.toLowerCase() === '!modcommands' && message.channel.id === RAID_MANAGEMENT_CHANNEL_ID) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // A different color for distinction, e.g., green
-                .setTitle('🏆 Leaderboard Commands List 🏆')
-                .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
+                .setTitle('🛡️ Moderator Commands List 🏆')
+                .setDescription('this is shown using `!modcommands`. \nHere are the commands for moderation:')
                 .addFields(
                     {
-                        name: '🛡️ Moderator Commands (Administrator/Officer Only)',
+                        name: ' Moderation Commands (Administrator/Officer/Manager Only)',
                         value: `
 \`!raidhelp\`: Shows a button to request raid assistance (in raid channel).
 \`!addxp @user @user <amount>\`: Manually adds EXP to a specified user.
