@@ -18,7 +18,7 @@ export function setupGeneralCommandsHandler(client) {
         if (message.author.bot) return;
 
         // --- Handle the !raidcommands command ---
-        if (message.content.toLowerCase() === '!raidcommands') {
+        if (message.content.toLowerCase() === '!raidcommands' && message.channel.id === RAID_CHANNEL_ID) {
             const getHelpRoleButton = new ButtonBuilder()
                 .setCustomId('getHelpRole_btn')
                 .setLabel('📣 Get Help Role')
