@@ -19,7 +19,8 @@ import { Client, GatewayIntentBits } from 'discord.js'; // Removed EmbedBuilder,
 import { setupRaidLogsHandlers } from './handlers/raidLogsHandler.js';
 import { setupExpLairHandlers } from './handlers/expLairHandler.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
-import { setupGeneralCommandsHandler } from './handlers/generalCommandsHandler.js'; // New import for the general commands handler
+import { setupGeneralCommandsHandler } from './handlers/generalCommandsHandler.js';
+import { setupBackupHandlers } from './handlers/backupHandler.js'; // NEW: Import the backup handler
 
 export const client = new Client({
     intents: [
@@ -42,7 +43,8 @@ client.on('ready', () => {
     setupRaidLogsHandlers(client);
     setupExpLairHandlers(client);
     setupLeaderboardHandlers(client);
-    setupGeneralCommandsHandler(client); // Call the new general commands handler setup function
+    setupGeneralCommandsHandler(client);
+    setupBackupHandlers(client); // NEW: Call the backup handler setup function
 });
 
 // --- Login ---

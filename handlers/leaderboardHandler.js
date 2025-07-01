@@ -706,40 +706,6 @@ export function setupLeaderboardHandlers(client) {
                 await message.reply('Failed to simulate monthly reset. Please check bot permissions and channel ID.');
             }
         }
-
-        // --- Handle `!Getlb` Command ---
-        if (message.content.toLowerCase() === '!getlb') {
-            if (!checkAdmin()) {
-                return; // Silently ignore if not an admin.
-            }
-
-            if (!message.guild) {
-                return message.reply("This command can only be used in a server.");
-            }
-
-            try {
-                // Read the leaderboard file directly.
-                const leaderboardFileContent = await fs.readFile(LEADERBOARD_FILE, 'utf8');
-
-                // Create a buffer from the file content to send as an attachment.
-                const fileBuffer = Buffer.from(leaderboardFileContent, 'utf8');
-
-                // Send the file as an attachment.
-                await message.reply({
-                    content: 'Here is the current `leaderboard.json` file.',
-                    files: [{
-                        attachment: fileBuffer,
-                        name: 'leaderboard.json'
-                    }],
-                    ephemeral: true // Send as an ephemeral message for privacy/cleanliness.
-                });
-                console.log(`Leaderboard file sent to ${message.author.tag} in channel ${message.channel.name}.`);
-            } catch (error) {
-                console.error('Error sending leaderboard file:', error);
-                await message.reply({ content: 'Failed to send the leaderboard file. Please check bot permissions and file path.', ephemeral: true });
-            }
-            return;
-        }
     });
 
     // --- Interaction Create Listener (for !lbcheck pagination buttons) ---
