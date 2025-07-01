@@ -23,6 +23,7 @@ import {
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { getTasksEmbed } from './raidLogsHandler.js'; // Still needed for validation feedback
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
+import { sendLeaderboardBackup } from './backupHandler.js'; // NEW: Import the backup function
 
 // --- Constants for Embed Colors ---
 const COLOR_SUCCESS = 0x57F287; // Green
@@ -80,7 +81,7 @@ function parseHelperAssignments(content) {
         if (parts.length < 2) {
             // This line doesn't conform to the "task = user" pattern
             if (trimmedLine.length > 0) {
-                 unrecognizedTasks.add(trimmedLine); // Still add here if no '='
+                unrecognizedTasks.add(trimmedLine); // Still add here if no '='
             }
             continue;
         }
@@ -381,6 +382,11 @@ async function handleRaidCompletion(message, raidInfo) {
         // Update leaderboard (moved after sending messages for better flow, but can be done earlier)
         for (const userId in pointsAwarded) {
             await updateLeaderboard(userId, pointsAwarded[userId]);
+        }
+
+        // NEW: Trigger a leaderboard backup after points are successfully awarded and leaderboard updated
+        if (Object.keys(pointsAwarded).length > 0) { // Only backup if points were actually awarded
+            await sendLeaderboardBackup(message.client);
         }
 
         // Confirm to the original raid thread that details are posted

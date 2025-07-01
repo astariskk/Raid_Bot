@@ -39,9 +39,10 @@ function isAdmin(message) {
 /**
  * Reads the leaderboard file, optionally unsends the previous backup message,
  * and sends a new backup as an attachment to the designated channel.
+ * This function is now called externally (e.g., from expLairHandler or !lbackup command).
  * @param {import('discord.js').Client} client The Discord client instance.
  */
-async function sendLeaderboardBackup(client) {
+export async function sendLeaderboardBackup(client) { // Exported for external use
     try {
         // 1. Ensure the RAID_MANAGEMENT_CHANNEL_ID is configured and valid.
         if (!RAID_MANAGEMENT_CHANNEL_ID) {
@@ -75,11 +76,11 @@ async function sendLeaderboardBackup(client) {
 
         // 4. Create a new embed for the backup message.
         const backupEmbed = new EmbedBuilder()
-            .setColor(0x3498DB) // Green color for success/backup.
+            .setColor(0x00FF00) // Green color for success/backup.
             .setTitle('💾 Leaderboard Backup Created')
             .setDescription('Here is the latest `leaderboard.json` file for backup purposes. This message will be replaced with the next backup.')
             .setTimestamp()
-            .setFooter({ text: 'Raid Helper Bot | Automatic Hourly Backup' });
+            .setFooter({ text: 'Raid Helper Bot | Automatic Backup Triggered' }); // Updated footer text
 
         // 5. Send the new file as an attachment.
         await channel.send({
@@ -99,23 +100,13 @@ async function sendLeaderboardBackup(client) {
 
 // --- Setup Function for Backup Handlers ---
 /**
- * Sets up event listeners and scheduled tasks for leaderboard backup and restore functionalities.
+ * Sets up event listeners for leaderboard restore functionalities and manual backup command.
+ * The automatic backup trigger is now handled by other modules (e.g., expLairHandler).
  * @param {import('discord.js').Client} client The Discord client instance.
  */
 export function setupBackupHandlers(client) {
-    // --- Scheduled Hourly Backup ---
-    // This task will run every hour (3600000 milliseconds).
-    // It's crucial that your bot is running continuously for this to work reliably.
-    setInterval(() => {
-        console.log('Attempting to send hourly leaderboard backup...');
-        sendLeaderboardBackup(client);
-    }, 60 * 60 * 1000); // 1 hour in milliseconds
-
-    // Send an initial backup when the bot starts up.
-    client.on('ready', () => {
-        console.log('Sending initial leaderboard backup on bot startup...');
-        sendLeaderboardBackup(client);
-    });
+    // Removed setInterval and client.on('ready') auto-triggers.
+    // The sendLeaderboardBackup function is now called by other handlers when data changes.
 
     // --- Message Create Listener (for !restorelb and !lbackup commands) ---
     client.on('messageCreate', async (message) => {
