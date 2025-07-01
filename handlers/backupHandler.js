@@ -78,7 +78,7 @@ export async function sendLeaderboardBackup(client) { // Exported for external u
         const backupEmbed = new EmbedBuilder()
             .setColor(0x00FF00) // Green color for success/backup.
             .setTitle('💾 Leaderboard Backup Created')
-            .setDescription('Here is the latest `leaderboard.json` file for backup purposes. This message will be replaced with the next backup.')
+            .setDescription('Here is the latest `leaderboard.json` file for backup purposes. This message will be replaced with the next backup.\n`!restorelb` command can be used to restore the leaderboard from this file. \n`lbackup` command can be used to manually trigger a backup.')
             .setTimestamp()
             .setFooter({ text: 'Raid Helper Bot | Automatic Backup Triggered' }); // Updated footer text
 
