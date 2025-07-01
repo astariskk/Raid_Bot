@@ -170,7 +170,7 @@ export function setupGeneralCommandsHandler(client) {
             'sybau xychrome': {
                 title: "Get Twerked On",
                 image: 'https://files.catbox.moe/neo4gz.gif',
-                footer: 'Deal with it',
+                footer: 'Sybauuuu',
                 color: 0x7e7e7e
             },
             "ain't no party like a diddy party": {
