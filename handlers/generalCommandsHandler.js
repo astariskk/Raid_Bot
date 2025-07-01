@@ -76,17 +76,6 @@ export function setupGeneralCommandsHandler(client) {
                         `
                     },
                     {
-                        name: '🛡️ Moderator Commands (Administrator/Officer Only)',
-                        value: `
-\`!raidhelp\`: Shows a button to request raid assistance (in raid channel).
-\`!addxp @user <amount>\`: Manually adds EXP to a specified user.
-\`!removexp @user <amount>\`: Manually removes EXP from a specified user.
-\`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
-\`!lbackup\`: Forces the bot to upload a new leaderboard backup and replace the old one.
-\`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
-                        `
-                    },
-                    {
                         name: '\u200B', // Unicode for a zero-width space, used as a spacer
                         value: `**Press the buttons below to interact with the bot:**
 • \`⚔️ Start Raid\`: To request assistance for a raid.
