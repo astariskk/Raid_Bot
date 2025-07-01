@@ -57,22 +57,23 @@ export function setupGeneralCommandsHandler(client) {
                     {
                         name: '💬 Commands Inside Raid Threads (by Raid Requester)',
                         value: `
+\`!raidmaps\`: Displays the link for the tool that makes joining maps easier.
 \`waiting\`: Set the raid status to '🔵 Waiting'.
 \`ongoing\`: Set the raid status to '🟢 Ongoing'.
 \`full\`: Set the raid status to '🔴 Full'.
 \`cancel\`: Close the raid thread without awarding points.
-\`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s). **You can also add a multiplier: \`all xN = @user1\`.**
-\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s). **You can also add a multiplier: \`taskname xN = @user1\`.**
+\`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
+\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
+\`xN\` = a multiplier for multiple runs: \`taskname xN = @user1\`
                         `
                     },
                     {
-                        name: '⚔️ Commands Inside Raid Threads',
+                        name: '⚔️ Speaker Chart Commands',
                         value: `
 \`!1man\`: Displays the 1-man raid chart.
 \`!2man\`: Displays the 2-man raid chart.
 \`!!3man\`: Displays the 3-man raid chart.
 \`!4man\`: Displays the 4-man raid chart.
-\`!raidmaps\`: Displays the link for the tool that makes joining maps easier.
                         `
                     },
                     {
