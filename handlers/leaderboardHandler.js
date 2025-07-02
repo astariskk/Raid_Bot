@@ -8,7 +8,7 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'disc
 // Import file operations utilities for reading and writing leaderboard data.
 import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 // Import constants for file paths, role IDs, and channel IDs.
-import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_CHANNEL_ID, RAID_MANAGER_ROLE_ID} from '../config/constants.js';
+import { LEADERBOARD_FILE, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_CHANNEL_ID, RAID_MANAGER_ROLE_ID, LEADERBOARD_CHANNEL_ID} from '../config/constants.js';
 import fs from 'node:fs/promises'; // Import Node.js 'fs/promises' for file operations.
 
 
@@ -327,7 +327,7 @@ export function setupLeaderboardHandlers(client) {
         const checkAdmin = () => isAdmin(message);
 
         // --- Handle Leaderboard Command (`!leaderboard` / `!lb`) ---
-        if (message.content.toLowerCase() === '!leaderboard' || message.content.toLowerCase() === '!lb') {
+        if ((message.content.toLowerCase() === '!leaderboard' || message.content.toLowerCase() === '!lb') && message.channelID === LEADERBOARD_CHANNEL_ID) {
             // Ensure the command is used in a guild (server).
             if (!message.guild) {
                 return message.reply("This command can only be used in a server.");
@@ -348,7 +348,7 @@ export function setupLeaderboardHandlers(client) {
         }
 
         // --- Handle Leaderboard Check Command (`!lbcheck`) ---
-        if (message.content.toLowerCase().startsWith('!lbcheck')) {
+        if (message.content.toLowerCase().startsWith('!lbcheck') && message.channelID === LEADERBOARD_CHANNEL_ID) {
             // Ensure the command is used in a guild for member resolution.
             if (!message.guild) {
                 return message.reply("This command can only be used in a server.");
