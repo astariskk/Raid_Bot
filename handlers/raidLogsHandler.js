@@ -416,7 +416,7 @@ export function setupRaidLogsHandlers(client) {
             }
             return; 
         }
-        // --- Handle the !raidmaps command ---
+        // --- Handle the !raidsite command ---
         if (message.content.toLowerCase() === '!raidsite') {
             const raidMapsEmbed = new EmbedBuilder()
                 .setColor(0x0099FF) // A suitable color
