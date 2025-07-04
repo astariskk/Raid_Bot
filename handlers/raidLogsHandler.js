@@ -392,13 +392,13 @@ export function setupRaidLogsHandlers(client) {
                 // Generate the /join links for each task
                 const joinLinksWithPoints = expandedTasks.map(task => {
                     const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
-                    return `* /join ${mapPrefix}-${mapNumber})`;
+                    return `* /join ${mapPrefix}-${mapNumber}`;
                 }).join('\n');
 
                 const embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle(`Raid Maps for Current Task(s): ${raidTasksString}`)
-                    .setDescription(`Here are the join commands for your current raid tasks on server ${mapNumber}:\n\n${joinLinksWithPoints}`)
+                    .setDescription(`Here are the join commands for your current raid task(s) with the room number ${mapNumber}:\n\n${joinLinksWithPoints}`)
                     .setFooter({ text: 'Use these commands to join the maps!' });
 
                 try {

@@ -57,7 +57,7 @@ export function setupGeneralCommandsHandler(client) {
                     {
                         name: '💬 Commands Inside Raid Threads (by Raid Requester)',
                         value: `
-\`!taskmaps\`: Displays the map's specified in the raid to make joining maps easier.
+\`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
 \`waiting\`: Set the raid status to '🔵 Waiting'.
 \`ongoing\`: Set the raid status to '🟢 Ongoing'.
 \`full\`: Set the raid status to '🔴 Full'.
