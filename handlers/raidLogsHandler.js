@@ -27,8 +27,8 @@ import {
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
-    TASK_MAP_CATEGORIES,
-    TASK_TO_MAP_PREFIX_MAPPING // NEW: Import the new constant
+    TASK_MAP_CATEGORIES, // Still useful for other commands or future expansions
+    TASK_TO_MAP_PREFIX_MAPPING
 } from '../config/constants.js';
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
@@ -358,48 +358,47 @@ export function setupRaidLogsHandlers(client) {
             }
         }
 
-        // --- NEW: Handle the !taskmaps <category> <number> command ---
-        const taskMapsMatch = message.content.toLowerCase().match(/^!taskmaps\s+([a-z]+)\s+(\d+)$/);
+        // --- MODIFIED: Handle the !raidmaps <number> command ---
+        const raidMapsMatch = message.content.toLowerCase().match(/^!raidmaps\s+(\d+)$/);
 
-        if (taskMapsMatch) {
-            const requestedCategory = taskMapsMatch[1]; 
-            const mapNumber = taskMapsMatch[2];       
+        if (raidMapsMatch) {
+            const mapNumber = raidMapsMatch[1]; // Extract the number
 
-            // Look up the task list using the new TASK_MAP_CATEGORIES constant
-            const taskList = TASK_MAP_CATEGORIES[requestedCategory];
+            // Check if the command is used within an active raid thread
+            const raidInfo = activeRaidThreads[message.channel.id];
 
-            if (taskList && taskList.length > 0) {
-                const joinLinks = taskList.map(task => {
+            if (message.channel.isThread() && raidInfo) {
+                const raidTasksString = raidInfo.task; // Get the task string from the active raid info
+                // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
+                const requestedTasks = raidTasksString.split(/\s*\+\s*/).map(t => t.trim());
+
+                // Generate the /join links and include EXP points for each task
+                const joinLinksWithPoints = requestedTasks.map(task => {
                     const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
-                    return `/join ${mapPrefix}-${mapNumber}`;
+                    const expPoints = POINTS_CONFIG[task] || 0;
+                    return `/join ${mapPrefix}-${mapNumber} (EXP: ${expPoints})`;
                 }).join('\n');
-                
-                // Capitalize the first letter of the category for display
-                const displayCategory = requestedCategory.charAt(0).toUpperCase() + requestedCategory.slice(1);
 
                 const embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF) 
-                    .setTitle(`Task Maps for: ${displayCategory}`)
-                    .setDescription(`\`!taskmaps ${requestedCategory} ${mapNumber}\`\n\n${joinLinks}`)
+                    .setColor(0x0099FF)
+                    .setTitle(`Raid Maps for Current Task(s): ${raidTasksString}`)
+                    .setDescription(`Here are the join commands for your current raid tasks on server ${mapNumber}:\n\n${joinLinksWithPoints}`)
                     .setFooter({ text: 'Use these commands to join the maps!' });
 
                 try {
                     await message.channel.send({ embeds: [embedToSend] });
                 } catch (error) {
-                    console.error(`Error sending !taskmaps for ${requestedCategory}:`, error);
-                    await message.channel.send('Failed to display task maps. Please try again later.');
+                    console.error(`Error sending !raidmaps for thread ${message.channel.id}:`, error);
+                    await message.channel.send('Failed to display raid maps for this thread. Please try again later.');
                 }
             } else {
-                // If the category is not found or is empty, inform the user
+                // If not in an active raid thread, inform the user about correct usage
                 await message.channel.send(
-                    `Invalid task category: \`${requestedCategory}\`. ` +
-                    `Please use a valid category like \`daily\`, \`weekly\`, \`templeshrine\`, ` +
-                    `\`originul\`, \`others\`, or \`generic\`.`
+                    'The `!raidmaps <number>` command can only be used inside an active raid thread '
                 );
             }
-            return; // Stop further processing after handling !taskmaps
+            return; // Stop further processing after handling !raidmaps
         }
-
         // --- Command to list all available raid tasks with their categories (`!raidtasks`) ---
         if (message.content.toLowerCase() === '!raidtasks') {
             try {
@@ -427,7 +426,6 @@ export function setupRaidLogsHandlers(client) {
     });
 
     // --- Interaction Create Listener (for button clicks and modal submissions) ---
-    // This listener processes interactions (button clicks, modal submissions, etc.).
     client.on('interactionCreate', async interaction => {
         // Only process buttons and modal submissions in this handler.
         if (!interaction.isButton() && !interaction.isModalSubmit()) {
@@ -547,7 +545,7 @@ export function setupRaidLogsHandlers(client) {
                         activeRaidThreads[thread.id] = {
                             messageId: sentMessage.id,
                             originalChannelId: raidLogsChannel.id,
-                            task: task,
+                            task: task, // Store the combined task string
                             requesterId: interaction.user.id,
                             mapName: mapName,
                             server: server,
