@@ -27,7 +27,7 @@ import {
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
-    TASK_MAP_CATEGORIES, // Still useful for other commands or future expansions
+    TASK_MAP_CATEGORIES, // Crucial for expanding meta tasks
     TASK_TO_MAP_PREFIX_MAPPING
 } from '../config/constants.js';
 
@@ -358,7 +358,13 @@ export function setupRaidLogsHandlers(client) {
             }
         }
 
-        // --- MODIFIED: Handle the !raidmaps <number> command ---
+        // --- NEW: Handle !raidmaps without a number ---
+        if (message.content.toLowerCase().trim() === '!raidmaps') {
+            await message.channel.send('The proper format is `!raidmaps [number]`. Please provide the map number.');
+            return; 
+        }
+
+        // --- Handle the !raidmaps <number> command ---
         const raidMapsMatch = message.content.toLowerCase().match(/^!raidmaps\s+(\d+)$/);
 
         if (raidMapsMatch) {
@@ -370,13 +376,23 @@ export function setupRaidLogsHandlers(client) {
             if (message.channel.isThread() && raidInfo) {
                 const raidTasksString = raidInfo.task; // Get the task string from the active raid info
                 // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
-                const requestedTasks = raidTasksString.split(/\s*\+\s*/).map(t => t.trim());
+                const rawRequestedTasks = raidTasksString.split(/\s*\+\s*/).map(t => t.trim());
 
-                // Generate the /join links and include EXP points for each task
-                const joinLinksWithPoints = requestedTasks.map(task => {
+                let expandedTasks = [];
+                // Expand meta-tasks into their individual components
+                for (const task of rawRequestedTasks) {
+                    if (TASK_MAP_CATEGORIES[task]) {
+                        // If it's a category (like 'daily' or 'weekly'), add its individual tasks
+                        expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);
+                    } else {
+                        expandedTasks.push(task);
+                    }
+                }
+
+                // Generate the /join links for each task
+                const joinLinksWithPoints = expandedTasks.map(task => {
                     const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
-                    const expPoints = POINTS_CONFIG[task] || 0;
-                    return `/join ${mapPrefix}-${mapNumber} (EXP: ${expPoints})`;
+                    return `* /join ${mapPrefix}-${mapNumber})`;
                 }).join('\n');
 
                 const embedToSend = new EmbedBuilder()
@@ -394,11 +410,14 @@ export function setupRaidLogsHandlers(client) {
             } else {
                 // If not in an active raid thread, inform the user about correct usage
                 await message.channel.send(
-                    'The `!raidmaps <number>` command can only be used inside an active raid thread '
+                    'The `!raidmaps [number]` command can only be used inside an active raid thread ' +
+                    'to get join links for the tasks in that specific raid.'
                 );
             }
-            return; // Stop further processing after handling !raidmaps
+            return; 
         }
+
+
         // --- Command to list all available raid tasks with their categories (`!raidtasks`) ---
         if (message.content.toLowerCase() === '!raidtasks') {
             try {
@@ -426,6 +445,7 @@ export function setupRaidLogsHandlers(client) {
     });
 
     // --- Interaction Create Listener (for button clicks and modal submissions) ---
+    // This listener processes interactions (button clicks, modal submissions, etc.).
     client.on('interactionCreate', async interaction => {
         // Only process buttons and modal submissions in this handler.
         if (!interaction.isButton() && !interaction.isModalSubmit()) {
@@ -533,12 +553,6 @@ export function setupRaidLogsHandlers(client) {
                             name: `${task} | ${mapName} | ${server} | ${interaction.user.username}`, // Thread name.
                             autoArchiveDuration: 60, // Thread auto-archives after 60 minutes of inactivity.
                             reason: `Raid request from ${interaction.user.tag}`,
-                        });
-
-                        // Send an initial message to the new thread with instructions and action buttons.
-                        await thread.send({
-                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting**, **ongoing** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
-                            components: [threadActionRow] // Attach the close and edit buttons.
                         });
 
                         // Store the raid's information in the `activeRaidThreads` shared state.
