@@ -1,11 +1,13 @@
 // config/constants.js
+// --- Channel ID's ---
 export const RAID_CHANNEL_ID = '1388854499023519847';
 export const RAID_LOGS_CHANNEL_ID = '1388865288115847322';
 export const EXP_LAIR_CHANNEL_ID = '1388865498065666059';
 export const LEADERBOARD_CHANNEL_ID = '1389203721505996903'; // Your Leaderboard Channel ID 1389203721505996903
 export const RAID_MANAGEMENT_CHANNEL_ID = '1389420600367251476'; // Your Raid Logs Message ID 1389420600367251476
 
-export const RAID_HELPER_ROLE_ID = '1373205396298141696'; // Your Raid Helper Role ID 1373205396298141696
+// --- ROLE ID's ---
+export const RAID_HELPER_ROLE_ID = ''; // Your Raid Helper Role ID 1373205396298141696
 export const MODERATOR_ROLE_ID = '1373356500252098670'; // Your Moderator Role ID 1373356500252098670
 export const OFFICER_ROLE_ID = '1373011008888639568'; // Your Officer Role ID 1373011008888639568
 export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; // Your Raid Manager Role ID 1388819716008706129
@@ -63,3 +65,42 @@ export const ALLOWED_TASK_NAMES = [
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, points]) => `${task} = ${points} EXP`);
 
 export const MAX_XP_PER_RAID = 20000;
+
+// --- Task Categories for !taskmaps command ---
+export const TASK_MAP_CATEGORIES = {
+    'dailies': DAILIES_LIST,
+    'daily': DAILIES_LIST, // Alias for 'dailies'
+    'weeklies': WEEKLIES_LIST,
+    'weekly': WEEKLIES_LIST, // Alias for 'weeklies'
+    'templeshrine': TEMPLESHRINE_LIST,
+    'originul': ORIGINUL_LIST,
+    'others': OTHERS_LIST,
+    'generic': GENERIC_TASKS_LIST,
+};
+
+// --- NEW: Mapping for tasks that have different map prefixes than their task name ---
+export const TASK_TO_MAP_PREFIX_MAPPING = {
+    'ezrajal': 'ultraezrajal',
+    'warden': 'ultrawarden',
+    'engineer': 'ultraengineer',
+    'tyndarius': 'ultratyndarius',
+    'kala': 'ultrakala',
+    'nulgath': 'ultranulgath',
+    'drakath': 'championdrakath',     
+    'dage': 'ultradage',
+    'darkon': 'ultradarkon',
+    'drago': 'ultradrago',    
+    'speaker': 'ultraspeaker',
+    'mechabinky': 'grimchallenge',
+    'gramiel': 'ultragramiel',
+    'voidflibbi': 'voidflibbi',
+    'voidnightbane': 'voidnightbane',
+    'voidxyfrag': 'voidxyfrag',
+    'voidnerfkitten': 'voidnerfkitten',
+    'kathool': 'kathooldepths',
+    'astralshrine': 'astralshrine',
+    'tsmid': 'templeshrine',
+    'tsleft': 'templeshrine',
+    'tsright': 'templeshrine',
+    'lavarockshore': 'lavarockshore',   
+};

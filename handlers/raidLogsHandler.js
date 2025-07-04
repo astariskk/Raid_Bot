@@ -26,8 +26,9 @@ import {
     ORIGINUL_LIST,
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
-    GENERIC_TASKS_LIST
-
+    GENERIC_TASKS_LIST,
+    TASK_MAP_CATEGORIES,
+    TASK_TO_MAP_PREFIX_MAPPING // NEW: Import the new constant
 } from '../config/constants.js';
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
@@ -355,24 +356,48 @@ export function setupRaidLogsHandlers(client) {
                     await message.channel.send('Failed to send the chart. Please check the link or try again later.');
                 }
             }
+        }
 
-        // --- Handle the !raidmaps command ---
-        if (message.content.toLowerCase() === '!raidmaps') {
-            const raidMapsEmbed = new EmbedBuilder()
-                .setColor(0x0099FF) // A suitable color
-                .setTitle('🗺️ Raid Maps for AQW')
-                .setDescription('Clicking the link will lead you to a tool that makes joining maps easier:')
-                .setURL('https://neiru.vercel.app/aqw/raid/maps') // The link you provided
-                .setTimestamp()
-                .setFooter({ text: 'Raid Helper Bot | Raid Maps' });
+        // --- NEW: Handle the !taskmaps <category> <number> command ---
+        const taskMapsMatch = message.content.toLowerCase().match(/^!taskmaps\s+([a-z]+)\s+(\d+)$/);
 
-            try {
-                await message.channel.send({ embeds: [raidMapsEmbed] });
-            } catch (error) {
-                console.error('Error sending !raidmaps embed:', error);
-                await message.channel.send('Failed to display raid maps. Please try again later.');
+        if (taskMapsMatch) {
+            const requestedCategory = taskMapsMatch[1]; 
+            const mapNumber = taskMapsMatch[2];       
+
+            // Look up the task list using the new TASK_MAP_CATEGORIES constant
+            const taskList = TASK_MAP_CATEGORIES[requestedCategory];
+
+            if (taskList && taskList.length > 0) {
+                const joinLinks = taskList.map(task => {
+                    const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
+                    return `/join ${mapPrefix}-${mapNumber}`;
+                }).join('\n');
+                
+                // Capitalize the first letter of the category for display
+                const displayCategory = requestedCategory.charAt(0).toUpperCase() + requestedCategory.slice(1);
+
+                const embedToSend = new EmbedBuilder()
+                    .setColor(0x0099FF) 
+                    .setTitle(`Task Maps for: ${displayCategory}`)
+                    .setDescription(`\`!taskmaps ${requestedCategory} ${mapNumber}\`\n\n${joinLinks}`)
+                    .setFooter({ text: 'Use these commands to join the maps!' });
+
+                try {
+                    await message.channel.send({ embeds: [embedToSend] });
+                } catch (error) {
+                    console.error(`Error sending !taskmaps for ${requestedCategory}:`, error);
+                    await message.channel.send('Failed to display task maps. Please try again later.');
+                }
+            } else {
+                // If the category is not found or is empty, inform the user
+                await message.channel.send(
+                    `Invalid task category: \`${requestedCategory}\`. ` +
+                    `Please use a valid category like \`daily\`, \`weekly\`, \`templeshrine\`, ` +
+                    `\`originul\`, \`others\`, or \`generic\`.`
+                );
             }
-        }            
+            return; // Stop further processing after handling !taskmaps
         }
 
         // --- Command to list all available raid tasks with their categories (`!raidtasks`) ---
