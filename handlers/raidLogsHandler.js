@@ -545,10 +545,9 @@ export function setupRaidLogsHandlers(client) {
                         // Create the embed message for the new raid request.
                         const embedMessage = new EmbedBuilder()
                             .setColor(0x0099ff) // Blue color.
-                            .setTitle(`New Raid Request: ${task}`)
+                            .setTitle(`New Raid Request by: ${interaction.member.displayName}`) // Title with the user's name.
                             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() }) // Set author as the requesting user.
                             .addFields(
-                                { name: 'Requested By', value: `<@${interaction.user.id}>` },
                                 { name: 'Task(s)', value: task, inline: true },
                                 { name: 'Map Name', value: mapName, inline: true },
                                 { name: 'Server', value: server, inline: true },
@@ -569,6 +568,11 @@ export function setupRaidLogsHandlers(client) {
                             name: `${task} | ${mapName} | ${server} | ${interaction.user.username}`, // Thread name.
                             autoArchiveDuration: 60, // Thread auto-archives after 60 minutes of inactivity.
                             reason: `Raid request from ${interaction.user.tag}`,
+                        });
+
+                        await thread.send({
+                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting**, **ongoing** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
+                            components: [threadActionRow] // Attach the close and edit buttons.
                         });
 
                         // Store the raid's information in the `activeRaidThreads` shared state.
