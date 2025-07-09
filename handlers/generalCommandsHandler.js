@@ -62,9 +62,15 @@ export function setupGeneralCommandsHandler(client) {
 \`waiting\`: Set the raid status to '🔵 Waiting'.
 \`ongoing\`: Set the raid status to '🟢 Ongoing'.
 \`full\`: Set the raid status to '🔴 Full'.
+                        `
+                    },
+                    {
+                        name: '💬 Commands for closing the Raid Request',
+                        value: `
 \`cancel\`: Close the raid thread without awarding points.
 \`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
+\`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player.
 \`xN\` = a multiplier for multiple runs: \`taskname xN = @user1\`
                         `
                     },
