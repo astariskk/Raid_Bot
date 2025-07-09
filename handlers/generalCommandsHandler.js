@@ -71,7 +71,7 @@ export function setupGeneralCommandsHandler(client) {
 \`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player.
-\`xN\` = a multiplier for multiple runs: \`taskname xN = @user1\`
+\`xN\` = Awards EXP with a multiplier for multiple runs: \`taskname xN = @user1\`
                         `
                     },
                     {
