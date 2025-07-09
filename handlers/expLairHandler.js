@@ -23,7 +23,7 @@ import {
 import { updateLeaderboard } from '../utils/fileOps.js';
 import { getTasksEmbed } from './raidLogsHandler.js'; // Still needed for validation feedback
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
-import { sendLeaderboardBackup } from './backupHandler.js'; // NEW: Import the backup function
+import { sendLeaderboardBackup } from './backupHandler.js'; // Import the backup function
 
 // --- Constants for Embed Colors ---
 const COLOR_SUCCESS = 0x57F287; // Green
@@ -384,7 +384,7 @@ async function handleRaidCompletion(message, raidInfo) {
             await updateLeaderboard(userId, pointsAwarded[userId]);
         }
 
-        // NEW: Trigger a leaderboard backup after points are successfully awarded and leaderboard updated
+        // Trigger a leaderboard backup after points are successfully awarded and leaderboard updated
         if (Object.keys(pointsAwarded).length > 0) { // Only backup if points were actually awarded
             await sendLeaderboardBackup(message.client);
         }

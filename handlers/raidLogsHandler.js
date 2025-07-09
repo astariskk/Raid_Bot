@@ -295,13 +295,13 @@ export function setupRaidLogsHandlers(client) {
             let newStatus, newColor;
 
             // Determine the new status and color based on specific keywords.
-            if (content === 'waiting') {
+            if (content === '!waiting') {
                 newStatus = '🔵 Waiting';
                 newColor = 0x0099ff; // Blue for waiting.
-            } else if (content === 'full') {
+            } else if (content === '!full') {
                 newStatus = '🔴 Full';
                 newColor = 0xFF4500; // Red for full.
-            } else if (content === 'ongoing') {
+            } else if (content === '!ongoing') {
                 newStatus = '🟢 Ongoing';
                 newColor = 0x32CD32; // Lime Green for ongoing.
             }
@@ -358,7 +358,7 @@ export function setupRaidLogsHandlers(client) {
             }
         }
 
-        // --- NEW: Handle !raidmaps without a number ---
+        // --- Handle !raidmaps without a number ---
         if (message.content.toLowerCase().trim() === '!raidmaps') {
             await message.channel.send('The proper format is `!raidmaps [number]`. Please provide the map number.');
             return; 

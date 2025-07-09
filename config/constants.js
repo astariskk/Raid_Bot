@@ -12,7 +12,6 @@ export const MODERATOR_ROLE_ID = '1373356500252098670'; // Your Moderator Role I
 export const OFFICER_ROLE_ID = '1373011008888639568'; // Your Officer Role ID 1373011008888639568
 export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; // Your Raid Manager Role ID 1388819716008706129
 
-// --- IMPORTANT: Using forward slash for cross-platform compatibility ---
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
 
 export const POINTS_CONFIG = {
