@@ -159,6 +159,33 @@ export function setupGeneralCommandsHandler(client) {
                 await message.channel.send('Failed to display leaderboard commands. Please try again later.');
             }
         }
+        // --- Handle custom GIF commands ---
+        if (message.content.toLowerCase() === '!secretcommands') {
+                    const secretCommandsEmbed = new EmbedBuilder()
+                        .setColor(0x3498DB) // Pink color for secret commands
+                        .setTitle('🤫 Secret Gif Commands List 🤫')
+                        .setDescription('Here are some secret GIF commands you can use:')
+                        .addFields(
+                                  {
+                                name: 'Secret GIF Commands',
+                                value: `the most beautiful thing you will ever see\n` +
+                                `i need more bullets\n` +
+                                `sybau xychrome\n` +
+                                `ain't no party like a diddy party\n` +
+                                `get backshotted by diddy\n` +      
+                                `i will touch you inappropriately`
+                                }
+                        )
+                        .setTimestamp()
+                        .setFooter({ text: 'Raid Helper Bot | Secret Gif Commands'});                        
+            try {
+                await message.channel.send({ embeds: [secretCommandsEmbed] });
+            } catch (error) {
+                console.error('Error sending !secretcommands embed:', error);
+                await message.channel.send('Failed to display secreet Gif commands. Please try again later.');
+            }                
+        
+}
 
         // --- Custom GIF Commands ---
         const gifCommands = {
@@ -191,7 +218,14 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/nnxf77.gif',
                 footer: 'Spongebob gone wild',
                 color: 0xFFFF00
-            }
+            },
+            "i will touch you inappropriately": {
+                title: "Ooh yeah, you like that don't you?",
+                image: 'https://files.catbox.moe/ilngit.gif',
+                footer: 'Inappropriate Touching',
+                color: 0x964B00
+            }
+        
         };
 
         const commandContent = message.content.toLowerCase();
