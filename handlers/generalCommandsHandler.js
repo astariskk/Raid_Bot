@@ -168,12 +168,11 @@ export function setupGeneralCommandsHandler(client) {
                         .addFields(
                                   {
                                 name: 'Secret GIF Commands',
-                                value: `the most beautiful thing you will ever see\n` +
-                                `i need more bullets\n` +
-                                `sybau xychrome\n` +
-                                `ain't no party like a diddy party\n` +
-                                `get backshotted by diddy\n` +      
-                                `i will touch you inappropriately`
+                                value: `* \`the most beautiful thing you will ever see\`\n` +
+                                `* \`i need more bullets\`\n` +
+                                `* \`sybau xychrome\`\n` +
+                                `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
+                                `* \`i will touch you inappropriately\``
                                 }
                         )
                         .setTimestamp()
@@ -220,9 +219,9 @@ export function setupGeneralCommandsHandler(client) {
                 color: 0xFFFF00
             },
             "i will touch you inappropriately": {
-                title: "Ooh yeah, you like that don't you?",
+                title: "oh yeah, you better start oiling up buddy",
                 image: 'https://files.catbox.moe/ilngit.gif',
-                footer: 'Inappropriate Touching',
+                footer: 'Inappropriate Touching without consent',
                 color: 0x964B00
             }
         
