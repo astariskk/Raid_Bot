@@ -208,13 +208,13 @@ export function setupGeneralCommandsHandler(client) {
                 footer: 'Sybauuuu',
                 color: 0x7e7e7e
             },
-            "Let's get freaky": {
+            "let's get freaky": {
                 title: "im about to get freaky",
                 image: 'https://files.catbox.moe/0n1mp7.gif',
                 footer: 'spurt spurt',
                 color: 0x48757d
             },
-            "The scariest thing you will ever see": {
+            "the scariest thing you will ever see": {
                 title: "BOO!",
                 image: 'https://files.catbox.moe/3l3wtr.png',
                 footer: 'Time to stop procrastinating and get a job',
