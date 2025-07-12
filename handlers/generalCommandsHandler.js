@@ -205,7 +205,7 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/neo4gz.gif',
                 footer: 'Sybauuuu',
                 color: 0x7e7e7e
-            },
+            },/*
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
                 image: 'https://files.catbox.moe/nnxf77.gif',
@@ -217,7 +217,7 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/nnxf77.gif',
                 footer: 'Spongebob gone wild',
                 color: 0xFFFF00
-            },
+            }, */
             "i will touch you inappropriately": {
                 title: "oh yeah, you better start oiling up buddy",
                 image: 'https://files.catbox.moe/ilngit.gif',
