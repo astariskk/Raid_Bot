@@ -170,7 +170,9 @@ export function setupGeneralCommandsHandler(client) {
                                 name: 'Secret GIF Commands',
                                 value: `* \`the most beautiful thing you will ever see\`\n` +
                                 `* \`i need more bullets\`\n` +
-                                `* \`sybau xychrome\`\n` /* + 
+                                `* \`sybau xychrome\`\n` +
+                                `* \`let's get freaky\`\n` +
+                                `* \`the scariest thing you will ever see\`\n`/* + 
                                 `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
                                 `* \`i will touch you inappropriately\``*/
                                 }
@@ -205,6 +207,18 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/neo4gz.gif',
                 footer: 'Sybauuuu',
                 color: 0x7e7e7e
+            },
+            "Let's get freaky": {
+                title: "im about to get freaky",
+                image: 'https://files.catbox.moe/0n1mp7.gif',
+                footer: 'spurt spurt',
+                color: 0x48757d
+            },
+            "The scariest thing you will ever see": {
+                title: "BOO!",
+                image: 'https://files.catbox.moe/3l3wtr.png',
+                footer: 'Time to stop procrastinating and get a job',
+                color: 0x48757d
             }/*,
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
