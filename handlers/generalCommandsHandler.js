@@ -170,9 +170,9 @@ export function setupGeneralCommandsHandler(client) {
                                 name: 'Secret GIF Commands',
                                 value: `* \`the most beautiful thing you will ever see\`\n` +
                                 `* \`i need more bullets\`\n` +
-                                `* \`sybau xychrome\`\n` +
+                                `* \`sybau xychrome\`\n` + /*
                                 `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
-                                `* \`i will touch you inappropriately\``
+                                `* \`i will touch you inappropriately\``*/
                                 }
                         )
                         .setTimestamp()
