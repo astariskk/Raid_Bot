@@ -218,7 +218,7 @@ export function setupGeneralCommandsHandler(client) {
                 title: "BOO!",
                 image: 'https://files.catbox.moe/3l3wtr.png',
                 footer: 'Time to stop procrastinating and get a job',
-                color: 0x48757d
+                color: 0x1a1a1e
             }/*,
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
