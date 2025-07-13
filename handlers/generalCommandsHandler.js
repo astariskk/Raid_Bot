@@ -172,7 +172,8 @@ export function setupGeneralCommandsHandler(client) {
                                 `* \`i need more bullets\`\n` +
                                 `* \`sybau xychrome\`\n` +
                                 `* \`let's get freaky\`\n` +
-                                `* \`the scariest thing you will ever see\`\n`/* + 
+                                `* \`the scariest thing you will ever see\`\n` + 
+                                `* \`shaboingboing\`\n` /*+                                
                                 `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
                                 `* \`i will touch you inappropriately\``*/
                                 }
@@ -219,6 +220,12 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/3l3wtr.png',
                 footer: 'Time to stop procrastinating and get a job',
                 color: 0x1a1a1e
+            },
+            "shaboingboing": {
+                title: "You gotta give him that Hawk Tuah",
+                image: 'https://files.catbox.moe/qy74ka.gif',
+                footer: 'Gawk gawk gawk',
+                color: 0xaa8f7d
             }/*,
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
