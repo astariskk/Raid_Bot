@@ -6,7 +6,7 @@ import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; // Re
 // Define a Map to store cooldowns for GIF commands
 const gifCooldowns = new Map();
 // Cooldown duration in milliseconds (e.g., 60 seconds)
-const GIF_COOLDOWN_DURATION = 10 * 6000;
+const GIF_COOLDOWN_DURATION = 10 * 2000;
 
 /**
  * Sets up the handler for general bot commands and interactions,
@@ -173,8 +173,8 @@ export function setupGeneralCommandsHandler(client) {
                                 `* \`sybau xychrome\`\n` +
                                 `* \`let's get freaky\`\n` +
                                 `* \`the scariest thing you will ever see\`\n` + 
-                                `* \`shaboingboing\`\n` +                                
-                                `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` /*+
+                                `* \`shaboingboing\`\n`/* +                                
+                                `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
                                 `* \`i will touch you inappropriately\``*/
                                 }
                         )
@@ -226,7 +226,7 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/qy74ka.gif',
                 footer: 'Gawk gawk gawk',
                 color: 0xaa8f7d
-            },
+            }/*,
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
                 image: 'https://files.catbox.moe/djcgjb.gif',
@@ -238,7 +238,7 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/djcgjb.gif',
                 footer: 'Shrek gone wild',
                 color: 0xcfd957
-            }/*, 
+            }, 
             "i will touch you inappropriately": {
                 title: "oh yeah, you better start oiling up buddy",
                 image: 'https://files.catbox.moe/ilngit.gif',
