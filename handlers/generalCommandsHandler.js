@@ -230,14 +230,14 @@ export function setupGeneralCommandsHandler(client) {
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
                 image: 'https://files.catbox.moe/djcgjb.gif',
-                footer: 'Spongebob gone wild',
-                color: 0xFFFF00
+                footer: 'Shrek gone wild',
+                color: 0xcfd957
             },
             "get backshotted by diddy": {
                 title: "Devious Backshots",
                 image: 'https://files.catbox.moe/djcgjb.gif',
-                footer: 'Spongebob gone wild',
-                color: 0xFFFF00
+                footer: 'Shrek gone wild',
+                color: 0xcfd957
             }/*, 
             "i will touch you inappropriately": {
                 title: "oh yeah, you better start oiling up buddy",
