@@ -173,8 +173,8 @@ export function setupGeneralCommandsHandler(client) {
                                 `* \`sybau xychrome\`\n` +
                                 `* \`let's get freaky\`\n` +
                                 `* \`the scariest thing you will ever see\`\n` + 
-                                `* \`shaboingboing\`\n` /*+                                
-                                `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
+                                `* \`shaboingboing\`\n` +                                
+                                `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` /*+
                                 `* \`i will touch you inappropriately\``*/
                                 }
                         )
@@ -226,19 +226,19 @@ export function setupGeneralCommandsHandler(client) {
                 image: 'https://files.catbox.moe/qy74ka.gif',
                 footer: 'Gawk gawk gawk',
                 color: 0xaa8f7d
-            }/*,
+            },
             "ain't no party like a diddy party": {
                 title: "Devious Backshots",
-                image: 'https://files.catbox.moe/nnxf77.gif',
+                image: 'https://files.catbox.moe/djcgjb.gif',
                 footer: 'Spongebob gone wild',
                 color: 0xFFFF00
             },
             "get backshotted by diddy": {
                 title: "Devious Backshots",
-                image: 'https://files.catbox.moe/nnxf77.gif',
+                image: 'https://files.catbox.moe/djcgjb.gif',
                 footer: 'Spongebob gone wild',
                 color: 0xFFFF00
-            }, 
+            }/*, 
             "i will touch you inappropriately": {
                 title: "oh yeah, you better start oiling up buddy",
                 image: 'https://files.catbox.moe/ilngit.gif',
