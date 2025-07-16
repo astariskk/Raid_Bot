@@ -20,8 +20,8 @@ import {
     OFFICER_ROLE_ID,
     RAID_MANAGER_ROLE_ID, // Import Raid Manager Role ID
 } from '../config/constants.js';
-import { updateLeaderboard } from '../utils/fileOps.js';
-import { getTasksEmbed } from './raidLogsHandler.js'; // Still needed for validation feedback
+import { updateLeaderboard } from './leaderboardCore.js';
+import { getTasksEmbed } from './raidLogsHandler.js'; 
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
 import { sendLeaderboardBackup } from './backupHandler.js'; // Import the backup function
 
@@ -244,7 +244,7 @@ async function handleRaidCompletion(message, raidInfo) {
             if (task === 'daily' || task === 'dailies') {
                 DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'weekly' || task === 'weeklies') {
-                WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
+                WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
             } else if (task === 'templeshrine') {
                 TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'originul') {
@@ -388,9 +388,6 @@ async function handleRaidCompletion(message, raidInfo) {
         if (Object.keys(pointsAwarded).length > 0) { // Only backup if points were actually awarded
             await sendLeaderboardBackup(message.client);
         }
-
-        // Confirm to the original raid thread that details are posted
-        await message.reply('Raid closure details posted and points awarded in the EXP Lair!');
 
         // Clean up and lock original raid thread
         delete activeRaidThreads[threadId];

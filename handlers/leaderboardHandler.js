@@ -1,18 +1,19 @@
-// leaderboardMain.js - Primary handler for Discord commands and interactions
+// leaderboardHandler.js - Primary handler for Discord commands and interactions
 
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js';
 import { sendLeaderboardBackup } from './backupHandler.js'; // Assuming backupHandler is in 'handlers'
 
-// Import core leaderboard functions and embed creators
+// Import core leaderboard functions and embed creators from the new leaderboardCore.js
 import {
     getCachedLeaderboard,
     getSortedLeaderboard,
     resetLeaderboard,
+    updateLeaderboard, // This is the function that now uses dbOps.updateUserExp
     createPaginatedLeaderboardEmbed,
     createLbCheckResponse,
     setupMonthlyResetTask // Import the monthly reset task setup
-} from './leaderboardCore.js'; // This is the new file
+} from './leaderboardCore.js';
 
 // --- Pending Reset Confirmations (Shared State) ---
 export const pendingResets = new Map();
@@ -23,7 +24,6 @@ export const activePaginationSessions = new Map();
 export const PAGINATION_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for pagination sessions.
 
 /**
- * 
  * Checks if the message author has the designated MODERATOR_ROLE_ID, OFFICER_ROLE_ID, or RAID_MANAGER_ROLE_ID.
  * This function is used to gate administrative commands.
  * @param {import('discord.js').Message} message The Discord message object.
@@ -226,20 +226,9 @@ export function setupLeaderboardHandlers(client) {
                 if (targetUsers.length > 0) {
                     targetUsers.forEach(user => effectiveTargetUserIds.add(user.id));
                 } else {
-                    let currentDate = new Date(dateInfo.rawStartDate);
-
-                    while (currentDate <= dateInfo.rawEndDate) {
-                        const dateISO = currentDate.toISOString().split('T')[0];
-                        const dailyData = leaderboard._dailyPoints && leaderboard._dailyPoints[dateISO];
-                        if (dailyData) {
-                            for (const userId in dailyData) {
-                                if (!userId.startsWith('_')) {
-                                    effectiveTargetUserIds.add(userId);
-                                }
-                            }
-                        }
-                        currentDate.setDate(currentDate.getDate() + 1);
-                    }
+                    // If no specific users mentioned, get all users who had points in the range
+                    const allDailyPoints = await getDailyPointsForRange(Object.keys(leaderboard).filter(k => !k.startsWith('_')), dateInfo.rawStartDate, dateInfo.rawEndDate);
+                    allDailyPoints.forEach(entry => effectiveTargetUserIds.add(entry.userId));
                 }
 
                 if (effectiveTargetUserIds.size === 0) {
@@ -264,14 +253,13 @@ export function setupLeaderboardHandlers(client) {
                     let userTotalPointsForRange = 0;
                     let dailyBreakdown = [];
 
-                    let currentDate = new Date(dateInfo.rawStartDate);
-                    while (currentDate <= dateInfo.rawEndDate) {
-                        const dateISO = currentDate.toISOString().split('T')[0];
-                        const dailyPoints = leaderboard._dailyPoints && leaderboard._dailyPoints[dateISO] && leaderboard._dailyPoints[dateISO][userId] || 0;
-                        userTotalPointsForRange += dailyPoints;
-                        dailyBreakdown.push(`\`${dateISO}\`: ${dailyPoints} EXP`);
-                        currentDate.setDate(currentDate.getDate() + 1);
-                    }
+                    const dailyDataForUser = await getDailyPointsForRange([userId], dateInfo.rawStartDate, dateInfo.rawEndDate);
+                    dailyDataForUser.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort by date
+                    
+                    dailyDataForUser.forEach(entry => {
+                        userTotalPointsForRange += entry.points;
+                        dailyBreakdown.push(`\`${entry.date}\`: ${entry.points} EXP`);
+                    });
 
                     return {
                         id: userId,
@@ -375,7 +363,7 @@ export function setupLeaderboardHandlers(client) {
             try {
                 // Update leaderboard for each mentioned user.
                 for (const [id, user] of mentions) {
-                    await updateLeaderboard(id, amount);
+                    await updateLeaderboard(id, amount); // This now uses the DB update
                     addedToUsers.push(`<@${id}>`);
                 }
                 await message.reply(`Successfully added ${amount} EXP to ${addedToUsers.join(', ')}.`);
@@ -406,7 +394,7 @@ export function setupLeaderboardHandlers(client) {
 
             try {
                 for (const [id, user] of mentions) {
-                    await updateLeaderboard(id, -amount);
+                    await updateLeaderboard(id, -amount); // This now uses the DB update
                     removedFromUsers.push(`<@${id}>`);
                 }
                 await message.reply(`Successfully removed ${amount} EXP from ${removedFromUsers.join(', ')}.`);

@@ -1,9 +1,11 @@
-// leaderboardCore.js - Core logic for leaderboard data, embeds, and monthly task
+// leaderboardHandler.js - Core logic for leaderboard data, embeds, and monthly task
 
-import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { RAID_CHANNEL_ID } from '../config/constants.js';
 import { sendLeaderboardBackup } from './backupHandler.js'; // Assuming backupHandler is in 'handlers'
+
+// Import database operations instead of file operations
+import { connectDB, getLeaderboardData as fetchLeaderboardFromDB, setLeaderboardData as writeLeaderboardToDB, updateUserExp as updateExpInDB, getDailyPointsForRange } from '../utils/dbOps.js';
 
 // --- Leaderboard Cache ---
 const CACHE_LIFETIME_MS = 5 * 60 * 1000;
@@ -12,7 +14,7 @@ let lastCacheTime = 0;
 
 /**
  * Fetches the current leaderboard data, utilizing a cache.
- * If the cache is stale or non-existent, it reads from the file and updates the cache.
+ * If the cache is stale or non-existent, it reads from the database and updates the cache.
  * @returns {Promise<Object>} The raw leaderboard data object.
  */
 export async function getCachedLeaderboard() {
@@ -21,8 +23,8 @@ export async function getCachedLeaderboard() {
     if (leaderboardCache && (now - lastCacheTime < CACHE_LIFETIME_MS)) {
         return leaderboardCache;
     }
-    // If cache is stale or empty, read from file and update cache.
-    leaderboardCache = await readLeaderboard();
+    // If cache is stale or empty, read from database and update cache.
+    leaderboardCache = await fetchLeaderboardFromDB();
     lastCacheTime = now;
     return leaderboardCache;
 }
@@ -60,18 +62,41 @@ export function getSortedLeaderboard(leaderboard, limit = Infinity, filterZeroEx
 export async function resetLeaderboard(fullReset = false) {
     const newLeaderboardState = {
         _lastResetDate: new Date().toISOString(),
-        _dailyPoints: {}
+        _dailyPoints: {} // This will be cleared in the database as well
     };
 
-    await writeLeaderboard(newLeaderboardState);
+    // If not a full reset, we need to preserve existing user IDs with 0 points
+    if (!fullReset) {
+        const currentLeaderboard = await getCachedLeaderboard();
+        for (const userId in currentLeaderboard) {
+            if (!userId.startsWith('_')) {
+                newLeaderboardState[userId] = 0; // Set existing users' total EXP to 0
+            }
+        }
+    }
+
+    await writeLeaderboardToDB(newLeaderboardState); // Write the new state to DB
     leaderboardCache = null; // Invalidate cache after reset.
 
     if (fullReset) {
         console.log('Full leaderboard reset initiated (all user entries removed).');
     } else {
-        console.log('Monthly leaderboard reset initiated (all user entries removed).');
+        console.log('Monthly leaderboard reset initiated (existing user EXP set to 0).');
     }
 }
+
+/**
+ * Updates a user's total points and records daily points in MongoDB.
+ * This function will be called from leaderboardHandler.js commands.
+ * @param {string} userId - The ID of the user.
+ * @param {number} pointsToAdd - The points to add (can be negative for subtraction).
+ * @returns {Promise<void>}
+ */
+export async function updateLeaderboard(userId, pointsToAdd) {
+    await updateExpInDB(userId, pointsToAdd);
+    leaderboardCache = null; // Invalidate cache so next read fetches fresh data
+}
+
 
 /**
  * Creates and returns a Discord EmbedBuilder instance for the paginated main leaderboard.
