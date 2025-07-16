@@ -1,6 +1,6 @@
 // handlers/generalCommandsHandler.js
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID, LEADERBOARD_CHANNEL_ID, RAID_MANAGEMENT_CHANNEL_ID } from '../config/constants.js';
+import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID, LEADERBOARD_CHANNEL_ID, RAID_MANAGEMENT_CHANNEL_ID, MAX_XP_PER_RAID } from '../config/constants.js';
 import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; // Re-import these as they are needed for the !commands buttons
 import { POINTS_CONFIG } from '../config/constants.js'; // Import POINTS_CONFIG
 
@@ -113,7 +113,7 @@ export function setupGeneralCommandsHandler(client) {
 
             let totalCalculatedPoints = 0;
             const unknownTasks = [];
-            const MAX_CALCULATION_POINTS_PER_RAID = 20; // The cap of 20 points per raid calculation
+            const MAX_CALCULATION_POINTS_PER_RAID = MAX_XP_PER_RAID; 
 
             for (const taskName of taskNames) {
                 if (POINTS_CONFIG.hasOwnProperty(taskName)) {
