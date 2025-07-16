@@ -223,7 +223,7 @@ export function setupGeneralCommandsHandler(client) {
                             `* \`sybau xychrome\`\n` +
                             `* \`let's get freaky\`\n` +
                             `* \`the scariest thing you will ever see\`\n` +
-                            `* \`shaboingboing\`\n`
+                            `* \`shaboingboing\`\n` +
                             `* \`Acefart\`\n`/* +
                             `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
                             `* \`i will touch you inappropriately\``*/
