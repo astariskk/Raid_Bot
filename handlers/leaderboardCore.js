@@ -1,9 +1,9 @@
 // leaderboardCore.js - Core logic for leaderboard data, embeds, and monthly task
 
-import { readLeaderboard, writeLeaderboard, updateLeaderboard } from './utils/fileOps.js';
+import { readLeaderboard, writeLeaderboard, updateLeaderboard } from '../utils/fileOps.js';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_CHANNEL_ID } from './config/constants.js';
-import { sendLeaderboardBackup } from './handlers/backupHandler.js'; // Assuming backupHandler is in 'handlers'
+import { RAID_CHANNEL_ID } from '../config/constants.js';
+import { sendLeaderboardBackup } from './backupHandler.js'; // Assuming backupHandler is in 'handlers'
 
 // --- Leaderboard Cache ---
 const CACHE_LIFETIME_MS = 5 * 60 * 1000;

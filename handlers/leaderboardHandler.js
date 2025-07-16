@@ -1,8 +1,8 @@
 // leaderboardMain.js - Primary handler for Discord commands and interactions
 
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from './config/constants.js';
-import { sendLeaderboardBackup } from './handlers/backupHandler.js'; // Assuming backupHandler is in 'handlers'
+import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js';
+import { sendLeaderboardBackup } from './backupHandler.js'; // Assuming backupHandler is in 'handlers'
 
 // Import core leaderboard functions and embed creators
 import {
@@ -23,6 +23,7 @@ export const activePaginationSessions = new Map();
 export const PAGINATION_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for pagination sessions.
 
 /**
+ * 
  * Checks if the message author has the designated MODERATOR_ROLE_ID, OFFICER_ROLE_ID, or RAID_MANAGER_ROLE_ID.
  * This function is used to gate administrative commands.
  * @param {import('discord.js').Message} message The Discord message object.

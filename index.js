@@ -15,12 +15,12 @@ app.listen(port, () => {
 });
 
 
-import { Client, GatewayIntentBits } from 'discord.js'; // Removed EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle as they are no longer directly used here
+import { Client, GatewayIntentBits } from 'discord.js';
 import { setupRaidLogsHandlers } from './handlers/raidLogsHandler.js';
 import { setupExpLairHandlers } from './handlers/expLairHandler.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
 import { setupGeneralCommandsHandler } from './handlers/generalCommandsHandler.js';
-import { setupBackupHandlers } from './handlers/backupHandler.js'; // NEW: Import the backup handler
+import { setupBackupHandlers } from './handlers/backupHandler.js';
 
 export const client = new Client({
     intents: [
