@@ -223,7 +223,8 @@ export function setupGeneralCommandsHandler(client) {
                             `* \`sybau xychrome\`\n` +
                             `* \`let's get freaky\`\n` +
                             `* \`the scariest thing you will ever see\`\n` +
-                            `* \`shaboingboing\`\n`/* +
+                            `* \`shaboingboing\`\n`
+                            `* \`Acefart\`\n`/* +
                             `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
                             `* \`i will touch you inappropriately\``*/
                     }
@@ -325,6 +326,15 @@ export function setupGeneralCommandsHandler(client) {
                 await message.channel.send('Could not display the beautiful thing.');
             }
         }
+
+        if (commandContent === 'acefart') {
+            try {
+                await message.channel.send('<@745503767935451227> [ALWAYS AT FAURLT](https://files.catbox.moe/chroap.gif)');
+            } catch (error) {
+                console.error('Error sending "acefart" message:', error);
+                await message.channel.send('Could not send the "Acefart" message.');
+            }
+        }        
     });
 
     client.on('interactionCreate', async (interaction) => {

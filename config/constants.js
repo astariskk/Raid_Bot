@@ -15,33 +15,42 @@ export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; // Your Raid Manager 
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
 
 export const POINTS_CONFIG = {
-    'kala': 300,
-    'iara': 300,
-    'ezrajal': 300,
-    'warden': 300,
-    'engineer': 300,
-    'tyndarius': 300,    
+    // --- daily tasks ---
+    'kala': 1000,
+    'iara': 1000,
+    'ezrajal': 1000,
+    'warden': 1000,
+    'engineer': 1000,
+    'tyndarius': 1000,    
+
+    // --- temple shrine tasks ---
+    'tsmid': 2000,
+    'tsleft': 1000,
+    'tsright': 1000,
+
+    // --- weekly tasks ---
+    'mechabinky': 5000,    
     'speaker': 4000,
-    'mechabinky': 5000,
     'gramiel': 3000,    
-    'darkon': 2000,    
-    'drago': 1000,
-    'dage': 1000,
-    'nulgath': 1000,
-    'drakath': 1000,
-    'kathool': 1000,
-    'astralshrine': 1000,
-    'tsmid': 750,
-    'tsleft': 375,
-    'tsright': 375,
-    'voidflibbi': 300,
-    'voidnightbane': 300,
-    'voidxyfrag': 300,
-    'voidnerfkitten' : 300,
-    'lavarockshore': 300,
-    'simple': 300,
-    'moderate': 2000,
-    'hard': 6000,
+    'darkon': 3000,    
+    'drago': 2000,
+    'dage': 2000,
+    'nulgath': 2000,
+    'drakath': 2000,
+
+    // -- 7 man rooms
+    'kathool': 2000,
+    'astralshrine': 2000,
+    'voidflibbi': 1000,
+    'voidnightbane': 1000,
+    'voidxyfrag': 1000,
+    'voidnerfkitten' : 1000,
+    'lavarockshore': 1000,
+
+    // --- generic tasks ---
+    'simple': 500,
+    'moderate': 5000,
+    'hard': 10000,
 };
 
 // --- Separate Task Lists for validation and display ---
