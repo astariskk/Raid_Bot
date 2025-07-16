@@ -345,10 +345,10 @@ export function setupRaidLogsHandlers(client) {
                     .setTitle('4-Man Raid Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
                     .setFooter({ text: 'Speaker chart for 4-man raids' });            
-            } else if (threadCommand === '!gramchart') {
+            } else if (threadCommand === '!gramielchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('Grams Raid Chart')
+                    .setTitle('Gramiel Raid Chart')
                     .setImage('https://files.catbox.moe/xp7dwu.png')
                     .setFooter({ text: 'Speaker chart for Grams raids' });
             }

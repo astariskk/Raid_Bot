@@ -64,10 +64,11 @@ export function setupGeneralCommandsHandler(client) {
 \`!waiting\`: Set the raid status to '🔵 Waiting (requester only)'.
 \`!ongoing\`: Set the raid status to '🟢 Ongoing (requester only)'.
 \`!full\`: Set the raid status to '🔴 Full (requester only)'.
-\`!1man\`: Displays the 1-man raid chart for speaker.
-\`!2man\`: Displays the 2-man raid chart for speaker.
-\`!3man\`: Displays the 3-man raid chart for speaker.
-\`!4man\`: Displays the 4-man raid chart for speaker.
+\`!1man\`: Displays the 1-man taunt chart for ultraspeaker.
+\`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
+\`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
+\`!4man\`: Displays the 4-man taunt chart for ultraspeaker.
+\`!gramielchart\`: Displays the chart for ultraGramiel.
                         \n`
                     },
                     {
@@ -83,10 +84,10 @@ export function setupGeneralCommandsHandler(client) {
                     {
                         name: '`**Press the buttons below to interact with the bot:**',
                         value: `
-• \`⚔️ Start Raid\`: To request assistance for a raid.
-• \`📣 Get Help Role\`: To opt-in/out of pings for new raid requests.
-• \`📋 See Raid Tasks\`: To see a list of all recognized raid tasks.
-• \`❓ How to Use\`: For detailed instructions on using the bot.
+\`⚔️ Start Raid\`: To request assistance for a raid.
+\`📣 Get Help Role\`: To opt-in/out of pings for new raid requests.
+\`📋 See Raid Tasks\`: To see a list of all recognized raid tasks.
+\`❓ How to Use\`: For detailed instructions on using the bot.
                         \n`
                     }
 
