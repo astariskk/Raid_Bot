@@ -285,3 +285,6 @@ export function setupMonthlyResetTask(client) {
         }
     }, 24 * 60 * 60 * 1000); // Check once every 24 hours.
 }
+export {
+    getDailyPointsForRange // <--- ADD THIS LINE TO THE EXPORT LIST
+};

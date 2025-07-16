@@ -7,7 +7,7 @@ export const LEADERBOARD_CHANNEL_ID = '1394877657421713478'; // Your Leaderboard
 export const RAID_MANAGEMENT_CHANNEL_ID = '1394877270652358656'; // Your Raid Logs Message ID 1389420600367251476
 
 // --- ROLE ID's ---
-export const RAID_HELPER_ROLE_ID = '1369140264395997305'; // Your Raid Helper Role ID 1373205396298141696
+export const RAID_HELPER_ROLE_ID = '1385471833192792115'; // Your Raid Helper Role ID 1373205396298141696
 export const MODERATOR_ROLE_ID = '1274384274333630565'; // Your Moderator Role ID 1373356500252098670
 export const OFFICER_ROLE_ID = '1274384274333630565'; // Your Officer Role ID 1373011008888639568
 export const RAID_MANAGER_ROLE_ID = '1274384274333630565'; // Your Raid Manager Role ID 1388819716008706129
@@ -16,6 +16,7 @@ export const LEADERBOARD_FILE = 'data/leaderboard.json';
 
 export const POINTS_CONFIG = {
     'kala': 300,
+    'iara': 300,
     'ezrajal': 300,
     'warden': 300,
     'engineer': 300,
@@ -48,7 +49,7 @@ export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
 export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'speaker'];
 export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky','voidnerfkitten', 'gramiel', 'kala', 'lavarockshore'];
+export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky','voidnerfkitten', 'gramiel', 'kala', 'iara', 'lavarockshore'];
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases and dynamic check for custom tasks
@@ -84,6 +85,7 @@ export const TASK_TO_MAP_PREFIX_MAPPING = {
     'engineer': 'ultraengineer',
     'tyndarius': 'ultratyndarius',
     'kala': 'ultrakala',
+    'iara': 'ultraiara',
     'nulgath': 'ultranulgath',
     'drakath': 'championdrakath',     
     'dage': 'ultradage',

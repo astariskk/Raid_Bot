@@ -164,7 +164,7 @@ export async function updateUserExp(userId, pointsToAdd) {
     try {
         await connectDB(); // Ensure connection is active
 
-        // Update total points for the user
+        // Update total points for the user        
         await leaderboardCollection.updateOne(
             { _id: userId },
             { $inc: { totalExp: pointsToAdd } }, // Increment totalExp by pointsToAdd
@@ -178,6 +178,7 @@ export async function updateUserExp(userId, pointsToAdd) {
             { $inc: { points: pointsToAdd }, $set: { _id: `${today}_${userId}` } }, // Increment daily points, set unique ID
             { upsert: true } // Create document if it doesn't exist
         );
+        console.log(`[dbOps] Recording daily EXP for userId: ${userId} on date: ${today} with points: ${pointsToAdd}`); // Add this line
 
     } catch (error) {
         console.error('Error updating user EXP in DB:', error);
@@ -203,11 +204,49 @@ export async function getDailyPointsForRange(userIds, startDate, endDate) {
             userId: { $in: userIds },
             date: { $gte: startISO, $lte: endISO }
         };
+        console.log(`[dbOps] getDailyPointsForRange query: ${JSON.stringify(query)}`); // log the query for debugging
 
-        const dailyData = await dailyPointsCollection.find(query).toArray();
+        const dailyData = await dailyPointsCollection.find(query).toArray();            
+        console.log(`[dbOps] getDailyPointsForRange found ${dailyData.length} records.`);   //log the number of records found
+        // --- ADD THIS NEW LOG ---
+        console.log(`[dbOps] Daily data retrieved:`, dailyData);            //log the retrieved daily data
+
         return dailyData;
     } catch (error) {
         console.error('Error fetching daily points for range from DB:', error);
         throw error;
     }
+}
+/**
+ * Gets the last backup message ID from the metadata collection.
+ * @returns {Promise<string|null>} The message ID or null if not found.
+ */
+export async function getLastBackupMessageId() {
+    try {
+        await connectDB();
+        const metadataDoc = await metadataCollection.findOne({ _id: 'leaderboard_meta' });
+        return metadataDoc ? metadataDoc.lastBackupMessageId : null;
+    } catch (error) {
+        console.error('Error getting last backup message ID from DB:', error);
+        return null; // Return null on error to prevent crashing
+    }
+}
+
+/**
+ * Sets the last backup message ID in the metadata collection.
+ * @param {string} messageId 
+ * @returns {Promise<void>}
+ */
+export async function setLastBackupMessageId(messageId) {
+    try {
+        await connectDB();
+        await metadataCollection.updateOne(
+            { _id: 'leaderboard_meta' },
+            { $set: { lastBackupMessageId: messageId } },
+            { upsert: true } 
+        );
+    } catch (error) {
+        console.error('Error setting last backup message ID in DB:', error);
+        throw error;
+    }
 }

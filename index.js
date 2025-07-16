@@ -2,8 +2,6 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-console.log('MONGODB_URI from env:', process.env.MONGODB_URI);
-
 // --- Import necessary for online hosting ---
 import express from 'express';
 const app = express();

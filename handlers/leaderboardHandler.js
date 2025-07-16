@@ -1,18 +1,18 @@
 // leaderboardHandler.js - Primary handler for Discord commands and interactions
-
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js';
-import { sendLeaderboardBackup } from './backupHandler.js'; // Assuming backupHandler is in 'handlers'
+import { sendLeaderboardBackup } from './backupHandler.js';
 
 // Import core leaderboard functions and embed creators from the new leaderboardCore.js
 import {
     getCachedLeaderboard,
     getSortedLeaderboard,
     resetLeaderboard,
-    updateLeaderboard, // This is the function that now uses dbOps.updateUserExp
+    updateLeaderboard,
     createPaginatedLeaderboardEmbed,
     createLbCheckResponse,
-    setupMonthlyResetTask // Import the monthly reset task setup
+    setupMonthlyResetTask,
+    getDailyPointsForRange // Make sure this is imported from leaderboardCore.js
 } from './leaderboardCore.js';
 
 // --- Pending Reset Confirmations (Shared State) ---
@@ -45,14 +45,23 @@ function isAdmin(message) {
  * Helper function to parse date arguments for the `!lbcheck` command.
  * It determines the start and end dates for the EXP lookup and a descriptive string.
  * Supports "today", "yesterday", "from X to Y" (day numbers), "X" (single day number), and "YYYY-MM-DD".
+ * This version ensures consistent UTC date strings for database queries.
  * @param {string} content - The full message content after `!lbcheck`.
  * @param {import('discord.js').Message} message - The Discord message object, used to remove mentions from content.
  * @returns {{startDateISO: string, endDateISO: string, description: string, rawStartDate: Date, rawEndDate: Date} | {error: string}}
  * An object containing date information or an error message.
  */
 function getDateRangeFromArgs(content, message) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Normalize `today` to the start of the day.
+    const now = new Date(); // Current date/time in local timezone
+
+    // Helper to get a Date object representing the start of a given day in UTC
+    // This ensures consistency with how `updateUserExp` stores dates.
+    const getUtcMidnight = (date) => {
+        // Create a new Date object from the year, month, and day components of the input date,
+        // but construct it in UTC. This effectively gives us midnight UTC for that calendar day.
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        return d;
+    };
 
     let startDate = null;
     let endDate = null;
@@ -66,14 +75,15 @@ function getDateRangeFromArgs(content, message) {
     const parts = cleanContent.split(/\s+/).filter(p => p !== '');
 
     if (parts.length === 0 || parts[0] === 'today') {
-        startDate = new Date(today);
-        endDate = new Date(today);
+        // For 'today', get the current date's UTC midnight
+        startDate = getUtcMidnight(now);
+        endDate = getUtcMidnight(now);
         description = 'Today';
     } else if (parts[0] === 'yesterday') {
-        const yesterday = new Date(today);
-        yesterday.setDate(today.getDate() - 1);
-        startDate = yesterday;
-        endDate = yesterday;
+        const yesterday = new Date(now); // Start with current date
+        yesterday.setDate(now.getDate() - 1); // Go back one calendar day
+        startDate = getUtcMidnight(yesterday);
+        endDate = getUtcMidnight(yesterday);
         description = 'Yesterday';
     } else if (parts[0] === 'from' && parts[1] && parts[2] === 'to' && parts[3]) {
         const startDay = parseInt(parts[1], 10);
@@ -83,42 +93,51 @@ function getDateRangeFromArgs(content, message) {
         if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31 || startDay > endDay) {
             return { error: 'Invalid date range. Use `from <day> to <day>` (e.g., `from 10 to 15`). Days must be between 1 and 31.' };
         }
-        startDate = new Date(today.getFullYear(), today.getMonth(), startDay);
-        endDate = new Date(today.getFullYear(), today.getMonth(), endDay);
+        // Create Date objects for the specific days of the current month, then convert to UTC midnight
+        const startOfMonthDay = new Date(now.getFullYear(), now.getMonth(), startDay);
+        const endOfMonthDay = new Date(now.getFullYear(), now.getMonth(), endDay);
+        startDate = getUtcMidnight(startOfMonthDay);
+        endDate = getUtcMidnight(endOfMonthDay);
         description = `From Day ${startDay} to Day ${endDay} of this month`;
     } else if (parts.length === 1 && !isNaN(parseInt(parts[0], 10))) {
         const day = parseInt(parts[0], 10);
         if (isNaN(day) || day < 1 || day > 31) {
             return { error: 'Invalid day number. Use a number between 1 and 31.' };
         }
-        startDate = new Date(today.getFullYear(), today.getMonth(), day);
-        endDate = new Date(today.getFullYear(), today.getMonth(), day);
+        const specificDay = new Date(now.getFullYear(), now.getMonth(), day);
+        startDate = getUtcMidnight(specificDay);
+        endDate = getUtcMidnight(specificDay);
         description = `On Day ${day} of this month`;
     } else if (/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+        // For YYYY-MM-DD input, parse it directly and then convert to UTC midnight
         const dateParts = parts[0].split('-');
         const year = parseInt(dateParts[0], 10);
-        const month = parseInt(dateParts[1], 10) - 1;
+        const month = parseInt(dateParts[1], 10) - 1; // Month is 0-indexed
         const day = parseInt(dateParts[2], 10);
 
         const parsedDate = new Date(year, month, day);
+        // Validate if the parsed date components match to ensure it's a valid date
         if (parsedDate.getFullYear() !== year || parsedDate.getMonth() !== month || parsedDate.getDate() !== day) {
             return { error: 'Invalid date format. Use `YYYY-MM-DD`.' };
         }
-        startDate = parsedDate;
-        endDate = parsedDate;
+        startDate = getUtcMidnight(parsedDate);
+        endDate = getUtcMidnight(parsedDate);
         description = `On ${parts[0]}`;
     }
     else {
         return { error: 'Invalid usage. Use `!lbcheck [today|yesterday|<day>|from <start> to <end>|YYYY-MM-DD] [@user(s)]`' };
     }
 
+    // The getDailyPointsForRange function in dbOps.js uses .toISOString().split('T')[0]
+    // on rawStartDate and rawEndDate. By ensuring rawStartDate and rawEndDate are UTC midnight
+    // for the *intended* calendar day, the ISO string will correctly represent that day.
     const formatToISO = (d) => d.toISOString().split('T')[0];
 
     return {
         startDateISO: formatToISO(startDate),
         endDateISO: formatToISO(endDate),
         description: description,
-        rawStartDate: startDate,
+        rawStartDate: startDate, // These are now UTC Date objects at midnight
         rawEndDate: endDate
     };
 }
@@ -227,7 +246,9 @@ export function setupLeaderboardHandlers(client) {
                     targetUsers.forEach(user => effectiveTargetUserIds.add(user.id));
                 } else {
                     // If no specific users mentioned, get all users who had points in the range
+                    // This is where getDailyPointsForRange is called
                     const allDailyPoints = await getDailyPointsForRange(Object.keys(leaderboard).filter(k => !k.startsWith('_')), dateInfo.rawStartDate, dateInfo.rawEndDate);
+                    console.log('[leaderboardHandler] Raw daily points from DB for !lbcheck:', allDailyPoints); // Added log
                     allDailyPoints.forEach(entry => effectiveTargetUserIds.add(entry.userId));
                 }
 
@@ -253,9 +274,12 @@ export function setupLeaderboardHandlers(client) {
                     let userTotalPointsForRange = 0;
                     let dailyBreakdown = [];
 
+                    // Fetch daily data specifically for this user and date range
                     const dailyDataForUser = await getDailyPointsForRange([userId], dateInfo.rawStartDate, dateInfo.rawEndDate);
                     dailyDataForUser.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()); // Sort by date
-                    
+
+                    console.log(`[leaderboardHandler] Daily data for user ${userId}:`, dailyDataForUser); // Added log
+
                     dailyDataForUser.forEach(entry => {
                         userTotalPointsForRange += entry.points;
                         dailyBreakdown.push(`\`${entry.date}\`: ${entry.points} EXP`);

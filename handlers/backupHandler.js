@@ -2,41 +2,67 @@
 
 import { AttachmentBuilder } from 'discord.js';
 import { RAID_MANAGEMENT_CHANNEL_ID } from '../config/constants.js';
-import { getCachedLeaderboard } from './leaderboardCore.js'; 
+import { getCachedLeaderboard } from './leaderboardCore.js';
+// Import the new DB functions you will add to dbOps.js
+import { getLastBackupMessageId, setLastBackupMessageId } from '../utils/dbOps.js';
 
 /**
- * Sends a backup of the current leaderboard data to the designated raid management channel.
- * @param {import('discord.js').Client} client The Discord client instance.
- * @returns {Promise<void>}
- */
+ * Sends a backup of the current leaderboard data, deleting the previous one.
+ * @param {import('discord.js').Client} client The Discord client instance.
+ * @returns {Promise<void>}
+ */
 export async function sendLeaderboardBackup(client) {
-    try {
-        const leaderboardData = await getCachedLeaderboard(); 
-        const backupFileName = `leaderboard_backup_${new Date().toISOString().split('T')[0]}.json`;
-        const backupBuffer = Buffer.from(JSON.stringify(leaderboardData, null, 2));
+    try {
+        const raidManagementChannel = await client.channels.fetch(RAID_MANAGEMENT_CHANNEL_ID);
 
-        const attachment = new AttachmentBuilder(backupBuffer, { name: backupFileName });
+        // Ensure channel is valid before proceeding
+        if (!raidManagementChannel || !raidManagementChannel.isTextBased()) {
+            console.warn(`RAID_MANAGEMENT_CHANNEL_ID (${RAID_MANAGEMENT_CHANNEL_ID}) is not a text channel or could not be fetched. Cannot send backup.`);
+            return;
+        }
 
-        const raidManagementChannel = await client.channels.fetch(RAID_MANAGEMENT_CHANNEL_ID);
+        // 1. Fetch and delete the old backup message
+        const lastBackupMessageId = await getLastBackupMessageId();
+        if (lastBackupMessageId) {
+            try {
+                const oldMessage = await raidManagementChannel.messages.fetch(lastBackupMessageId);
+                await oldMessage.delete();
+                console.log(`Deleted previous backup message with ID: ${lastBackupMessageId}`);
+            } catch (error) {
+                // It's common for the message to be missing (e.g., manually deleted), so we just log a warning.
+                if (error.code === 10008) { // "Unknown Message" error code
+                    console.warn(`Could not delete previous backup message (ID: ${lastBackupMessageId}) because it was not found. It was likely already deleted.`);
+                } else {
+                    console.error('Error deleting previous backup message:', error);
+                }
+            }
+        }
 
-        if (raidManagementChannel && raidManagementChannel.isTextBased()) {
-            await raidManagementChannel.send({
-                content: '📊 Daily Leaderboard Backup:',
-                files: [attachment],
-            });
-            console.log(`Leaderboard backup sent to channel ${RAID_MANAGEMENT_CHANNEL_ID}`);
-        } else {
-            console.warn(`RAID_MANAGEMENT_CHANNEL_ID (${RAID_MANAGEMENT_CHANNEL_ID}) is not a text channel or could not be fetched. Cannot send backup.`);
-        }
-    } catch (error) {
-        console.error('Error sending leaderboard backup:', error);
-    }
+        // 2. Prepare and send the new backup
+        const leaderboardData = await getCachedLeaderboard();
+        const backupFileName = `leaderboard_backup_${new Date().toISOString().split('T')[0]}.json`;
+        const backupBuffer = Buffer.from(JSON.stringify(leaderboardData, null, 2));
+        const attachment = new AttachmentBuilder(backupBuffer, { name: backupFileName });
+
+        const newBackupMessage = await raidManagementChannel.send({
+            content: '📊 Daily Leaderboard Backup:',
+            files: [attachment],
+        });
+        console.log(`Leaderboard backup sent to channel ${RAID_MANAGEMENT_CHANNEL_ID}`);
+
+        // 3. Save the new message ID to the database
+        await setLastBackupMessageId(newBackupMessage.id);
+        console.log(`Saved new backup message ID: ${newBackupMessage.id}`);
+
+    } catch (error) {
+        console.error('Error sending leaderboard backup:', error);
+    }
 }
 
 /**
- * Sets up the backup handler. Currently, this function just exports sendLeaderboardBackup.
- * It's kept for consistency with other handler setup functions.
- * @param {import('discord.js').Client} client The Discord client instance.
- */
+ * Sets up the backup handler. Currently, this function just exports sendLeaderboardBackup.
+ * It's kept for consistency with other handler setup functions.
+ * @param {import('discord.js').Client} client The Discord client instance.
+ */
 export function setupBackupHandlers(client) {
 }

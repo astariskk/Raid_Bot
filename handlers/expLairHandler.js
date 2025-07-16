@@ -194,10 +194,10 @@ async function handleRaidCompletion(message, raidInfo) {
             }
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
-                if (user.bot) {
+                /* if (user.bot) {
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
-                }
+                } */
                 validUserIds.add(userId);
             } catch (error) {
                 console.error(`Could not fetch user ${userId} during validation:`, error);
@@ -244,7 +244,7 @@ async function handleRaidCompletion(message, raidInfo) {
             if (task === 'daily' || task === 'dailies') {
                 DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'weekly' || task === 'weeklies') {
-                WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
+                WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'templeshrine') {
                 TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'originul') {
