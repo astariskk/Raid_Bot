@@ -329,7 +329,7 @@ export function setupGeneralCommandsHandler(client) {
 
         if (commandContent === 'acefart') {
             try {
-                await message.channel.send('<@467703633618796544> **[ALWAYS AT FAURLT](https://files.catbox.moe/chroap.gif)**');
+                await message.channel.send('<@467703633618796544> [ALWAYS AT FAURLT](https://files.catbox.moe/chroap.gif)');
             } catch (error) {
                 console.error('Error sending "acefart" message:', error);
                 await message.channel.send('Could not send the "Acefart" message.');
