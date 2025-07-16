@@ -1,17 +1,24 @@
 # Raid_Bot
-raid discord bot
+Vanaheim raid discord bot
 
-!raidhelp = shows the button that shows the modal for raid stuff\
+List of commands that shows the usable commands
 
-!raidtasks = shows the tasks and rewards
+!raidcommands = shows the commands for raid stuff\
 
-!leaderboard = shows the leaderboard
+!modcommands = shows the commands for mods, exp management and such
 
-!reset = resets the leaderboard
+!lbcommands = shows the leaderboard commands
+
+!secretcommands = commands for secret sussy gifs
 
 
+# For copying the code/running it locally
 # install the dependencies
 npm install
 
 # to run the command, type: 
 nodemon index.js
+
+or
+
+node index.js
