@@ -52,18 +52,18 @@ export function setupGeneralCommandsHandler(client) {
                         name: '📊 General Raid & Status Commands',
                         value: `
 \`!raidtasks\`: Lists all available raid tasks **by category**.
-\`!raidpoints\`: Displays the EXP values for all configured raid tasks **with interactive buttons to view by category.**
+\`!raidpoints\`: Displays the EXP values for all configured raid tasks
 \`!calculatetask <task1> + <task2> + ...\`: Calculates total points for specified tasks.
                         \n`
                     },
                     {
-                        name: '💬 Commands Inside Raid Threads (by Raid Requester)',
+                        name: '⚔️ Commands Inside Raid Threads',
                         value: `
 \`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
 \`!raidsite\`: Sends a website for making joining maps easier.
-\`!waiting\`: Set the raid status to '🔵 Waiting'.
-\`!ongoing\`: Set the raid status to '🟢 Ongoing'.
-\`!full\`: Set the raid status to '🔴 Full'.
+\`!waiting\`: Set the raid status to '🔵 Waiting (requester only)'.
+\`!ongoing\`: Set the raid status to '🟢 Ongoing (requester only)'.
+\`!full\`: Set the raid status to '🔴 Full (requester only)'.
 \`!1man\`: Displays the 1-man raid chart for speaker.
 \`!2man\`: Displays the 2-man raid chart for speaker.
 \`!3man\`: Displays the 3-man raid chart for speaker.
@@ -388,8 +388,8 @@ export function setupGeneralCommandsHandler(client) {
                         `\nfor tasks not included in the list you can use the following generic tasks:\n` +
                         `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
                         `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-                        `   • \`hard\`: Raids expected to take 30 minutes or more.\n\n` +
-                        `   • **Note**: don't forget to describe your raid in the Description field` +
+                        `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
+                        `   • **Note**: don't forget to describe your request in the Description field when necessary.\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
