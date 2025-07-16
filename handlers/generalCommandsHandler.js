@@ -1,10 +1,9 @@
 // handlers/generalCommandsHandler.js
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID, LEADERBOARD_CHANNEL_ID, RAID_MANAGEMENT_CHANNEL_ID, MAX_XP_PER_RAID } from '../config/constants.js';
-import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; // Re-import these as they are needed for the !commands buttons
-import { POINTS_CONFIG } from '../config/constants.js'; // Import POINTS_CONFIG
+import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID, LEADERBOARD_CHANNEL_ID, RAID_MANAGEMENT_CHANNEL_ID, MAX_XP_PER_RAID, POINTS_CONFIG, TASK_MAP_CATEGORIES } from '../config/constants.js';
+import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; 
 
-// Define a Map to store cooldowns for GIF commands
+// --- Cooldown management for GIF commands ---
 const gifCooldowns = new Map();
 // Cooldown duration in milliseconds (e.g., 60 seconds)
 const GIF_COOLDOWN_DURATION = 10 * 2000;
@@ -78,7 +77,7 @@ export function setupGeneralCommandsHandler(client) {
 \`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
+\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
                         \n`
                     },
                     {
@@ -112,30 +111,43 @@ export function setupGeneralCommandsHandler(client) {
                 return message.reply({ content: 'Usage: `!calculatetask <task1> + <task2> + ...` (e.g., `!calculatetask speaker + mechabinky`)', ephemeral: true });
             }
 
-            let totalCalculatedPoints = 0;
+            let originalTotalCalculatedPoints = 0;
             const unknownTasks = [];
-            const MAX_CALCULATION_POINTS_PER_RAID = MAX_XP_PER_RAID; 
 
             for (const taskName of taskNames) {
-                if (POINTS_CONFIG.hasOwnProperty(taskName)) {
-                    totalCalculatedPoints += POINTS_CONFIG[taskName];
+                // Check if it's a meta category
+                if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
+                    const categoryTasks = TASK_MAP_CATEGORIES[taskName];
+                    for (const individualTask of categoryTasks) {
+                        if (POINTS_CONFIG.hasOwnProperty(individualTask)) {
+                            originalTotalCalculatedPoints += POINTS_CONFIG[individualTask];
+                        } else {
+                            // This case should ideally not happen if POINTS_CONFIG is comprehensive
+                            console.warn(`Task "${individualTask}" from category "${taskName}" not found in POINTS_CONFIG.`);
+                            unknownTasks.push(individualTask);
+                        }
+                    }
+                } else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
+                    // If not a meta category, check if it's a direct task name in POINTS_CONFIG
+                    originalTotalCalculatedPoints += POINTS_CONFIG[taskName];
                 } else {
+                    // If neither a meta category nor a direct task name
                     unknownTasks.push(taskName);
                 }
             }
 
             // Apply the 20-point cap to the calculated total
-            totalCalculatedPoints = Math.min(totalCalculatedPoints, MAX_CALCULATION_POINTS_PER_RAID);
+            let totalCalculatedPoints = Math.min(originalTotalCalculatedPoints, MAX_XP_PER_RAID);
 
             let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
 
             if (unknownTasks.length > 0) {
                 replyContent += `\n\n_Note: The following tasks were not recognized and were not included in the calculation: ${unknownTasks.join(', ')}._`;
             }
-            if (totalCalculatedPoints === MAX_CALCULATION_POINTS_PER_RAID && totalCalculatedPoints < totalCalculatedPoints) { // Check if it was actually capped
-                 replyContent += `\n_This calculation was capped at ${MAX_CALCULATION_POINTS_PER_RAID} EXP._`;
+            // Corrected condition for displaying the capping message
+            if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
+                replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP._`;
             }
-
 
             await message.reply({ content: replyContent, ephemeral: true });
             return;
@@ -394,7 +406,7 @@ export function setupGeneralCommandsHandler(client) {
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
-                        `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`20000 EXP\` per raid.\n\n`
+                        `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`${MAX_XP_PER_RAID} EXP\` per raid.\n\n`
                     )
                     .setColor(0x3498DB);
 

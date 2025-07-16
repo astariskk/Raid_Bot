@@ -61,7 +61,6 @@ export const ALLOWED_TASK_NAMES = [
     ...GENERIC_TASKS_LIST,
 ];
 
-// Dynamically generate DISPLAY_POINTS_LIST from POINTS_CONFIG for consistency
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, points]) => `${task} = ${points} EXP`);
 
 export const MAX_XP_PER_RAID = 20000;
@@ -78,7 +77,7 @@ export const TASK_MAP_CATEGORIES = {
     'generic': GENERIC_TASKS_LIST,
 };
 
-// --- NEW: Mapping for tasks that have different map prefixes than their task name ---
+// --- Mapping for tasks ---
 export const TASK_TO_MAP_PREFIX_MAPPING = {
     'ezrajal': 'ultraezrajal',
     'warden': 'ultrawarden',
