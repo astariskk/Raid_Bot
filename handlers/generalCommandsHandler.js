@@ -68,7 +68,7 @@ export function setupGeneralCommandsHandler(client) {
 \`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
 \`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
 \`!4man\`: Displays the 4-man taunt chart for ultraspeaker.
-\`!gramielchart\`: Displays the chart for ultraGramiel.
+\`!gramielchart\`: Displays the chart for ultragramiel.
                         \n`
                     },
                     {
@@ -82,7 +82,7 @@ export function setupGeneralCommandsHandler(client) {
                         \n`
                     },
                     {
-                        name: '`**Press the buttons below to interact with the bot:**',
+                        name: '**Press the buttons below to interact with the bot:**',
                         value: `
 \`⚔️ Start Raid\`: To request assistance for a raid.
 \`📣 Get Help Role\`: To opt-in/out of pings for new raid requests.
@@ -390,7 +390,7 @@ export function setupGeneralCommandsHandler(client) {
                         `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
                         `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
                         `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
-                        `   • **Note**: don't forget to describe your request in the Description field when necessary.\n` +
+                        `   • **Note**: don't forget to describe your request in the description field when necessary.\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
