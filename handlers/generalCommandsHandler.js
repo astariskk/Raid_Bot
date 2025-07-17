@@ -5,8 +5,76 @@ import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js';
 
 // --- Cooldown management for GIF commands ---
 const gifCooldowns = new Map();
-// Cooldown duration in milliseconds (e.g., 60 seconds)
-const GIF_COOLDOWN_DURATION = 10 * 2000;
+// Cooldown duration in milliseconds (e.g., 10 seconds)
+const GIF_COOLDOWN_DURATION = 10 * 1000; // Corrected to 10 seconds based on common practice, original was 20 seconds (10 * 2000)
+
+// --- Custom GIF Commands (for embeds) ---
+const gifCommands = {
+    'the most beautiful thing you will ever see': {
+        title: 'The Most Beautiful Thing You will Ever See',
+        image: 'https://files.catbox.moe/5tsmuk.gif',
+        footer: 'Feast your eyes on this',
+        color: 0xFF0000
+    },
+    'i need more bullets': {
+        title: "Asta La Vista, Baby",
+        image: 'https://files.catbox.moe/dnzecs.gif',
+        footer: 'He needs more bullets',
+        color: 0x006400
+    },
+    'sybau xychrome': {
+        title: "Get Twerked On",
+        image: 'https://files.catbox.moe/neo4gz.gif',
+        footer: 'Sybauuuu',
+        color: 0x7e7e7e
+    },
+    "let's get freaky": {
+        title: "im about to get freaky",
+        image: 'https://files.catbox.moe/0n1mp7.gif',
+        footer: 'spurt spurt',
+        color: 0x48757d
+    },
+    "the scariest thing you will ever see": {
+        title: "BOO!",
+        image: 'https://files.catbox.moe/3l3wtr.png',
+        footer: 'Time to stop procrastinating and get a job',
+        color: 0x1a1a1e
+    },
+    "shaboingboing": {
+        title: "You gotta give him that Hawk Tuah",
+        image: 'https://files.catbox.moe/qy74ka.gif',
+        footer: 'Gawk gawk gawk',
+        color: 0xaa8f7d
+    }/*,
+    "ain't no party like a diddy party": {
+        title: "Devious Backshots",
+        image: 'https://files.catbox.moe/djcgjb.gif',
+        footer: 'Shrek gone wild',
+        color: 0xcfd957
+    },
+    "get backshotted by diddy": {
+        title: "Devious Backshots",
+        image: 'https://files.catbox.moe/djcgjb.gif',
+        footer: 'Shrek gone wild',
+        color: 0xcfd957
+    },
+    "i will touch you inappropriately": {
+        title: "oh yeah, you better start oiling up buddy",
+        image: 'https://files.catbox.moe/ilngit.gif',
+        footer: 'Inappropriate Touching without consent',
+        color: 0x964B00
+    }*/
+};
+
+// --- Custom TEXT GIF Commands (no embeds) ---
+const textGifCommands = {
+    'acefart': '<@> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
+    'xyfart': '<@> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
+    'marfart': '<@> [**MISS MARA**](https://files.catbox.moe/xwpnq5.gif)',       // 1030038861851664404
+    'marbike': '<@> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
+    'ahranus': '<@> [**THIS IS NOT PAINLESS LIKE KEVIN SAID AHHHHHH**](https://files.catbox.moe/och1y0.gif)' // 745959520622346260
+};
+
 
 /**
  * Sets up the handler for general bot commands and interactions,
@@ -17,8 +85,10 @@ export function setupGeneralCommandsHandler(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
+        const commandContent = message.content.toLowerCase();
+
         // --- Handle the !raidcommands command ---
-        if (message.content.toLowerCase() === '!raidcommands' && message.channel.id === RAID_CHANNEL_ID) {
+        if (commandContent === '!raidcommands' && message.channel.id === RAID_CHANNEL_ID) {
             const getHelpRoleButton = new ButtonBuilder()
                 .setCustomId('getHelpRole_btn')
                 .setLabel('📣 Get Help Role')
@@ -77,7 +147,7 @@ export function setupGeneralCommandsHandler(client) {
 \`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
+\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
                         \n`
                     },
                     {
@@ -103,7 +173,7 @@ export function setupGeneralCommandsHandler(client) {
         }
 
         // --- Handle the !calculatetask command ---
-        if (message.content.toLowerCase().startsWith('!calculatetask')) {
+        if (commandContent.startsWith('!calculatetask')) {
             const args = message.content.slice('!calculatetask'.length).trim();
             const taskNames = args.split('+').map(task => task.trim().toLowerCase()).filter(task => task.length > 0);
 
@@ -155,7 +225,7 @@ export function setupGeneralCommandsHandler(client) {
 
 
         // --- Handle the !commandslb command ---
-        if (message.content.toLowerCase() === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
+        if (commandContent === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // A different color for distinction, e.g., green
                 .setTitle('🏆 Leaderboard Commands List 🏆')
@@ -182,7 +252,7 @@ export function setupGeneralCommandsHandler(client) {
         }
 
         // --- handle the moderator commands ---
-        if (message.content.toLowerCase() === '!modcommands' && message.channel.id === RAID_MANAGEMENT_CHANNEL_ID) {
+        if (commandContent === '!modcommands' && message.channel.id === RAID_MANAGEMENT_CHANNEL_ID) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // A different color for distinction, e.g., green
                 .setTitle('🛡️ Moderator Commands List 🏆')
@@ -209,24 +279,27 @@ export function setupGeneralCommandsHandler(client) {
                 await message.channel.send('Failed to display leaderboard commands. Please try again later.');
             }
         }
-        // --- Handle custom GIF commands ---
-        if (message.content.toLowerCase() === '!secretcommands') {
+
+        // --- Handle !secretcommands to list all GIF commands ---
+        if (commandContent === '!secretcommands') {
+            let secretGifCommandsList = '';
+            // Add commands from gifCommands (embeds)
+            for (const cmd in gifCommands) {
+                secretGifCommandsList += `* \`${cmd}\`\n`;
+            }
+            // Add commands from textGifCommands (no embeds)
+            for (const cmd in textGifCommands) {
+                secretGifCommandsList += `* \`${cmd}\`\n`;
+            }
+
             const secretCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // Pink color for secret commands
                 .setTitle('🤫 Secret Gif Commands List 🤫')
-                .setDescription('Here are some secret GIF commands you can use:')
+                .setDescription('**Note:** These commands are for fun and may not be suitable for all audiences. Use them at your own discretion:')
                 .addFields(
                     {
                         name: 'Secret GIF Commands',
-                        value: `* \`the most beautiful thing you will ever see\`\n` +
-                            `* \`i need more bullets\`\n` +
-                            `* \`sybau xychrome\`\n` +
-                            `* \`let's get freaky\`\n` +
-                            `* \`the scariest thing you will ever see\`\n` +
-                            `* \`shaboingboing\`\n` +
-                            `* \`Acefart\`\n`/* +
-                            `* \`ain't no party like a diddy party\` or \`get backshotted by diddy\`\n` +
-                            `* \`i will touch you inappropriately\``*/
+                        value: secretGifCommandsList.trim() || 'No secret GIF commands configured.'
                     }
                 )
                 .setTimestamp()
@@ -235,83 +308,25 @@ export function setupGeneralCommandsHandler(client) {
                 await message.channel.send({ embeds: [secretCommandsEmbed] });
             } catch (error) {
                 console.error('Error sending !secretcommands embed:', error);
-                await message.channel.send('Failed to display secreet Gif commands. Please try again later.');
+                await message.channel.send('Failed to display secret Gif commands. Please try again later.');
             }
-
         }
 
-        // --- Custom GIF Commands ---
-        const gifCommands = {
-            'the most beautiful thing you will ever see': {
-                title: 'The Most Beautiful Thing You will Ever See',
-                image: 'https://files.catbox.moe/5tsmuk.gif',
-                footer: 'Feast your eyes on this',
-                color: 0xFF0000
-            },
-            'i need more bullets': {
-                title: "Asta La Vista, Baby",
-                image: 'https://files.catbox.moe/dnzecs.gif',
-                footer: 'He needs more bullets',
-                color: 0x006400
-            },
-            'sybau xychrome': {
-                title: "Get Twerked On",
-                image: 'https://files.catbox.moe/neo4gz.gif',
-                footer: 'Sybauuuu',
-                color: 0x7e7e7e
-            },
-            "let's get freaky": {
-                title: "im about to get freaky",
-                image: 'https://files.catbox.moe/0n1mp7.gif',
-                footer: 'spurt spurt',
-                color: 0x48757d
-            },
-            "the scariest thing you will ever see": {
-                title: "BOO!",
-                image: 'https://files.catbox.moe/3l3wtr.png',
-                footer: 'Time to stop procrastinating and get a job',
-                color: 0x1a1a1e
-            },
-            "shaboingboing": {
-                title: "You gotta give him that Hawk Tuah",
-                image: 'https://files.catbox.moe/qy74ka.gif',
-                footer: 'Gawk gawk gawk',
-                color: 0xaa8f7d
-            }/*,
-            "ain't no party like a diddy party": {
-                title: "Devious Backshots",
-                image: 'https://files.catbox.moe/djcgjb.gif',
-                footer: 'Shrek gone wild',
-                color: 0xcfd957
-            },
-            "get backshotted by diddy": {
-                title: "Devious Backshots",
-                image: 'https://files.catbox.moe/djcgjb.gif',
-                footer: 'Shrek gone wild',
-                color: 0xcfd957
-            },
-            "i will touch you inappropriately": {
-                title: "oh yeah, you better start oiling up buddy",
-                image: 'https://files.catbox.moe/ilngit.gif',
-                footer: 'Inappropriate Touching without consent',
-                color: 0x964B00
-            }*/
+        // --- Consolidated Custom GIF Commands Handling ---
+        const userId = message.author.id;
+        const now = Date.now();
+        const lastUsed = gifCooldowns.get(userId);
 
-        };
+        // Apply cooldown check before processing any GIF command
+        if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
+            const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
+            await message.reply({ content: `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`, ephemeral: true });
+            return; // Exit if still on cooldown
+        }
 
-        const commandContent = message.content.toLowerCase();
+        // Check for regular gif commands (with embeds)
         if (gifCommands[commandContent]) {
-            const userId = message.author.id;
-            const now = Date.now();
-            const lastUsed = gifCooldowns.get(userId);
-
-            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
-                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
-                await message.reply({ content: `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`, ephemeral: true });
-                return;
-            }
-
-            gifCooldowns.set(userId, now);
+            gifCooldowns.set(userId, now); // Set cooldown only if a command is found
 
             const gifInfo = gifCommands[commandContent];
             const gifEmbed = new EmbedBuilder()
@@ -326,15 +341,18 @@ export function setupGeneralCommandsHandler(client) {
                 await message.channel.send('Could not display the beautiful thing.');
             }
         }
+        // Check for text gif commands (no embeds)
+        else if (textGifCommands[commandContent]) {
+            gifCooldowns.set(userId, now); // Set cooldown only if a command is found
 
-        if (commandContent === 'acefart') {
             try {
-                await message.channel.send('<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)');
+                await message.channel.send(textGifCommands[commandContent]);
             } catch (error) {
-                console.error('Error sending "acefart" message:', error);
-                await message.channel.send('Could not send the "Acefart" message.');
+                console.error(`Error sending text GIF command "${commandContent}":`, error);
+                await message.channel.send('Could not send the requested GIF message.');
             }
-        }        
+        }
+
     });
 
     client.on('interactionCreate', async (interaction) => {
@@ -409,10 +427,10 @@ export function setupGeneralCommandsHandler(client) {
                     .setDescription(
                         `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form. Only tasks listed in \`📋 See Raid Tasks\` button will be accepted.` +
                         `\nfor tasks not included in the list you can use the following generic tasks:\n` +
-                        `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
-                        `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-                        `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
-                        `   • **Note**: don't forget to describe your request in the description field when necessary.\n` +
+                        `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
+                        `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
+                        `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
+                        `   • **Note**: don't forget to describe your request in the description field when necessary.\n` +
                         `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
                         `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
                         `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
