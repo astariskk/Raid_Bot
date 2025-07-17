@@ -47,13 +47,7 @@ const gifCommands = {
         image: 'https://files.catbox.moe/qy74ka.gif',
         footer: 'Gawk gawk gawk',
         color: 0xaa8f7d
-    },
-    "thunda": {
-        title: "I was lightning before the thunder",
-        image: 'https://files.catbox.moe/dgirso.jpg',
-        footer: 'Thunder, thunder',
-        color: 0x1a1a1e
-    }        
+    }  
 };
 
 // --- Custom TEXT GIF Commands (no embeds) ---
