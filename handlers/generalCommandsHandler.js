@@ -54,9 +54,8 @@ const gifCommands = {
 const textGifCommands = {
     'acefart': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
     'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
-    'marfart': '<@1030038861851664404> [**MISS MARA**](https://files.catbox.moe/xwpnq5.gif)',       // 1030038861851664404
     'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
-    'ahranus': '<@745959520622346260> [**THIS IS NOT PAINLESS LIKE KEVIN SAID AHHHHHH**](https://files.catbox.moe/och1y0.gif)' // 745959520622346260
+    'kaerat': ' https://files.catbox.moe/1leclp.gif', 
 };
 
 
@@ -70,6 +69,27 @@ export function setupGeneralCommandsHandler(client) {
         if (message.author.bot) return;
 
         const commandContent = message.content.toLowerCase();
+        const userId = message.author.id;
+        const now = Date.now();
+        const lastUsed = gifCooldowns.get(userId);
+
+        // Helper function to delete a cooldown warning message
+        const deleteCooldownWarning = async (idToDelete) => {
+            const messageToDelete = cooldownWarningMessages.get(idToDelete);
+            if (messageToDelete) {
+                try {
+                    await messageToDelete.delete();
+                } catch (err) {
+                    // Ignore "Unknown Message" error (10008) if it was already deleted
+                    if (err.code !== 10008) {
+                        console.error(`Error deleting cooldown warning message for user ${idToDelete}:`, err);
+                    }
+                } finally {
+                    cooldownWarningMessages.delete(idToDelete);
+                }
+            }
+        };
+
 
         // --- Handle the !raidcommands command ---
         if (commandContent === '!raidcommands' && message.channel.id === RAID_CHANNEL_ID) {
@@ -297,69 +317,28 @@ export function setupGeneralCommandsHandler(client) {
         }
 
         // --- Consolidated Custom GIF Commands Handling ---
-        const userId = message.author.id;
-        const now = Date.now();
-        const lastUsed = gifCooldowns.get(userId);
-
-        // Apply cooldown check before processing any GIF command
-        if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
-            const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
-            const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
-
-            // If there's an existing cooldown warning message, try to delete it first
-            const existingWarningMessage = cooldownWarningMessages.get(userId);
-            if (existingWarningMessage) {
-                try {
-                    await existingWarningMessage.delete();
-                } catch (err) {
-                    console.error(`Error deleting old cooldown warning message for user ${userId}:`, err);
-                } finally {
-                    cooldownWarningMessages.delete(userId); // Always clear the old reference
-                }
-            }
-
-            // Send the new cooldown warning message
-            const warningMessage = await message.reply({ content: cooldownMessageContent });
-            cooldownWarningMessages.set(userId, warningMessage);
-
-            // Set a timeout to delete the warning message when the cooldown expires
-            setTimeout(async () => {
-                const currentWarningMessage = cooldownWarningMessages.get(userId);
-                // Only delete if it's the same message (i.e., user hasn't sent another command)
-                if (currentWarningMessage && currentWarningMessage.id === warningMessage.id) {
-                    try {
-                        await currentWarningMessage.delete();
-                    } catch (err) {
-                        // Ignore "Unknown Message" error if it was already deleted by user or Discord
-                        if (err.code !== 10008) { // 10008 is Unknown Message
-                            console.error(`Error deleting cooldown warning message for user ${userId}:`, err);
-                        }
-                    } finally {
-                        cooldownWarningMessages.delete(userId); // Clear after attempt to delete
-                    }
-                }
-            }, GIF_COOLDOWN_DURATION);
-
-            return; // Exit if still on cooldown
-        }
-
         // Check for regular gif commands (with embeds)
         if (gifCommands[commandContent]) {
-            gifCooldowns.set(userId, now); // Set cooldown only if a command is found
+            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
+                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
+                const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
 
-            // If there was a pending cooldown warning message, delete it immediately
-            const existingWarningMessage = cooldownWarningMessages.get(userId);
-            if (existingWarningMessage) {
-                try {
-                    await existingWarningMessage.delete();
-                } catch (err) {
-                    if (err.code !== 10008) {
-                        console.error(`Error deleting cooldown warning message after successful GIF command for user ${userId}:`, err);
-                    }
-                } finally {
-                    cooldownWarningMessages.delete(userId);
-                }
+                // Delete any existing warning message before sending a new one
+                await deleteCooldownWarning(userId);
+
+                const warningMessage = await message.reply({ content: cooldownMessageContent });
+                cooldownWarningMessages.set(userId, warningMessage);
+
+                // Set a timeout to delete the warning message when the cooldown expires
+                setTimeout(async () => {
+                    await deleteCooldownWarning(userId);
+                }, GIF_COOLDOWN_DURATION);
+                return; // Exit if still on cooldown
             }
+
+            // If not on cooldown, proceed to send the GIF
+            gifCooldowns.set(userId, now); // Set new cooldown
+            await deleteCooldownWarning(userId); // Delete any lingering warning message
 
             const gifInfo = gifCommands[commandContent];
             const gifEmbed = new EmbedBuilder()
@@ -376,21 +355,26 @@ export function setupGeneralCommandsHandler(client) {
         }
         // Check for text gif commands (no embeds)
         else if (textGifCommands[commandContent]) {
-            gifCooldowns.set(userId, now); // Set cooldown only if a command is found
+            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
+                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
+                const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
 
-            // If there was a pending cooldown warning message, delete it immediately
-            const existingWarningMessage = cooldownWarningMessages.get(userId);
-            if (existingWarningMessage) {
-                try {
-                    await existingWarningMessage.delete();
-                } catch (err) {
-                    if (err.code !== 10008) {
-                        console.error(`Error deleting cooldown warning message after successful TEXT GIF command for user ${userId}:`, err);
-                    }
-                } finally {
-                    cooldownWarningMessages.delete(userId);
-                }
+                // Delete any existing warning message before sending a new one
+                await deleteCooldownWarning(userId);
+
+                const warningMessage = await message.reply({ content: cooldownMessageContent });
+                cooldownWarningMessages.set(userId, warningMessage);
+
+                // Set a timeout to delete the warning message when the cooldown expires
+                setTimeout(async () => {
+                    await deleteCooldownWarning(userId);
+                }, GIF_COOLDOWN_DURATION);
+                return; // Exit if still on cooldown
             }
+
+            // If not on cooldown, proceed to send the GIF
+            gifCooldowns.set(userId, now); // Set new cooldown
+            await deleteCooldownWarning(userId); // Delete any lingering warning message
 
             try {
                 await message.channel.send(textGifCommands[commandContent]);
