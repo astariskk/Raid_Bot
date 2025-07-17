@@ -52,11 +52,11 @@ const gifCommands = {
 
 // --- Custom TEXT GIF Commands (no embeds) ---
 const textGifCommands = {
-    'acefart': '<@> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
-    'xyfart': '<@> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
-    'marfart': '<@> [**MISS MARA**](https://files.catbox.moe/xwpnq5.gif)',       // 1030038861851664404
-    'marbike': '<@> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
-    'ahranus': '<@> [**THIS IS NOT PAINLESS LIKE KEVIN SAID AHHHHHH**](https://files.catbox.moe/och1y0.gif)' // 745959520622346260
+    'acefart': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
+    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
+    'marfart': '<@1030038861851664404> [**MISS MARA**](https://files.catbox.moe/xwpnq5.gif)',       // 1030038861851664404
+    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
+    'ahranus': '<@745959520622346260> [**THIS IS NOT PAINLESS LIKE KEVIN SAID AHHHHHH**](https://files.catbox.moe/och1y0.gif)' // 745959520622346260
 };
 
 
