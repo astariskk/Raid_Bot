@@ -56,6 +56,7 @@ const textGifCommands = {
     'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
     'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
     'kaerat': ' https://files.catbox.moe/1leclp.gif', 
+    'ranfart': '<@745959520622346260> [**KEVIN GOT ME SHARTING FLAMES GYATTT**](https://files.catbox.moe/s3ql75.gif)' // 745959520622346260
 };
 
 
