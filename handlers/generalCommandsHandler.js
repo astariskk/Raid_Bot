@@ -47,7 +47,13 @@ const gifCommands = {
         image: 'https://files.catbox.moe/qy74ka.gif',
         footer: 'Gawk gawk gawk',
         color: 0xaa8f7d
-    }  
+    },
+    "we live we love we lie": {
+        title: "We Live, We Love, We Lie",
+        image: 'https://files.catbox.moe/d5h906.gif',
+        footer: 'Smurf cat do be speaking faxx',
+        color: 0x3498DB
+    }
 };
 
 // --- Custom TEXT GIF Commands (no embeds) ---
