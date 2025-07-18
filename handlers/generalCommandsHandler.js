@@ -58,7 +58,7 @@ const gifCommands = {
 
 // --- Custom TEXT GIF Commands (no embeds) ---
 const textGifCommands = {
-    'acefart': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
+    'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
     'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
     'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
     'kaerat': ' https://files.catbox.moe/1leclp.gif', 
