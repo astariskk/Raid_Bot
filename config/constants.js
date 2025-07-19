@@ -1,6 +1,6 @@
 // config/constants.js
 // --- Channel ID's ---
-export const RAID_CHANNEL_ID = '1388854499023519847'; // Your Raid Logs Channel ID 1388854499023519847
+export const RAID_CHANNEL_ID = '1394877134996242636'; // Your Raid Logs Channel ID 1388854499023519847
 export const RAID_LOGS_CHANNEL_ID = '1388865288115847322'; // Your Raid Logs Channel ID 1388865288115847322
 export const EXP_LAIR_CHANNEL_ID = '1388865498065666059'; // Your EXP Lair Channel ID 1388865498065666059
 export const LEADERBOARD_CHANNEL_ID = '1389203721505996903'; // Your Leaderboard Channel ID 1389203721505996903
@@ -25,7 +25,7 @@ export const POINTS_CONFIG = {
 
     // --- temple shrine tasks ---
     'tsleft': 1000,
-    'tsmid': 3000, 
+    'tsmid': 2000, 
     'tsright': 1000,
 
     // --- weekly tasks ---
@@ -57,8 +57,8 @@ export const POINTS_CONFIG = {
 export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
 export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'gramiel', 'speaker'];
 export const TEMPLESHRINE_LIST = ['tsleft', 'tsmid', 'tsright'];
-export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag', 'voidnerfkitten'];
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'lavarockshore', 'mechabinky', 'kala', 'iara']; // Moved mechabinky, kala, iara to weeklies/dailies
+export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag'];
+export const OTHERS_LIST = ['mechabinky', 'kathool', 'astralshrine', 'lavarockshore', 'voidnerfkitten', 'kala', 'iara']; // Moved mechabinky, kala, iara to weeklies/dailies
 
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 

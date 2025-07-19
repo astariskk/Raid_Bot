@@ -149,19 +149,17 @@ function getCommandsEmbed() {
 export function getHowToUseEmbed(raidHelperRoleName) {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
-        .setDescription(
-            `**1. Request a Raid:** To start, Press the \`⚔️ Start Raid\` button and fill out the form. Only tasks listed in \`📋 See Raid Tasks\` and marked by \`this\` will be accepted.` +
-            ` for tasks not included in the list you can describe them in the description and use the following generic tasks:\n` +
-            `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
-            `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-            `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
-            `   • Example raid task: \`daily + weekly\`.\n\n` +
-            `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
-            `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
-            `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
-            `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`${MAX_XP_PER_RAID} EXP\` per raid.\n\n` +
-            `**Press the buttons below to interact with the bot:**`
-        )
+.setDescription(
+    `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and get notified of new raid requests.\n\n` +
+    `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Only tasks listed in \`📋 See Raid Tasks\` are accepted. ` +
+    `For tasks not on the list, use generic tasks: \`simple\` (5-10 min), \`moderate\` (<30 min), or \`hard\` (30+ min). Example: \`daily + weekly\`.\n\n` +
+    `**3. Raid Coordination:** A dedicated thread will be created in the raid logs channel for communication with helpers.\n\n` +
+    `**4. Update Status:** As the requester, type \`!waiting\`, \`!ongoing\`, or \`!full\` in your raid thread to update its status. Use the \`✏️ Edit Task\` button to modify tasks.\n\n` +
+    `**5. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You'll be prompted to tag helpers (e.g., \`tsmid x2 + tsleft = @name\` or \`all = @name @name\`) and can optionally attach a screenshot or type \`cancel\` to close. ` +
+    `**Note**: Only tasks listed in your raid request (or edited tasks) will award points. Check the \`📝 Full Commands List\` button below for all available tagging options and commands.\n\n` +
+    `**6. Leaderboard Points:** Check your points and rank using \`!leaderboard\`, \`!lb\`, or \`!lbcheck\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n\n` +
+    `**Press the buttons below to interact with the bot:**`
+)
         .setColor(0x3498DB);
 }
 
@@ -230,26 +228,13 @@ export function getCombinedTasksAndPointsEmbed() {
     const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2); 
     addThreeColumnFields(' `Originul`', oRCol1, oRCol2, oRCol3);
 
-    // --- blank space for 3rd column ---
-    if (dailiesCol3.length === 0) {
-        embed.addFields(
-            { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
-        );
-    }
-
     // --- Other Raids (3 column) ---
-    const othersPerColumn = Math.ceil(OTHERS_LIST.length / 2);
+    const othersPerColumn = Math.ceil(OTHERS_LIST.length / 3);
     const othersCol1 = OTHERS_LIST.slice(0, othersPerColumn);
-    const othersCol2 = OTHERS_LIST.slice(othersPerColumn);
-    const othersCol3 = []; 
+    const othersCol2 = OTHERS_LIST.slice(othersPerColumn, othersPerColumn * 2);
+    const othersCol3 = OTHERS_LIST.slice(othersPerColumn * 2); 
     addThreeColumnFields('Other Tasks', othersCol1, othersCol2, othersCol3);
 
-    // --- blank space for 3rd column ---
-    if (dailiesCol3.length === 0) {
-        embed.addFields(
-            { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
-        );
-    }    
     // --- Generic Tasks (single field) ---
     embed.addFields(
         { name: 'Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
