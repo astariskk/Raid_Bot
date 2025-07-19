@@ -226,7 +226,7 @@ export function getCombinedTasksAndPointsEmbed() {
     const oRCol1 = ORIGINUL_LIST.slice(0, originulPerColumn);
     const oRCol2 = ORIGINUL_LIST.slice(originulPerColumn, originulPerColumn * 2);
     const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2); 
-    addThreeColumnFields('🕳️ `Originul` Raids', oRCol1, oRCol2, oRCol3);
+    addThreeColumnFields('🌌 `Originul` Raids', oRCol1, oRCol2, oRCol3);
 
     // --- Other Raids (3 column) ---
     const othersPerColumn = Math.ceil(OTHERS_LIST.length / 3);
