@@ -5,7 +5,7 @@ dotenv.config();
 // --- Import necessary for online hosting ---
 import express from 'express';
 const app = express();
-const port = process.env.PORT || 3000; 
+const port = process.env.PORT || 3000;
 app.get('/', (req, res) => {
     res.send('Bot is alive!');
 });
@@ -21,6 +21,7 @@ import { setupExpLairHandlers } from './handlers/expLairHandler.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
 import { setupGeneralCommandsHandler } from './handlers/generalCommandsHandler.js';
 import { setupBackupHandlers } from './handlers/backupHandler.js';
+import { registerSlashCommands, setupSlashCommandsHandler } from './handlers/slashCommandsHandler.js';
 
 // Import the MongoDB connection function
 import { connectDB, closeDB } from './utils/dbOps.js';
@@ -29,13 +30,11 @@ export const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.GuildMembers, 
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
-        GatewayIntentBits.MessageContent, 
     ],
 });
-
 
 // --- Bot Ready Event ---
 client.on('ready', async () => { // Make ready event async
@@ -43,36 +42,58 @@ client.on('ready', async () => { // Make ready event async
     console.log('Bot is online!');
 
     try {
-        await connectDB(); 
+        await connectDB();
         console.log('Database connection established for bot operations.');
 
-        // --- Initialize Handlers AFTER DB connection ---
+        // --- Register and Setup Slash Commands ---
+        await registerSlashCommands(client); // Call the new registration function
+        setupSlashCommandsHandler(client);   // Call the new handler setup function
+
+        // --- Initialize Other Handlers AFTER DB connection ---
         setupRaidLogsHandlers(client);
         setupExpLairHandlers(client);
-        setupLeaderboardHandlers(client); 
+        setupLeaderboardHandlers(client);
         setupGeneralCommandsHandler(client);
-        setupBackupHandlers(client); 
+        setupBackupHandlers(client);
         console.log('All handlers initialized.');
         console.log('Ready to process commands and interactions.');
 
     } catch (error) {
         console.error('Failed to start bot due to database connection error:', error);
+        // Log the specific error that caused the database connection failure
+        console.error('Error details:', error.stack); // Add stack trace for more info
         process.exit(1); // Exit if DB connection fails
     }
 });
 
 // --- Handle graceful shutdown ---
 process.on('SIGINT', async () => {
-    console.log('Bot is shutting down...');
-    await closeDB(); 
-    client.destroy(); 
+    console.log('Bot is shutting down (SIGINT)...');
+    await closeDB();
+    client.destroy();
     process.exit(0);
 });
 process.on('SIGTERM', async () => {
-    console.log('Bot is shutting down...');
-    await closeDB(); 
-    client.destroy(); 
+    console.log('Bot is shutting down (SIGTERM)...');
+    await closeDB();
+    client.destroy();
     process.exit(0);
+});
+
+// --- Global Error Handlers (NEWLY ADDED) ---
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Promise Rejection at:', promise, 'reason:', reason);
+    console.error('Unhandled Rejection Stack:', reason.stack); // Log stack trace
+    // It's generally good practice to exit on unhandled rejections in production
+    // as they often indicate a bug that could lead to an unstable state.
+    process.exit(1);
+});
+
+process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+    console.error('Uncaught Exception Stack:', error.stack); // Log stack trace
+    // Always exit on uncaught exceptions as they indicate a critical bug
+    process.exit(1);
 });
 
 
