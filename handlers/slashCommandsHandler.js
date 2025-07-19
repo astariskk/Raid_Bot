@@ -154,9 +154,24 @@ export function setupSlashCommandsHandler(client) {
         // Only handle chat input commands
         if (!interaction.isChatInputCommand()) return;
 
+        // NEW LOGS: More detailed logging around deferral attempt
+        console.log(`[Interaction] Received command: /${interaction.commandName} (ID: ${interaction.id})`);
+        console.log(`[Interaction] isReplied: ${interaction.replied}, isDeferred: ${interaction.deferred}`);
+        console.time(`Deferral for ${interaction.commandName} (ID: ${interaction.id})`);
+
         // Defer reply for commands that might take longer, or for conditional ephemeral replies
         // Use flags instead of ephemeral for deprecation warning fix
-        await interaction.deferReply({ flags: [] }).catch(console.error); // Default to public, can be overridden
+        try {
+            await interaction.deferReply({ flags: [] }); // Default to public, can be overridden
+            console.timeEnd(`Deferral for ${interaction.commandName} (ID: ${interaction.id})`);
+            console.log(`[Interaction] Successfully deferred /${interaction.commandName} (ID: ${interaction.id})`);
+        } catch (error) {
+            console.timeEnd(`Deferral for ${interaction.commandName} (ID: ${interaction.id})`);
+            console.error(`[Interaction Error] Failed to defer reply for /${interaction.commandName} (ID: ${interaction.id}):`, error);
+            // If deferral fails, it means Discord has already invalidated the interaction.
+            // We cannot reply or followUp to it anymore.
+            return; // Exit here to prevent further errors
+        }
 
         switch (interaction.commandName) {
             case 'ping':
@@ -165,7 +180,7 @@ export function setupSlashCommandsHandler(client) {
                 } catch (error) {
                     console.error('Error replying to ping command:', error);
                     // Fallback to followUp if initial reply fails, or just log
-                    if (!interaction.replied && !interaction.deferred) { // Check if deferred before following up
+                    if (!interaction.replied && !interaction.deferred) { // This check is now mostly redundant after deferReply try/catch
                         await interaction.followUp({ content: 'There was an error trying to respond to this command.', flags: MessageFlags.Ephemeral });
                     }
                 }
@@ -427,7 +442,7 @@ export function setupSlashCommandsHandler(client) {
 
                     const moderatorCommandsEmbed = new EmbedBuilder()
                         .setColor(0x3498DB)
-                        .setTitle('🛡️ Moderator Commands List 🏆')
+                        .setTitle('🛡️ Moderator Commands List �')
                         .setDescription('This is shown using `/modcommands`. \nHere are the commands for moderation:')
                         .addFields(
                             {
