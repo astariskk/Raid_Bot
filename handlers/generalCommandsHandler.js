@@ -226,18 +226,18 @@ export function getCombinedTasksAndPointsEmbed() {
     const oRCol1 = ORIGINUL_LIST.slice(0, originulPerColumn);
     const oRCol2 = ORIGINUL_LIST.slice(originulPerColumn, originulPerColumn * 2);
     const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2); 
-    addThreeColumnFields(' `Originul`', oRCol1, oRCol2, oRCol3);
+    addThreeColumnFields('🕳️ `Originul` Raids', oRCol1, oRCol2, oRCol3);
 
     // --- Other Raids (3 column) ---
     const othersPerColumn = Math.ceil(OTHERS_LIST.length / 3);
     const othersCol1 = OTHERS_LIST.slice(0, othersPerColumn);
     const othersCol2 = OTHERS_LIST.slice(othersPerColumn, othersPerColumn * 2);
     const othersCol3 = OTHERS_LIST.slice(othersPerColumn * 2); 
-    addThreeColumnFields('Other Tasks', othersCol1, othersCol2, othersCol3);
+    addThreeColumnFields('🗺️ Other Tasks', othersCol1, othersCol2, othersCol3);
 
     // --- Generic Tasks (single field) ---
     embed.addFields(
-        { name: 'Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
+        { name: '💡 Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
     );
 
     return embed;
