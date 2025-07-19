@@ -1,4 +1,4 @@
-import { REST, Routes, ApplicationCommandOptionType, EmbedBuilder } from 'discord.js';
+import { REST, Routes, ApplicationCommandOptionType, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 // Import necessary constants from config/constants.js
 import {
     RAID_CHANNEL_ID,
@@ -14,6 +14,8 @@ import {
 } from '../config/constants.js';
 // Import functions from raidLogsHandler.js
 import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js';
+// Import GIF constants from generalCommandsHandler.js
+import { gifCommands, textGifCommands } from './generalCommandsHandler.js'; // NEW IMPORT - ensure generalCommandsHandler exports these
 
 // Define your slash commands
 const commands = [
@@ -32,6 +34,22 @@ const commands = [
                 required: true,
             },
         ],
+    },
+    {
+        name: 'userinfo',
+        description: 'Displays information about a user.',
+        options: [
+            {
+                name: 'user',
+                description: 'The user to get info about (defaults to yourself).',
+                type: ApplicationCommandOptionType.User,
+                required: false,
+            },
+        ],
+    },
+    {
+        name: 'serverinfo',
+        description: 'Displays information about the server.',
     },
     {
         name: 'raidcommands',
@@ -137,7 +155,8 @@ export function setupSlashCommandsHandler(client) {
         if (!interaction.isChatInputCommand()) return;
 
         // Defer reply for commands that might take longer, or for conditional ephemeral replies
-        await interaction.deferReply({ ephemeral: false }).catch(console.error); // Default to public, can be overridden
+        // Use flags instead of ephemeral for deprecation warning fix
+        await interaction.deferReply({ flags: [] }).catch(console.error); // Default to public, can be overridden
 
         switch (interaction.commandName) {
             case 'ping':
@@ -147,7 +166,7 @@ export function setupSlashCommandsHandler(client) {
                     console.error('Error replying to ping command:', error);
                     // Fallback to followUp if initial reply fails, or just log
                     if (!interaction.replied && !interaction.deferred) { // Check if deferred before following up
-                        await interaction.followUp('There was an error trying to respond to this command.');
+                        await interaction.followUp({ content: 'There was an error trying to respond to this command.', flags: MessageFlags.Ephemeral });
                     }
                 }
                 break;
@@ -159,7 +178,77 @@ export function setupSlashCommandsHandler(client) {
                 } catch (error) {
                     console.error('Error replying to echo command:', error);
                     if (!interaction.replied && !interaction.deferred) {
-                        await interaction.followUp('There was an error trying to echo your message.');
+                        await interaction.followUp({ content: 'There was an error trying to echo your message.', flags: MessageFlags.Ephemeral });
+                    }
+                }
+                break;
+
+            case 'userinfo':
+                try {
+                    const targetUser = interaction.options.getUser('user') || interaction.user;
+                    const member = interaction.guild ? await interaction.guild.members.fetch(targetUser.id).catch(() => null) : null;
+
+                    const userInfoEmbed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`User Info: ${targetUser.username}`)
+                        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+                        .addFields(
+                            { name: 'Username', value: targetUser.username, inline: true },
+                            { name: 'Discriminator', value: targetUser.discriminator === '0' ? 'None' : targetUser.discriminator, inline: true },
+                            { name: 'ID', value: targetUser.id, inline: false },
+                            { name: 'Bot', value: targetUser.bot ? 'Yes' : 'No', inline: true },
+                            { name: 'Created At', value: targetUser.createdAt.toDateString(), inline: true }
+                        )
+                        .setTimestamp();
+
+                    if (member) {
+                        userInfoEmbed.addFields(
+                            { name: 'Nickname', value: member.nickname || 'None', inline: true },
+                            { name: 'Joined Server At', value: member.joinedAt ? member.joinedAt.toDateString() : 'N/A', inline: true },
+                            { name: 'Roles', value: member.roles.cache.map(role => role.name).join(', ') || 'None', inline: false }
+                        );
+                    }
+
+                    await interaction.editReply({ embeds: [userInfoEmbed] });
+                } catch (error) {
+                    console.error('Error replying to userinfo command:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.followUp({ content: 'There was an error trying to get user information.', flags: MessageFlags.Ephemeral });
+                    }
+                }
+                break;
+
+            case 'serverinfo':
+                try {
+                    if (!interaction.guild) {
+                        return await interaction.editReply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
+                    }
+
+                    const guild = interaction.guild;
+                    const owner = await guild.fetchOwner();
+
+                    const serverInfoEmbed = new EmbedBuilder()
+                        .setColor(0x0099FF)
+                        .setTitle(`Server Info: ${guild.name}`)
+                        .setThumbnail(guild.iconURL({ dynamic: true }))
+                        .addFields(
+                            { name: 'Server Name', value: guild.name, inline: true },
+                            { name: 'Server ID', value: guild.id, inline: true },
+                            { name: 'Owner', value: owner ? owner.user.tag : 'N/A', inline: true },
+                            { name: 'Members', value: guild.memberCount.toString(), inline: true },
+                            { name: 'Channels', value: guild.channels.cache.size.toString(), inline: true },
+                            { name: 'Roles', value: guild.roles.cache.size.toString(), inline: true },
+                            { name: 'Created At', value: guild.createdAt.toDateString(), inline: true },
+                            { name: 'Boost Level', value: guild.premiumTier.toString(), inline: true },
+                            { name: 'Verification Level', value: guild.verificationLevel.toString(), inline: true }
+                        )
+                        .setTimestamp();
+
+                    await interaction.editReply({ embeds: [serverInfoEmbed] });
+                } catch (error) {
+                    console.error('Error replying to serverinfo command:', error);
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.followUp({ content: 'There was an error trying to get server information.', flags: MessageFlags.Ephemeral });
                     }
                 }
                 break;
@@ -167,7 +256,7 @@ export function setupSlashCommandsHandler(client) {
             case 'raidcommands':
                 try {
                     if (interaction.channel.id !== RAID_CHANNEL_ID) {
-                        return await interaction.editReply({ content: `This command can only be used in the <#${RAID_CHANNEL_ID}> channel.`, ephemeral: true });
+                        return await interaction.editReply({ content: `This command can only be used in the <#${RAID_CHANNEL_ID}> channel.`, flags: MessageFlags.Ephemeral });
                     }
                     const getHelpRoleButton = new ButtonBuilder()
                         .setCustomId('getHelpRole_btn')
@@ -256,7 +345,7 @@ export function setupSlashCommandsHandler(client) {
                     const taskNames = tasksArg.split('+').map(task => task.trim().toLowerCase()).filter(task => task.length > 0);
 
                     if (taskNames.length === 0) {
-                        return await interaction.editReply({ content: 'Usage: `/calculatetask <task1> + <task2> + ...` (e.g., `/calculatetask speaker + mechabinky`)', ephemeral: true });
+                        return await interaction.editReply({ content: 'Usage: `/calculatetask <task1> + <task2> + ...` (e.g., `/calculatetask speaker + mechabinky`)', flags: MessageFlags.Ephemeral });
                     }
 
                     let originalTotalCalculatedPoints = 0;
@@ -291,17 +380,17 @@ export function setupSlashCommandsHandler(client) {
                         replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP._`;
                     }
 
-                    await interaction.editReply({ content: replyContent, ephemeral: true });
+                    await interaction.editReply({ content: replyContent, flags: MessageFlags.Ephemeral });
                 } catch (error) {
                     console.error('Error handling /calculatetask command:', error);
-                    await interaction.editReply({ content: 'Failed to calculate points. Please try again later.', ephemeral: true });
+                    await interaction.editReply({ content: 'Failed to calculate points. Please try again later.', flags: MessageFlags.Ephemeral });
                 }
                 break;
 
             case 'lbcommands':
                 try {
                     if (interaction.channel.id !== LEADERBOARD_CHANNEL_ID) {
-                        return await interaction.editReply({ content: `This command can only be used in the <#${LEADERBOARD_CHANNEL_ID}> channel.`, ephemeral: true });
+                        return await interaction.editReply({ content: `This command can only be used in the <#${LEADERBOARD_CHANNEL_ID}> channel.`, flags: MessageFlags.Ephemeral });
                     }
                     const leaderboardCommandsEmbed = new EmbedBuilder()
                         .setColor(0x3498DB)
@@ -330,10 +419,10 @@ export function setupSlashCommandsHandler(client) {
             case 'modcommands':
                 try {
                     if (!interaction.member || !hasAdminPermissions(interaction.member)) {
-                        return await interaction.editReply({ content: 'You do not have permission to use this command.', ephemeral: true });
+                        return await interaction.editReply({ content: 'You do not have permission to use this command.', flags: MessageFlags.Ephemeral });
                     }
                     if (interaction.channel.id !== RAID_MANAGEMENT_CHANNEL_ID) {
-                        return await interaction.editReply({ content: `This command can only be used in the <#${RAID_MANAGEMENT_CHANNEL_ID}> channel.`, ephemeral: true });
+                        return await interaction.editReply({ content: `This command can only be used in the <#${RAID_MANAGEMENT_CHANNEL_ID}> channel.`, flags: MessageFlags.Ephemeral });
                     }
 
                     const moderatorCommandsEmbed = new EmbedBuilder()
@@ -364,71 +453,8 @@ export function setupSlashCommandsHandler(client) {
 
             case 'secretcommands':
                 try {
-                    // Define gifCommands and textGifCommands here or import them if they are exported
-                    // For now, I'll assume they are defined within this scope or imported.
-                    // If they are only defined in generalCommandsHandler.js and not exported,
-                    // you will need to either export them or redefine them here.
-                    // For this example, I'll redefine them for demonstration purposes.
-                    // In a real scenario, you'd want to export them from generalCommandsHandler.js
-                    // or a dedicated 'gifCommandsConfig.js' file.
-
-                    // --- Custom GIF Commands (for embeds) ---
-                    const gifCommands = {
-                        'the most beautiful thing you will ever see': {
-                            title: 'The Most Beautiful Thing You will Ever See',
-                            image: 'https://files.catbox.moe/5tsmuk.gif',
-                            footer: 'Feast your eyes on this',
-                            color: 0xFF0000
-                        },
-                        'i need more bullets': {
-                            title: "Asta La Vista, Baby",
-                            image: 'https://files.catbox.moe/dnzecs.gif',
-                            footer: 'He needs more bullets',
-                            color: 0x006400
-                        },
-                        'sybau xychrome': {
-                            title: "Get Twerked On",
-                            image: 'https://files.catbox.moe/neo4gz.gif',
-                            footer: 'Sybauuuu',
-                            color: 0x1a1a1e
-                        },
-                        "let's get freaky": {
-                            title: "im about to get freaky",
-                            image: 'https://files.catbox.moe/0n1mp7.gif',
-                            footer: 'spurt spurt',
-                            color: 0x48757d
-                        },
-                        "the scariest thing you will ever see": {
-                            title: "BOO!",
-                            image: 'https://files.catbox.moe/3l3wtr.png',
-                            footer: 'Time to stop procrastinating and get a job',
-                            color: 0x1a1a1e
-                        },
-                        "shaboingboing": {
-                            title: "You gotta give him that Hawk Tuah",
-                            image: 'https://files.catbox.moe/qy74ka.gif',
-                            footer: 'Gawk gawk gawk',
-                            color: 0xaa8f7d
-                        },
-                        "we live we love we lie": {
-                            title: "We Live, We Love, We Lie",
-                            image: 'https://files.catbox.moe/d5h906.gif',
-                            footer: 'Smurf cat do be speaking faxx',
-                            color: 0x3498DB
-                        }
-                    };
-
-                    // --- Custom TEXT GIF Commands (no embeds) ---
-                    const textGifCommands = {
-                        'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)',
-                        'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',
-                        'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)',
-                        'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)',
-                        'xpcopter': '<@618790940290842625> [**How About This Bad Boy**](https://files.catbox.moe/k41zjv.gif)',
-                        'kaerat': ' https://files.catbox.moe/1leclp.gif',
-                    };
-
                     let secretGifCommandsList = '';
+                    // Use the imported gifCommands and textGifCommands
                     for (const cmd in gifCommands) {
                         secretGifCommandsList += `* \`${cmd}\`\n`;
                     }
@@ -459,9 +485,9 @@ export function setupSlashCommandsHandler(client) {
                 console.log(`Unhandled slash command: ${interaction.commandName}`);
                 // If the reply was deferred, edit it. Otherwise, followUp.
                 if (interaction.deferred || interaction.replied) {
-                    await interaction.editReply({ content: 'Unknown command.', ephemeral: true }).catch(e => console.error("Error editing unknown command reply:", e));
+                    await interaction.editReply({ content: 'Unknown command.', flags: MessageFlags.Ephemeral }).catch(e => console.error("Error editing unknown command reply:", e));
                 } else {
-                    await interaction.reply({ content: 'Unknown command.', ephemeral: true }).catch(e => console.error("Error replying to unknown command:", e));
+                    await interaction.reply({ content: 'Unknown command.', flags: MessageFlags.Ephemeral }).catch(e => console.error("Error replying to unknown command:", e));
                 }
                 break;
         }
