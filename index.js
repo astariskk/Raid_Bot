@@ -7,6 +7,8 @@ import express from 'express';
 const app = express();
 const port = process.env.PORT || 3000;
 app.get('/', (req, res) => {
+    // Log when the health check endpoint is hit
+    console.log('Health check endpoint (/) hit by Render.'); // NEW LOG
     res.send('Bot is alive!');
 });
 
