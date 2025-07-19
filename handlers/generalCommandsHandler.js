@@ -1,7 +1,21 @@
 // handlers/generalCommandsHandler.js
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_CHANNEL_ID, RAID_HELPER_ROLE_ID, LEADERBOARD_CHANNEL_ID, RAID_MANAGEMENT_CHANNEL_ID, MAX_XP_PER_RAID, POINTS_CONFIG, TASK_MAP_CATEGORIES } from '../config/constants.js';
-import { getTasksEmbed, getRaidRequestModal } from './raidLogsHandler.js'; 
+import { 
+    RAID_CHANNEL_ID, 
+    RAID_HELPER_ROLE_ID, 
+    LEADERBOARD_CHANNEL_ID, 
+    RAID_MANAGEMENT_CHANNEL_ID, 
+    MAX_XP_PER_RAID, 
+    POINTS_CONFIG, 
+    TASK_MAP_CATEGORIES,
+    DAILIES_LIST,
+    WEEKLIES_LIST,
+    TEMPLESHRINE_LIST,
+    ORIGINUL_LIST,
+    OTHERS_LIST,
+    GENERIC_TASKS_LIST
+} from '../config/constants.js';
+import { getRaidRequestModal } from './raidLogsHandler.js'; 
 
 // --- Cooldown management for GIF commands ---
 const gifCooldowns = new Map();
@@ -10,64 +24,274 @@ const GIF_COOLDOWN_DURATION = 10 * 1000;
 
 // --- Custom GIF Commands (for embeds) ---
 export const gifCommands = {
-    'the most beautiful thing you will ever see': {
-        title: 'The Most Beautiful Thing You will Ever See',
-        image: 'https://files.catbox.moe/5tsmuk.gif',
-        footer: 'Feast your eyes on this',
-        color: 0xFF0000
-    },
-    'i need more bullets': {
-        title: "Asta La Vista, Baby",
-        image: 'https://files.catbox.moe/dnzecs.gif',
-        footer: 'He needs more bullets',
-        color: 0x006400
-    },
-    'sybau xychrome': {
-        title: "Get Twerked On",
-        image: 'https://files.catbox.moe/neo4gz.gif',
-        footer: 'Sybauuuu',
-        color: 0x1a1a1e
-    },
-    "let's get freaky": {
-        title: "im about to get freaky",
-        image: 'https://files.catbox.moe/0n1mp7.gif',
-        footer: 'spurt spurt',
-        color: 0x48757d
-    },
-    "the scariest thing you will ever see": {
-        title: "BOO!",
-        image: 'https://files.catbox.moe/3l3wtr.png',
-        footer: 'Time to stop procrastinating and get a job',
-        color: 0x1a1a1e
-    },
-    "shaboingboing": {
-        title: "You gotta give him that Hawk Tuah",
-        image: 'https://files.catbox.moe/qy74ka.gif',
-        footer: 'Gawk gawk gawk',
-        color: 0xaa8f7d
-    },
+    'the most beautiful thing you will ever see': {
+        title: 'The Most Beautiful Thing You will Ever See',
+        image: 'https://files.catbox.moe/5tsmuk.gif',
+        footer: 'Feast your eyes on this',
+        color: 0xFF0000
+    },
+    'i need more bullets': {
+        title: "Asta La Vista, Baby",
+        image: 'https://files.catbox.moe/dnzecs.gif',
+        footer: 'He needs more bullets',
+        color: 0x006400
+    },
+    'sybau xychrome': {
+        title: "Get Twerked On",
+        image: 'https://files.catbox.moe/neo4gz.gif',
+        footer: 'Sybauuuu',
+        color: 0x1a1a1e
+    },
+    "let's get freaky": {
+        title: "im about to get freaky",
+        image: 'https://files.catbox.moe/0n1mp7.gif',
+        footer: 'spurt spurt',
+        color: 0x48757d
+    },
+    "the scariest thing you will ever see": {
+        title: "BOO!",
+        image: 'https://files.catbox.moe/3l3wtr.png',
+        footer: 'Time to stop procrastinating and get a job',
+        color: 0x1a1a1e
+    },
+    "shaboingboing": {
+        title: "You gotta give him that Hawk Tuah",
+        image: 'https://files.catbox.moe/qy74ka.gif',
+        footer: 'Gawk gawk gawk',
+        color: 0xaa8f7d
+    },
     "we live we love we lie": {
-        title: "We Live, We Love, We Lie",
-        image: 'https://files.catbox.moe/d5h906.gif',
-        footer: 'Smurf cat do be speaking faxx',
+        title: "We Live, We Love, We Lie",
+        image: 'https://files.catbox.moe/d5h906.gif',
+        footer: 'Smurf cat do be speaking faxx',
         color: 0x3498DB
     }
 };
 
 // --- Custom TEXT GIF Commands (no embeds) ---
 export const textGifCommands = {
-    'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
-    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
-    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
+    'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
+    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
+    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 
-    'kaerat': ' https://files.catbox.moe/1leclp.gif', 
+    'kaerat': ' https://files.catbox.moe/1leclp.gif', 
 };
+
+/**
+ * Helper to format tasks and their points for embed fields.
+ * @param {string[]} taskList - An array of task names.
+ * @param {object} pointsConfig - The POINTS_CONFIG object.
+ * @returns {string} Formatted string for an embed field value.
+ */
+function formatTasksForEmbed(taskList, pointsConfig) {
+    if (!taskList || taskList.length === 0) {
+        return 'N/A';
+    }
+    return taskList.map(task => {
+        const points = pointsConfig[task.toLowerCase()];
+        return `\`${task}\`: ${points !== undefined ? `${points} EXP` : 'N/A'}`;
+    }).join('\n');
+}
+
+/**
+ * Generates the embed for the full list of bot commands.
+ * @returns {EmbedBuilder} The embed containing all bot commands.
+ */
+function getCommandsEmbed() {
+    return new EmbedBuilder()
+        .setColor(0x3498DB) // blue
+        .setTitle('✨ Bot Commands List ✨')
+        .setDescription('Here are the commands you can use with the Raid Helper Bot:')
+        .addFields(
+            {
+                name: '📊 General Raid & Status Commands',
+                value: `
+\`!raidtasks\`: Lists all available raid tasks **by category**.
+\`!calculatetask <task1> + <task2> + ...\`: Calculates total points for specified tasks.
+`
+            },
+            {
+                name: '⚔️ Commands Inside Raid Threads',
+                value: `
+\`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
+\`!raidsite\`: Sends a website for making joining maps easier.
+\`!waiting\`: Set the raid status to '🔵 Waiting (requester only)'.
+\`!ongoing\`: Set the raid status to '🟢 Ongoing (requester only)'.
+\`!full\`: Set the raid status to '🔴 Full (requester only)'.
+\`!1man\`: Displays the 1-man taunt chart for ultraspeaker.
+\`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
+\`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
+\`!4man\`: Displays the 4-man taunt chart for ultraspeaker.
+\`!gramielchart\`: Displays the chart for ultragramiel.
+`
+            },
+            {
+                name: '💬 Commands for closing the Raid Request',
+                value: `
+\`cancel\`: Close the raid thread without awarding points.
+\`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
+\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
+\`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
+\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
+`
+            }
+        )
+        .setTimestamp()
+        .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
+}
+
+/**
+ * Generates the embed for the "How to Use" guide.
+ * @param {string} raidHelperRoleName The name of the raid helper role.
+ * @returns {EmbedBuilder} The embed containing the how-to-use guide.
+ */
+export function getHowToUseEmbed(raidHelperRoleName) {
+    return new EmbedBuilder()
+        .setTitle('📜 How to Use the Raid Helper Bot')
+        .setDescription(
+            `**1. Request a Raid:** To start, Press the \`⚔️ Start Raid\` button and fill out the form. Only tasks listed in \`📋 See Raid Tasks\` and marked by \`this\` will be accepted.` +
+            ` for tasks not included in the list you can describe them in the description and use the following generic tasks:\n` +
+            `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
+            `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
+            `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
+            `   • Example raid task: \`daily + weekly\`.\n\n` +
+            `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
+            `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
+            `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
+            `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`${MAX_XP_PER_RAID} EXP\` per raid.\n\n` +
+            `**Press the buttons below to interact with the bot:**`
+        )
+        .setColor(0x3498DB);
+}
+
+/**
+ * Generates the embed displaying all raid tasks and their associated EXP values.
+ * This combines the functionality of the old !raidtasks and !raidpoints.
+ * @returns {EmbedBuilder} The embed with raid tasks and points.
+ */
+export function getCombinedTasksAndPointsEmbed() {
+    const embed = new EmbedBuilder()
+        .setColor(0x3498DB) // Blue
+        .setTitle('📋 Raid Tasks & EXP Values')
+        .setDescription('Here\'s a comprehensive list of all recognized raid tasks and the EXP awarded for completing them. Use these when requesting raids or calculating points!')
+        .setTimestamp()
+        .setFooter({ text: 'Raid Helper Bot | Tasks & Points' });
+
+    // Helper to add fields dynamically based on column data
+    const addThreeColumnFields = (name, col1, col2, col3) => {
+        embed.addFields(
+            { name: name, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true }
+        );
+        if (col2.length > 0) {
+            embed.addFields(
+                { name: '\u200B', value: formatTasksForEmbed(col2, POINTS_CONFIG), inline: true }
+            );
+        }
+        if (col3.length > 0) {
+            embed.addFields(
+                { name: '\u200B', value: formatTasksForEmbed(col3, POINTS_CONFIG), inline: true }
+            );
+        }
+    };
+
+    // --- Daily Raids (3 columns) ---
+    const dailiesPerColumn = Math.ceil(DAILIES_LIST.length / 3);
+    const dailiesCol1 = DAILIES_LIST.slice(0, dailiesPerColumn);
+    const dailiesCol2 = DAILIES_LIST.slice(dailiesPerColumn, dailiesPerColumn * 2);
+    const dailiesCol3 = DAILIES_LIST.slice(dailiesPerColumn * 2);
+    addThreeColumnFields('☀️ `Daily` or `Dailies`', dailiesCol1, dailiesCol2, dailiesCol3);
+
+    // --- blank space for 3rd column ---
+    if (dailiesCol3.length === 0) {
+        embed.addFields(
+            { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
+        );
+    }
+
+    // --- Weekly Raids (3 columns) ---
+    const weekliesPerColumn = Math.ceil(WEEKLIES_LIST.length / 3);
+    const weekliesCol1 = WEEKLIES_LIST.slice(0, weekliesPerColumn);
+    const weekliesCol2 = WEEKLIES_LIST.slice(weekliesPerColumn, weekliesPerColumn * 2);
+    const weekliesCol3 = WEEKLIES_LIST.slice(weekliesPerColumn * 2);
+    addThreeColumnFields('🗓️ `Weekly` or `Weeklies`', weekliesCol1, weekliesCol2, weekliesCol3);
+
+    // --- Temple Shrine (3 columns) ---
+    const tsPerColumn = Math.ceil(TEMPLESHRINE_LIST.length / 3);
+    const tsCol1 = TEMPLESHRINE_LIST.slice(0, tsPerColumn);
+    const tsCol2 = TEMPLESHRINE_LIST.slice(tsPerColumn, tsPerColumn * 2);
+    const tsCol3 = TEMPLESHRINE_LIST.slice(tsPerColumn * 2);
+    addThreeColumnFields('⛩️ `Templeshrine`', tsCol1, tsCol2, tsCol3);
+
+    // --- Originul Raids (3 Columns) ---
+    const originulPerColumn = Math.ceil(ORIGINUL_LIST.length / 3);
+    const oRCol1 = ORIGINUL_LIST.slice(0, originulPerColumn);
+    const oRCol2 = ORIGINUL_LIST.slice(originulPerColumn, originulPerColumn * 2);
+    const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2); 
+    addThreeColumnFields(' `Originul`', oRCol1, oRCol2, oRCol3);
+
+    // --- blank space for 3rd column ---
+    if (dailiesCol3.length === 0) {
+        embed.addFields(
+            { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
+        );
+    }
+
+    // --- Other Raids (3 column) ---
+    const othersPerColumn = Math.ceil(OTHERS_LIST.length / 2);
+    const othersCol1 = OTHERS_LIST.slice(0, othersPerColumn);
+    const othersCol2 = OTHERS_LIST.slice(othersPerColumn);
+    const othersCol3 = []; 
+    addThreeColumnFields('Other Tasks', othersCol1, othersCol2, othersCol3);
+
+    // --- blank space for 3rd column ---
+    if (dailiesCol3.length === 0) {
+        embed.addFields(
+            { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
+        );
+    }    
+    // --- Generic Tasks (single field) ---
+    embed.addFields(
+        { name: 'Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
+    );
+
+    return embed;
+}
+
+
+/**
+ * Generates the initial row of buttons for the !raidinfo command.
+ * @returns {ActionRowBuilder} The action row containing the initial buttons.
+ */
+export function getInitialButtonsRow() {
+    const getHelpRoleButton = new ButtonBuilder()
+        .setCustomId('getHelpRole_btn')
+        .setLabel('📣 Get Help Role')
+        .setStyle(ButtonStyle.Secondary);
+
+    const startRaidButton = new ButtonBuilder()
+        .setCustomId('startRaid_btn')
+        .setLabel('⚔️ Start Raid')
+        .setStyle(ButtonStyle.Primary);
+
+    const seeRaidTasksButton = new ButtonBuilder()
+        .setCustomId('seeRaidTasks_btn')
+        .setLabel('📋 Raid Tasks')
+        .setStyle(ButtonStyle.Secondary);
+
+    const showAllCommandsButton = new ButtonBuilder()
+        .setCustomId('showAllCommands_btn')
+        .setLabel('📝 Commands List')
+        .setStyle(ButtonStyle.Secondary);
+
+    return new ActionRowBuilder()
+        .addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
+}
 
 
 /**
  * Sets up the handler for general bot commands and interactions,
- * including the !raidcommands list, custom GIF triggers, and the "Get Help Role" button.
+ * including the !raidinfo list, custom GIF triggers, and the "Get Help Role" button.
  * @param {Client} client The Discord client instance.
  */
 export function setupGeneralCommandsHandler(client) {
@@ -97,88 +321,28 @@ export function setupGeneralCommandsHandler(client) {
         };
 
 
-        // --- Handle the !raidcommands command ---
-        if (commandContent === '!raidcommands' && message.channel.id === RAID_CHANNEL_ID) {
-            const getHelpRoleButton = new ButtonBuilder()
-                .setCustomId('getHelpRole_btn')
-                .setLabel('📣 Get Help Role')
-                .setStyle(ButtonStyle.Secondary);
+        // --- Handle the !raidinfo command (formerly !raidcommands) ---
+        if (commandContent === '!raidinfo' && message.channel.id === RAID_CHANNEL_ID) {
+            let raidHelperRoleName = 'Raid Helper'; // Default name
+            if (message.guild) {
+                try {
+                    const role = await message.guild.roles.fetch(RAID_HELPER_ROLE_ID);
+                    if (role) {
+                        raidHelperRoleName = role.name;
+                    }
+                } catch (error) {
+                    console.error('Error fetching RAID_HELPER_ROLE_ID name for !raidinfo:', error);
+                }
+            }
 
-            const startRaidButton = new ButtonBuilder()
-                .setCustomId('startRaid_btn')
-                .setLabel('⚔️ Start Raid')
-                .setStyle(ButtonStyle.Primary);
-
-            const seeRaidTasksButton = new ButtonBuilder()
-                .setCustomId('seeRaidTasks_btn')
-                .setLabel('📋 See Raid Tasks')
-                .setStyle(ButtonStyle.Secondary);
-
-            const howToUseButton = new ButtonBuilder()
-                .setCustomId('howToUse_btn')
-                .setLabel('❓ How to Use')
-                .setStyle(ButtonStyle.Secondary);
-
-            const commandButtonsRow = new ActionRowBuilder()
-                .addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, howToUseButton);
-
-            const commandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB)
-                .setTitle('✨ Bot Commands List ✨')
-                .setDescription('Here are the commands you can use with the Raid Helper Bot:')
-                .addFields(
-                    {
-                        name: '📊 General Raid & Status Commands',
-                        value: `
-\`!raidtasks\`: Lists all available raid tasks **by category**.
-\`!raidpoints\`: Displays the EXP values for all configured raid tasks
-\`!calculatetask <task1> + <task2> + ...\`: Calculates total points for specified tasks.
-                        \n`
-                    },
-                    {
-                        name: '⚔️ Commands Inside Raid Threads',
-                        value: `
-\`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
-\`!raidsite\`: Sends a website for making joining maps easier.
-\`!waiting\`: Set the raid status to '🔵 Waiting (requester only)'.
-\`!ongoing\`: Set the raid status to '🟢 Ongoing (requester only)'.
-\`!full\`: Set the raid status to '🔴 Full (requester only)'.
-\`!1man\`: Displays the 1-man taunt chart for ultraspeaker.
-\`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
-\`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
-\`!4man\`: Displays the 4-man taunt chart for ultraspeaker.
-\`!gramielchart\`: Displays the chart for ultragramiel.
-                        \n`
-                    },
-                    {
-                        name: '💬 Commands for closing the Raid Request',
-                        value: `
-\`cancel\`: Close the raid thread without awarding points.
-\`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
-\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
-\`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
-                        \n`
-                    },
-                    {
-                        name: '**Press the buttons below to interact with the bot:**',
-                        value: `
-\`⚔️ Start Raid\`: To request assistance for a raid.
-\`📣 Get Help Role\`: To opt-in/out of pings for new raid requests.
-\`📋 See Raid Tasks\`: To see a list of all recognized raid tasks.
-\`❓ How to Use\`: For detailed instructions on using the bot.
-                        \n`
-                    }
-
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
+            const howToUseEmbed = getHowToUseEmbed(raidHelperRoleName);
+            const initialButtonsRow = getInitialButtonsRow();
 
             try {
-                await message.channel.send({ embeds: [commandsEmbed], components: [commandButtonsRow] });
+                await message.channel.send({ embeds: [howToUseEmbed], components: [initialButtonsRow] });
             } catch (error) {
-                console.error('Error sending !raidcommands embed:', error);
-                await message.channel.send('Failed to display commands. Please try again later.');
+                console.error('Error sending !raidinfo embed:', error);
+                await message.channel.send('Failed to display raid information. Please try again later.');
             }
         }
 
@@ -442,44 +606,14 @@ export function setupGeneralCommandsHandler(client) {
                 await interaction.showModal(raidModal);
                 break;
             case 'seeRaidTasks_btn':
-                // This button interaction should be handled here to display the raid tasks embed.
-                const tasksEmbed = getTasksEmbed();
-                await interaction.reply({ embeds: [tasksEmbed], ephemeral: true });
+                // This button interaction now displays the combined tasks and points embed.
+                const combinedTasksAndPointsEmbed = getCombinedTasksAndPointsEmbed();
+                await interaction.reply({ embeds: [combinedTasksAndPointsEmbed], ephemeral: true });
                 break;
-            case 'howToUse_btn':
-                // This button interaction should be handled here to display the how-to-use embed.
-                let raidHelperRoleName = 'unknown Role';
-                if (interaction.guild) {
-                    try {
-                        const role = await interaction.guild.roles.fetch(RAID_HELPER_ROLE_ID);
-                        if (role) {
-                            raidHelperRoleName = role.name;
-                        }
-                    } catch (error) {
-                        console.error('Error fetching RAID_HELPER_ROLE_ID name:', error);
-                    }
-                }
-                const howToUse_embed = new EmbedBuilder()
-                    .setTitle('📜 How to Use the Raid Helper Bot')
-                    .setDescription(
-                        `**1. Request a Raid:** Go to the <#${RAID_CHANNEL_ID}> channel and click the \`⚔️ Start Raid\` button. Fill out the form. Only tasks listed in \`📋 See Raid Tasks\` button will be accepted.` +
-                        `\nfor tasks not included in the list you can use the following generic tasks:\n` +
-                        `   • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
-                        `   • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-                        `   • \`hard\`: Raids expected to take 30 minutes or more.\n` +
-                        `   • **Note**: don't forget to describe your request in the description field when necessary.\n` +
-                        `**2. Raid Coordination:** A dedicated thread will be created for your raid in the raid logs channel. Use it to communicate with helpers.\n\n` +
-                        `**3. Update Status:** In your raid thread, you (the requester) can type \`!waiting\`, \`!ongoing\` or \`!full\` to update the raid's status in the main log. You can also use the \`✏️ Edit Task\` Button to edit your raid request\n\n` +
-                        `**4. Complete Raid:** Once the raid is done, click the \`🔒 Close Raid\` button in your thread. You'll then be prompted to tag your helpers (e.g., \`all x2 = @user1 @user2\` or \`task1 + task2 = @user3\`) and optionally attach a screenshot or typing \`cancel\` to close the raid. \`Only tasks listed in your raid request (or edited tasks) will award points.\`\n\n` +
-                        `**5. Check Points:** Use \`!leaderboard\` or \`!lb\`to see top players or \`!lbcheck\` to see your daily EXP. There is a limit of \`${MAX_XP_PER_RAID} EXP\` per raid.\n\n`
-                    )
-                    .setColor(0x3498DB);
-
-                await interaction.reply({
-                    embeds: [howToUse_embed],
-                    ephemeral: true
-                });
-                break;
+            case 'showAllCommands_btn':
+                const commandsEmbed = getCommandsEmbed();
+                await interaction.reply({ embeds: [commandsEmbed], ephemeral: true });
+                break;
             default:
                 console.log(`Unhandled button interaction customId: ${interaction.customId}`);
                 break;

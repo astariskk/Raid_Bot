@@ -1,7 +1,7 @@
 // activeRaidState.js
 import { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
 import { ALLOWED_TASK_NAMES } from './config/constants.js'; // Needed for validation in getEditTaskModal
-import { getTasksEmbed } from './handlers/raidLogsHandler.js'; // Needed for validation in getEditTaskModal
+
 
 
 /**

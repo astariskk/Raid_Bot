@@ -1,13 +1,13 @@
 // config/constants.js
 // --- Channel ID's ---
-export const RAID_CHANNEL_ID = '1388854499023519847'; // Your Raid Logs Channel ID 1388854499023519847
-export const RAID_LOGS_CHANNEL_ID = '1388865288115847322'; // Your Raid Logs Channel ID 1388865288115847322
-export const EXP_LAIR_CHANNEL_ID = '1388865498065666059'; // Your EXP Lair Channel ID 1388865498065666059
+export const RAID_CHANNEL_ID = '1394877134996242636'; // Your Raid Logs Channel ID 1388854499023519847
+export const RAID_LOGS_CHANNEL_ID = '1394877168223256586'; // Your Raid Logs Channel ID 1388865288115847322
+export const EXP_LAIR_CHANNEL_ID = '1394877213081604279'; // Your EXP Lair Channel ID 1388865498065666059
 export const LEADERBOARD_CHANNEL_ID = '1389203721505996903'; // Your Leaderboard Channel ID 1389203721505996903
 export const RAID_MANAGEMENT_CHANNEL_ID = '1389420600367251476'; // Your Raid Logs Message ID 1389420600367251476
 
 // --- ROLE ID's ---
-export const RAID_HELPER_ROLE_ID = '1373205396298141696'; // Your Raid Helper Role ID 1373205396298141696
+export const RAID_HELPER_ROLE_ID = ''; // Your Raid Helper Role ID 1373205396298141696
 export const MODERATOR_ROLE_ID = '1373356500252098670'; // Your Moderator Role ID 1373356500252098670
 export const OFFICER_ROLE_ID = '1373011008888639568'; // Your Officer Role ID 1373011008888639568
 export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; // Your Raid Manager Role ID 1388819716008706129
@@ -21,18 +21,18 @@ export const POINTS_CONFIG = {
     'ezrajal': 1000,
     'warden': 1000,
     'engineer': 1000,
-    'tyndarius': 1000,    
+    'tyndarius': 1000,     
 
     // --- temple shrine tasks ---
-    'tsmid': 2000,
     'tsleft': 1000,
+    'tsmid': 3000, 
     'tsright': 1000,
 
     // --- weekly tasks ---
-    'mechabinky': 5000,    
+    'mechabinky': 5000,     
     'speaker': 4000,
-    'gramiel': 3000,    
-    'darkon': 3000,    
+    'gramiel': 3000,     
+    'darkon': 3000,     
     'drago': 2000,
     'dage': 2000,
     'nulgath': 2000,
@@ -56,17 +56,19 @@ export const POINTS_CONFIG = {
 // --- Separate Task Lists for validation and display ---
 export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
 export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'gramiel', 'speaker'];
-export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
-export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky','voidnerfkitten', 'kala', 'iara', 'lavarockshore'];
+export const TEMPLESHRINE_LIST = ['tsleft', 'tsmid', 'tsright'];
+export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag', 'voidnerfkitten'];
+export const OTHERS_LIST = ['kathool', 'astralshrine', 'lavarockshore', 'mechabinky', 'kala', 'iara']; // Moved mechabinky, kala, iara to weeklies/dailies
+
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases and dynamic check for custom tasks
 export const ALLOWED_TASK_NAMES = [
     ...DAILIES_LIST, 'dailies', 'daily',
     ...WEEKLIES_LIST, 'weeklies', 'weekly',
-    ...OTHERS_LIST, ...TEMPLESHRINE_LIST, 'templeshrine', 
+    ...TEMPLESHRINE_LIST, 'templeshrine', 
     ...ORIGINUL_LIST, 'originul',
+    ...OTHERS_LIST,
     ...GENERIC_TASKS_LIST,
 ];
 
@@ -98,7 +100,7 @@ export const TASK_TO_MAP_PREFIX_MAPPING = {
     'drakath': 'championdrakath',     
     'dage': 'ultradage',
     'darkon': 'ultradarkon',
-    'drago': 'ultradrago',    
+    'drago': 'ultradrago',     
     'speaker': 'ultraspeaker',
     'mechabinky': 'grimchallenge',
     'gramiel': 'ultragramiel',

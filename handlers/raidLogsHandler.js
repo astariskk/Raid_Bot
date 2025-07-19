@@ -33,16 +33,7 @@ import {
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
 import { activeRaidThreads, updateRaidStatus } from '../activeRaidState.js';
-// getTasksEmbed is commented out, suggesting it might have been used previously
-// or is intended for future use but not directly within this file's current logic.
-// import { getTasksEmbed } from './handlers/raidLogsHandler.js'; // This line is self-referential and should be removed if not used elsewhere, but kept original structure.
-
-
-// --- Button Definitions for initial raid request and closing a thread ---
-// These buttons are displayed when a raid thread is initially created.
-// `raidLogsHandler` is responsible for sending these buttons.
-// The *handling* of clicks on these specific buttons is managed by `expLairHandler` (for close/edit)
-// and `generalCommandsHandler` (for the initial raid start button, not defined here but mentioned in logic).
+import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
 // Button to close a raid ticket/thread.
 const closeTicketButton = new ButtonBuilder()
@@ -60,168 +51,6 @@ const editTaskButton = new ButtonBuilder()
 const threadActionRow = new ActionRowBuilder()
     .addComponents(closeTicketButton, editTaskButton);
 
-// --- Buttons for the `!raidpoints` command embed ---
-const dailiesPointsButton = new ButtonBuilder()
-    .setCustomId('dailiesPoints_btn')
-    .setLabel('Dailies Points')
-    .setStyle(ButtonStyle.Primary); // Blue style for primary actions.
-
-const weekliesPointsButton = new ButtonBuilder()
-    .setCustomId('weekliesPoints_btn')
-    .setLabel('Weeklies Points')
-    .setStyle(ButtonStyle.Primary);
-
-const templeshrinePointsButton = new ButtonBuilder()
-    .setCustomId('templeshrinePoints_btn')
-    .setLabel('TempleShrine Points')
-    .setStyle(ButtonStyle.Primary);
-
-const originulPointsButton = new ButtonBuilder()
-    .setCustomId('originulPoints_btn')
-    .setLabel('Originul Points')
-    .setStyle(ButtonStyle.Primary);
-
-const othersPointsButton = new ButtonBuilder()
-    .setCustomId('othersPoints_btn')
-    .setLabel('Other Tasks Points')
-    .setStyle(ButtonStyle.Primary);
-
-const genericTasksPointsButton = new ButtonBuilder()
-    .setCustomId('genericTasksPoints_btn')
-    .setLabel('Generic Tasks Points')
-    .setStyle(ButtonStyle.Primary); 
-
-// Action rows to organize the `!raidpoints` buttons.
-const raidPointsButtonsRow1 = new ActionRowBuilder()
-    .addComponents(dailiesPointsButton, weekliesPointsButton, templeshrinePointsButton);
-
-const raidPointsButtonsRow2 = new ActionRowBuilder()
-    .addComponents(originulPointsButton, othersPointsButton, genericTasksPointsButton);
-
-
-/**
- * Generates a formatted string of task names and their associated EXP values
- * for a given list of tasks. This is used for displaying points in embeds.
- * @param {string[]} taskList - The list of task names (e.g., DAILIES_LIST).
- * @returns {string} A formatted string, with each task on a new line,
- * e.g., "• `ezrajal` = 200 EXP\n• `warden` = 300 EXP".
- */
-function formatTaskListPoints(taskList) {
-    if (!taskList || taskList.length === 0) return 'N/A'; // Handle empty or undefined lists.
-    // Map each task name to its corresponding points from POINTS_CONFIG and format it.
-    return taskList.map(task => `• \`${task}\` = ${POINTS_CONFIG[task] || 0} EXP`).join('\n');
-}
-
-/**
- * Creates and returns an EmbedBuilder instance that lists all available raid tasks,
- * categorized for clarity. This embed helps users understand which tasks they can request.
- * @returns {EmbedBuilder} The embed containing raid tasks and their categories.
- */
-export function getTasksEmbed() {
-    // Format each task list into a comma-separated string of task names enclosed in backticks.
-    const dailiesListFormatted = DAILIES_LIST.map(task => `\`${task}\``).join(', ');
-    const weekliesListFormatted = WEEKLIES_LIST.map(task => `\`${task}\``).join(', ');
-    const othersListFormatted = OTHERS_LIST.map(task => `\`${task}\``).join(', ');
-    const templeShrineListFormatted = TEMPLESHRINE_LIST.map(task => `\`${task}\``).join(', ');
-    const originulListFormatted = ORIGINUL_LIST.map(task => `\`${task}\``).join(', ');
-    const genericTasksListFormatted = GENERIC_TASKS_LIST.map(task => `\`${task}\``).join(', ');
-
-    return new EmbedBuilder()
-        .setColor(0x3498DB) // A blue color for informational embeds.
-        .setTitle('Available Raid Tasks')
-        .setDescription('Note that only words covered in `this` are valid choices. Here are the tasks you can request assistance for:')
-        .addFields( // Add fields for each category of tasks.
-            { name: '`Weekly` or `Weeklies`', value: weekliesListFormatted || 'N/A' },
-            { name: '`Daily` or `Dailies`', value: dailiesListFormatted || 'N/A' },
-            { name: '`TempleShrine`', value: templeShrineListFormatted || 'N/A' },
-            { name: '`Originul` Dailies:', value: originulListFormatted || 'N/A' },
-            { name: 'Other Tasks', value: othersListFormatted || 'N/A' },
-            { name: 'Generic Tasks', value: genericTasksListFormatted || 'N/A' }
-            // Removed "Custom Tasks" field as custom task handling is no longer enabled.
-        )
-        .setFooter({ text: 'Use these names in your raid requests!' });
-}
-
-/**
- * Creates and returns the initial Embed for raid task EXP values with category buttons.
- * @returns {EmbedBuilder} The initial embed for raid points.
- */
-export function getPointsOverviewEmbed() {
-    return new EmbedBuilder()
-        .setColor(0x0099FF) // Blue color for a noticeable informational embed.
-        .setTitle('Raid Task EXP Values Overview')
-        .setDescription('Click a button below to see the EXP values for specific task categories:')
-        .setTimestamp() // Adds a timestamp to the embed.
-        .setFooter({ text: 'Points are awarded upon raid completion.' });
-}
-
-/**
- * Creates and returns an Embed for Dailies EXP values.
- * @returns {EmbedBuilder} The embed containing Dailies EXP values.
- */
-export function getDailiesPointsEmbed() {
-    return new EmbedBuilder()
-        .setColor(0x00BFFF) // Deep Sky Blue.
-        .setTitle('Daily Raid Tasks EXP Values')
-        .setDescription(formatTaskListPoints(DAILIES_LIST)) // Uses the helper function to format points.
-        .setFooter({ text: 'Points for daily tasks.' });
-}
-
-/**
- * Creates and returns an Embed for Weeklies EXP values.
- * @returns {EmbedBuilder} The embed containing Weeklies EXP values.
- */
-export function getWeekliesPointsEmbed() {
-    return new EmbedBuilder()
-        .setColor(0x8A2BE2) // Blue Violet.
-        .setTitle('Weekly Raid Tasks EXP Values')
-        .setDescription(formatTaskListPoints(WEEKLIES_LIST))
-        .setFooter({ text: 'Points for weekly tasks.' });
-}
-
-/**
- * Creates and returns an Embed for TempleShrine EXP values.
- * @returns {EmbedBuilder} The embed containing TempleShrine EXP values.
- */
-export function getTempleshrinePointsEmbed() {
-    return new EmbedBuilder()
-        .setColor(0xFFD700) // Gold.
-        .setTitle('TempleShrine Raid Tasks EXP Values')
-        .setDescription(formatTaskListPoints(TEMPLESHRINE_LIST))
-        .setFooter({ text: 'Points for TempleShrine tasks.' });
-}
-
-/**
- * Creates and returns an Embed for Originul Daily Raid Tasks EXP values.
- * @returns {EmbedBuilder} The embed containing Originul Dailies EXP values.
- */
-export function getOriginulPointsEmbed() {
-    return new EmbedBuilder()
-        .setColor(0x20B2AA) // Light Sea Green.
-        .setTitle('Originul Daily Raid Tasks EXP Values')
-        .setDescription(formatTaskListPoints(ORIGINUL_LIST))
-        .setFooter({ text: 'Points for Originul daily tasks.' });
-}
-
-/**
- * Creates and returns an Embed for Other Raid Tasks EXP values.
- * @returns {EmbedBuilder} The embed containing Other Tasks EXP values.
- */
-export function getOthersPointsEmbed() {
-    return new EmbedBuilder()
-        .setColor(0xDC143C) // Crimson.
-        .setTitle('Other Raid Tasks EXP Values')
-        .setDescription(formatTaskListPoints(OTHERS_LIST))
-        .setFooter({ text: 'Points for miscellaneous tasks.' });
-}
-
-export function getGenericPointsEmbed() {
-    return new EmbedBuilder()
-        .setColor(0xFF8C00) // Dark Orange.
-        .setTitle('Generic Raid Tasks EXP Values')
-        .setDescription(formatTaskListPoints(GENERIC_TASKS_LIST))
-        .setFooter({ text: 'Points for generic tasks.' });
-}
 
 /**
  * Creates and returns the Modal for submitting new raid assistance requests.
@@ -440,28 +269,13 @@ export function setupRaidLogsHandlers(client) {
             }
         } 
 
-        // --- Command to list all available raid tasks with their categories (`!raidtasks`) ---
+        // --- Command to list all available raid tasks with their points ---
         if (message.content.toLowerCase() === '!raidtasks') {
             try {
-                // Send the embed generated by `getTasksEmbed()`.
-                await message.channel.send({ embeds: [getTasksEmbed()] });
+                await message.channel.send({ embeds: [getCombinedTasksAndPointsEmbed()] });
             } catch (error) {
                 console.error('Error sending !raidtasks message:', error);
                 await message.channel.send('Failed to display raid tasks. Please try again later.');
-            }
-        }
-
-        // --- MODIFIED: Command to display the EXP points for each raid task with category buttons (`!raidpoints`) ---
-        if (message.content.toLowerCase() === '!raidpoints') {
-            try {
-                // Send the overview embed along with the two rows of category buttons.
-                await message.channel.send({
-                    embeds: [getPointsOverviewEmbed()],
-                    components: [raidPointsButtonsRow1, raidPointsButtonsRow2]
-                });
-            } catch (error) {
-                console.error('Error sending !raidpoints message:', error);
-                await message.channel.send('Failed to display raid points. Please try again later.');
             }
         }
     });
@@ -472,47 +286,6 @@ export function setupRaidLogsHandlers(client) {
         // Only process buttons and modal submissions in this handler.
         if (!interaction.isButton() && !interaction.isModalSubmit()) {
             return;
-        }
-
-        // This handler is now ONLY responsible for:
-        // 1. Handling the initial 'raidRequestModal' submission.
-        // 2. Handling the `!raidpoints` category buttons.
-        // All thread-specific buttons/modals ('closeRaidTicket', 'editTask_btn', 'editTaskModal')
-        // are handled in `expLairHandler.js` to avoid duplicate processing and ensure single responsibility.
-
-        if (interaction.isButton()) {
-            switch (interaction.customId) {
-                // --- Handle `!raidpoints` category buttons ---
-                case 'dailiesPoints_btn':
-                    // Reply with an ephemeral embed showing daily points (only visible to the user who clicked).
-                    await interaction.reply({ embeds: [getDailiesPointsEmbed()], ephemeral: true });
-                    break;
-                case 'weekliesPoints_btn':
-                    await interaction.reply({ embeds: [getWeekliesPointsEmbed()], ephemeral: true });
-                    break;
-                case 'templeshrinePoints_btn':
-                    await interaction.reply({ embeds: [getTempleshrinePointsEmbed()], ephemeral: true });
-                    break;
-                case 'originulPoints_btn':
-                    await interaction.reply({ embeds: [getOriginulPointsEmbed()], ephemeral: true });
-                    break;
-                case 'othersPoints_btn':
-                    await interaction.reply({ embeds: [getOthersPointsEmbed()], ephemeral: true });
-                    break;
-                case 'genericTasksPoints_btn':
-                    await interaction.reply({ embeds: [getGenericPointsEmbed()], ephemeral: true });
-                    break;
-
-                // The 'startRaid_btn' is handled in `generalCommandsHandler.js`.
-                // The 'closeRaidTicket' and 'editTask_btn' are handled in `expLairHandler.js`.
-
-                default:
-                    // Only log if it's not a button intended for other handlers (which should ideally be caught there).
-                    if (!['closeRaidTicket', 'editTask_btn', 'startRaid_btn'].includes(interaction.customId)) {
-                        console.log(`Unhandled button interaction customId in raidLogsHandler: ${interaction.customId}`);
-                    }
-                    break;
-            }
         }
 
         // --- Handle Modal Submissions ---

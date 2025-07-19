@@ -21,7 +21,7 @@ import {
     RAID_MANAGER_ROLE_ID, // Import Raid Manager Role ID
 } from '../config/constants.js';
 import { updateLeaderboard } from './leaderboardCore.js';
-import { getTasksEmbed } from './raidLogsHandler.js'; 
+import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
 import { sendLeaderboardBackup } from './backupHandler.js'; // Import the backup function
 
@@ -194,7 +194,8 @@ async function handleRaidCompletion(message, raidInfo) {
             }
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
-                /* if (user.bot) {
+                // keep comment for future testing
+                /* if (user.bot) {      
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
                 } */
@@ -573,7 +574,7 @@ export function setupExpLairHandlers(client) {
                         if (!ALLOWED_TASK_NAMES.includes(taskName)) { // Removed custom prefix check
                             await interaction.editReply({
                                 content: `Invalid task "${taskName}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
-                                embeds: [getTasksEmbed()],
+                                embeds: [getCombinedTasksAndPointsEmbed()],
                                 flags: MessageFlags.Ephemeral
                             });
                             return;
