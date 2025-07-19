@@ -55,10 +55,10 @@ export const POINTS_CONFIG = {
 
 // --- Separate Task Lists for validation and display ---
 export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
-export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'speaker'];
+export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'gramiel', 'speaker'];
 export const TEMPLESHRINE_LIST = ['tsmid', 'tsleft', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag']
-export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky','voidnerfkitten', 'gramiel', 'kala', 'iara', 'lavarockshore'];
+export const OTHERS_LIST = ['kathool', 'astralshrine', 'mechabinky','voidnerfkitten', 'kala', 'iara', 'lavarockshore'];
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases and dynamic check for custom tasks
