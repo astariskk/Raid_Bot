@@ -177,6 +177,7 @@ export function setupSlashCommandsHandler(client) {
             case 'ping':
                 try {
                     await interaction.editReply('Bot is running!');
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error replying to ping command:', error);
                     // Fallback to followUp if initial reply fails, or just log
@@ -190,6 +191,7 @@ export function setupSlashCommandsHandler(client) {
                 try {
                     const messageToEcho = interaction.options.getString('message');
                     await interaction.editReply({ content: messageToEcho });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error replying to echo command:', error);
                     if (!interaction.replied && !interaction.deferred) {
@@ -225,6 +227,7 @@ export function setupSlashCommandsHandler(client) {
                     }
 
                     await interaction.editReply({ embeds: [userInfoEmbed] });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error replying to userinfo command:', error);
                     if (!interaction.replied && !interaction.deferred) {
@@ -260,6 +263,7 @@ export function setupSlashCommandsHandler(client) {
                         .setTimestamp();
 
                     await interaction.editReply({ embeds: [serverInfoEmbed] });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error replying to serverinfo command:', error);
                     if (!interaction.replied && !interaction.deferred) {
@@ -348,6 +352,7 @@ export function setupSlashCommandsHandler(client) {
                         .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
 
                     await interaction.editReply({ embeds: [commandsEmbed], components: [commandButtonsRow] });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error sending /raidcommands embed:', error);
                     await interaction.editReply('Failed to display commands. Please try again later.');
@@ -396,6 +401,7 @@ export function setupSlashCommandsHandler(client) {
                     }
 
                     await interaction.editReply({ content: replyContent, flags: MessageFlags.Ephemeral });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error handling /calculatetask command:', error);
                     await interaction.editReply({ content: 'Failed to calculate points. Please try again later.', flags: MessageFlags.Ephemeral });
@@ -425,6 +431,7 @@ export function setupSlashCommandsHandler(client) {
                         .setFooter({ text: 'Raid Helper Bot | Leaderboard Commands' });
 
                     await interaction.editReply({ embeds: [leaderboardCommandsEmbed] });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error sending /lbcommands embed:', error);
                     await interaction.editReply('Failed to display leaderboard commands. Please try again later.');
@@ -442,7 +449,7 @@ export function setupSlashCommandsHandler(client) {
 
                     const moderatorCommandsEmbed = new EmbedBuilder()
                         .setColor(0x3498DB)
-                        .setTitle('🛡️ Moderator Commands List �')
+                        .setTitle('🛡️ Moderator Commands List 🏆')
                         .setDescription('This is shown using `/modcommands`. \nHere are the commands for moderation:')
                         .addFields(
                             {
@@ -460,6 +467,7 @@ export function setupSlashCommandsHandler(client) {
                         .setFooter({ text: 'Raid Helper Bot | Moderator Commands' });
 
                     await interaction.editReply({ embeds: [moderatorCommandsEmbed] });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error sending /modcommands embed:', error);
                     await interaction.editReply('Failed to display moderator commands. Please try again later.');
@@ -490,6 +498,7 @@ export function setupSlashCommandsHandler(client) {
                         .setTimestamp()
                         .setFooter({ text: 'Raid Helper Bot | Secret Gif Commands' });
                     await interaction.editReply({ embeds: [secretCommandsEmbed] });
+                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`); // NEW LOG
                 } catch (error) {
                     console.error('Error sending /secretcommands embed:', error);
                     await interaction.editReply('Failed to display secret Gif commands. Please try again later.');
