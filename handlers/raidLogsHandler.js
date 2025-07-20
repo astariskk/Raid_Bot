@@ -11,8 +11,7 @@ import {
     TextInputStyle,
     ActionRowBuilder,
     TextChannel, // Used for type checking Discord channels
-    EmbedBuilder,
-    MessageFlags // Import MessageFlags for ephemeral replies
+    EmbedBuilder
 } from 'discord.js';
 
 // Import constants related to channel IDs, role IDs, task lists, and points configuration
@@ -29,27 +28,24 @@ import {
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
     TASK_MAP_CATEGORIES, // Crucial for expanding meta tasks
-    TASK_TO_MAP_PREFIX_MAPPING,
-    MODERATOR_ROLE_ID, // Import Moderator Role ID
-    OFFICER_ROLE_ID,
-    RAID_MANAGER_ROLE_ID, // Import Raid Manager Role ID
+    TASK_TO_MAP_PREFIX_MAPPING
 } from '../config/constants.js';
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
-import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
+import { activeRaidThreads, updateRaidStatus } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
 // Button to close a raid ticket/thread.
 const closeTicketButton = new ButtonBuilder()
-    .setCustomId("closeRaidTicket")
-    .setLabel('🔒 Close Raid')
-    .setStyle(ButtonStyle.Danger);
+    .setCustomId("closeRaidTicket") 
+    .setLabel('🔒 Close Raid') 
+    .setStyle(ButtonStyle.Danger); 
 
 // Button to edit the tasks associated with a raid.
 const editTaskButton = new ButtonBuilder()
-    .setCustomId("editTask_btn")
-    .setLabel('✏️ Edit Task')
-    .setStyle(ButtonStyle.Secondary);
+    .setCustomId("editTask_btn") 
+    .setLabel('✏️ Edit Task') 
+    .setStyle(ButtonStyle.Secondary); 
 
 
 const threadActionRow = new ActionRowBuilder()
@@ -177,7 +173,7 @@ export function setupRaidLogsHandlers(client) {
                     .setColor(0x0099FF)
                     .setTitle('4-Man Raid Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
-                    .setFooter({ text: 'Speaker chart for 4-man raids' });
+                    .setFooter({ text: 'Speaker chart for 4-man raids' });            
             } else if (threadCommand === '!gramielchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -200,7 +196,7 @@ export function setupRaidLogsHandlers(client) {
         // --- Handle !raidmaps without a number ---
         if (message.content.toLowerCase().trim() === '!raidmaps') {
             await message.channel.send('The proper format is `!raidmaps [number]`. Please provide the map number.');
-            return;
+            return; 
         }
 
         // --- Handle the !raidmaps <number> command ---
@@ -253,7 +249,7 @@ export function setupRaidLogsHandlers(client) {
                     'to get join links for the tasks in that specific raid.'
                 );
             }
-            return;
+            return; 
         }
         // --- Handle the !raidsite command ---
         if (message.content.toLowerCase() === '!raidsite') {
@@ -271,7 +267,7 @@ export function setupRaidLogsHandlers(client) {
                 console.error('Error sending !!raidsite embed:', error);
                 await message.channel.send('Failed to display raid site. Please try again later.');
             }
-        }
+        } 
 
         // --- Command to list all available raid tasks with their points ---
         if (message.content.toLowerCase() === '!raidtasks') {
@@ -291,87 +287,6 @@ export function setupRaidLogsHandlers(client) {
         if (!interaction.isButton() && !interaction.isModalSubmit()) {
             return;
         }
-
-        // If interaction is not in a thread, these buttons/modals are not applicable
-        if (!interaction.channel.isThread()) {
-            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
-                await interaction.reply({ content: 'This button can only be used in a raid thread.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-            if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') {
-                await interaction.reply({ content: 'This action can only be performed in a raid thread.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-            // For raidRequestModal, it's fine to be used outside a thread (in the main raid channel)
-            if (interaction.isModalSubmit() && interaction.customId === 'raidRequestModal') {
-                // This will be handled below
-            } else {
-                return; // Ignore other interactions not meant for this handler
-            }
-        }
-
-        let raidInfo = activeRaidThreads[interaction.channel.id];
-
-        // Reconstruct raidInfo if bot restarted and state was lost (only for raid threads and relevant interactions)
-        if (!raidInfo && interaction.channel.isThread() && (interaction.isButton() || (interaction.isModalSubmit() && interaction.customId === 'editTaskModal'))) {
-            console.warn(`Raid info not found in activeRaidThreads for thread ${interaction.channel.id}. Attempting to reconstruct.`);
-            try {
-                const parentChannel = await interaction.client.channels.fetch(interaction.channel.parentId);
-                if (!parentChannel) {
-                    console.error(`Parent channel ${interaction.channel.parentId} not found or inaccessible for thread ${interaction.channel.id}. Cannot reconstruct raidInfo.`);
-                    await interaction.reply({ content: 'Could not find the original channel for this raid. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
-                    return;
-                }
-                // Fetch the original message that started the thread
-                const originalMessageInParent = await parentChannel.messages.fetch(interaction.channel.id);
-
-                if (originalMessageInParent && originalMessageInParent.embeds.length > 0) {
-                    const originalEmbed = originalMessageInParent.embeds[0];
-                    const taskField = originalEmbed.fields.find(field => field.name === 'Task(s)');
-                    // The requester ID is in the author field of the embed
-                    const requesterIdMatch = originalEmbed.author?.iconURL.match(/\/avatars\/(\d+)\//);
-                    const requesterId = requesterIdMatch ? requesterIdMatch[1] : originalEmbed.author?.name; // Fallback to name if ID not found in URL
-
-                    const mapField = originalEmbed.fields.find(field => field.name === 'Map Name');
-                    const serverField = originalEmbed.fields.find(field => field.name === 'Server');
-                    const descriptionField = originalEmbed.fields.find(field => field.name === 'Description');
-
-                    raidInfo = {
-                        messageId: originalMessageInParent.id,
-                        originalChannelId: interaction.channel.parentId,
-                        task: taskField ? taskField.value : 'unknown',
-                        requesterId: requesterId, // Use the extracted requester ID
-                        mapName: mapField ? mapField.value : 'N/A',
-                        server: serverField ? serverField.value : 'N/A',
-                        description: descriptionField ? descriptionField.value : 'No description provided.',
-                        awaitingCompletion: false // Default to false on reconstruction
-                    };
-                    activeRaidThreads[interaction.channel.id] = raidInfo;
-                    console.log(`Reconstructed raidInfo for thread ${interaction.channel.id}:`, raidInfo);
-                } else {
-                    console.error(`Could not find parent message or embed to reconstruct raidInfo for thread ${interaction.channel.id}`);
-                    await interaction.reply({ content: 'Could not retrieve raid details. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
-                    return;
-                }
-            } catch (error) {
-                console.error(`Error reconstructing raidInfo for thread ${interaction.channel.id}:`, error);
-                await interaction.reply({ content: 'There was an error retrieving raid details. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-        }
-
-        // Permission check for close/edit buttons and edit modal
-        if (interaction.channel.isThread() && raidInfo && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn' || interaction.customId === 'editTaskModal')) {
-            // Ensure the user interacting is the raid requester or a staff member for critical actions
-            if (interaction.user.id !== raidInfo.requesterId &&
-                !interaction.member.roles.cache.has(OFFICER_ROLE_ID) &&
-                !interaction.member.roles.cache.has(MODERATOR_ROLE_ID) &&
-                !interaction.member.roles.cache.has(RAID_MANAGER_ROLE_ID)) {
-                await interaction.reply({ content: 'Only the user who initiated this raid or a staff member can perform this action.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-        }
-
 
         // --- Handle Modal Submissions ---
         if (interaction.isModalSubmit()) {
@@ -394,7 +309,7 @@ export function setupRaidLogsHandlers(client) {
                         // If an invalid task is found, send an error reply with the tasks embed.
                         await interaction.editReply({
                             content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
-                            embeds: [getCombinedTasksAndPointsEmbed()],
+                            embeds: [getTasksEmbed()],
                             ephemeral: true
                         });
                         return; // Stop processing if validation fails.
@@ -435,7 +350,7 @@ export function setupRaidLogsHandlers(client) {
                         });
 
                         await thread.send({
-                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **!waiting**, **!ongoing** or **!full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
+                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting**, **ongoing** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
                             components: [threadActionRow] // Attach the close and edit buttons.
                         });
 
@@ -463,94 +378,8 @@ export function setupRaidLogsHandlers(client) {
                     // Provide a user-friendly error message if something goes wrong.
                     await interaction.editReply({ content: 'There was an error processing your request and creating the raid. Please try again later.', ephemeral: true });
                 }
-            } else if (interaction.customId === 'editTaskModal') { // Handle editTaskModal submission
-                const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
-                const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
-
-                await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-
-                // Validate new tasks
-                for (const taskName of newTasksArray) {
-                    if (!ALLOWED_TASK_NAMES.includes(taskName)) {
-                        await interaction.editReply({
-                            content: `Invalid task "${taskName}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
-                            embeds: [getCombinedTasksAndPointsEmbed()],
-                            flags: MessageFlags.Ephemeral
-                        });
-                        return;
-                    }
-                }
-
-                // Update the raidInfo task string directly (replace, not append)
-                if (raidInfo) { // Ensure raidInfo exists after reconstruction attempt
-                    raidInfo.task = newTasksArray.join(' + ');
-
-                    // Update the thread name to reflect edited tasks
-                    const newThreadName = `${raidInfo.task} | ${raidInfo.mapName} | ${raidInfo.server} | ${interaction.user.username}`;
-                    await interaction.channel.setName(newThreadName);
-
-                    // Update the original embed in the raid logs channel using sharedState's function
-                    await updateRaidLogEmbed(
-                        client,
-                        interaction.channel.id, // Pass thread ID to find the original message
-                        {
-                            title: `New Raid Request by: ${interaction.member.displayName}`, // Keep original title format
-                            fields: [
-                                { name: 'Task(s)', value: raidInfo.task, inline: true }, // Update task field
-                                { name: 'Map Name', value: raidInfo.mapName, inline: true },
-                                { name: 'Server', value: raidInfo.server, inline: true },
-                                { name: 'Status', value: '🔵 Waiting', inline: true }, // Status remains
-                                { name: 'Description', value: raidInfo.description || 'No description provided.' },
-                            ]
-                        }
-                    );
-
-                    await interaction.editReply({ content: `Successfully updated raid tasks to "${editedTasksInput}"!`, flags: MessageFlags.Ephemeral });
-                } else {
-                    await interaction.editReply({ content: 'Error: Raid information not found. Cannot update tasks.', flags: MessageFlags.Ephemeral });
-                }
             }
-        }
-
-
-        // --- Handle Button Interactions ---
-        if (interaction.isButton()) {
-            switch (interaction.customId) {
-                case 'closeRaidTicket':
-                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-                    if (raidInfo) { // Ensure raidInfo exists after reconstruction attempt
-                        raidInfo.awaitingCompletion = true;
-                        console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
-
-                        await interaction.editReply({
-                            content:
-                                'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
-                                + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
-                                + `\n* Include a screenshot if possible.`
-                                + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
-                                + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                                + `\n* For multiple runs of the same tasks, a multiplier can done \`task1xN = @user\` format.`,
-                            flags: MessageFlags.Ephemeral
-                        });
-                    } else {
-                        await interaction.editReply({ content: 'Error: Raid information not found. Cannot close ticket.', flags: MessageFlags.Ephemeral });
-                    }
-                    break;
-
-                case 'editTask_btn':
-                    if (raidInfo) { // Ensure raidInfo exists after reconstruction attempt
-                        const editTaskModal = getEditTaskModal(raidInfo.task);
-                        await interaction.showModal(editTaskModal);
-                    } else {
-                        await interaction.reply({ content: 'Error: Raid information not found. Cannot edit tasks.', flags: MessageFlags.Ephemeral });
-                    }
-                    break;
-
-                default:
-                    console.log(`Unhandled button interaction customId: ${interaction.customId}`);
-                    // No reply here, as it might be handled by another listener (though ideally, it shouldn't reach here if centralized)
-                    break;
-            }
+            // All other modals (like 'editTaskModal') are handled in `expLairHandler.js`.
         }
     });
 }

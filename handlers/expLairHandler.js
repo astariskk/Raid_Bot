@@ -195,7 +195,7 @@ async function handleRaidCompletion(message, raidInfo) {
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
                 // keep comment for future testing
-                /* if (user.bot) {
+                /* if (user.bot) {      
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
                 } */
@@ -245,7 +245,7 @@ async function handleRaidCompletion(message, raidInfo) {
             if (task === 'daily' || task === 'dailies') {
                 DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'weekly' || task === 'weeklies') {
-                WEEKLIES_LIST.forEach(t => uniqueEffectiveTasks.add(t));
+                WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'templeshrine') {
                 TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
             } else if (task === 'originul') {
@@ -452,6 +452,161 @@ export function setupExpLairHandlers(client) {
         }
     });
 
-    // Removed the client.on('interactionCreate', ...) block from here.
-    // All button and modal interactions are now handled in raidLogsHandler.js
+    // --- Interaction Create Listener (for closeRaidTicket and editTask_btn buttons and modals) ---
+    client.on('interactionCreate', async interaction => {
+        if (!interaction.isButton() && !interaction.isModalSubmit()) {
+            return;
+        }
+
+        // Check if interaction is in a thread and reply ephemeral if not
+        if (!interaction.channel.isThread()) {
+            // These buttons/modals are expected only in threads; reply if used elsewhere
+            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
+                await interaction.reply({ content: 'This button can only be used in a raid thread.', flags: MessageFlags.Ephemeral });
+                return;
+            }
+            if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') {
+                await interaction.reply({ content: 'This action can only be performed in a raid thread.', flags: MessageFlags.Ephemeral });
+                return;
+            }
+            return;
+        }
+
+        let raidInfo = activeRaidThreads[interaction.channel.id];
+
+        // Reconstruct raidInfo if bot restarted and state was lost (only for raid threads)
+        if (!raidInfo) {
+            console.warn(`Raid info not found in activeRaidThreads for thread ${interaction.channel.id}. Attempting to reconstruct.`);
+            try {
+                const parentChannel = await interaction.client.channels.fetch(interaction.channel.parentId);
+                if (!parentChannel) {
+                    console.error(`Parent channel ${interaction.channel.parentId} not found or inaccessible for thread ${interaction.channel.id}. Cannot reconstruct raidInfo.`);
+                    await interaction.reply({ content: 'Could not find the original channel for this raid. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+                const originalMessageInParent = await parentChannel.messages.fetch(interaction.channel.id);
+
+                if (originalMessageInParent && originalMessageInParent.embeds.length > 0) {
+                    const originalEmbed = originalMessageInParent.embeds[0];
+                    const taskField = originalEmbed.fields.find(field => field.name === 'Task(s)');
+                    const requesterField = originalEmbed.fields.find(field => field.name === 'Requested By');
+                    const mapField = originalEmbed.fields.find(field => field.name === 'Map Name');
+                    const serverField = originalEmbed.fields.find(field => field.name === 'Server');
+                    const descriptionField = originalEmbed.fields.find(field => field.name === 'Description');
+
+                    raidInfo = {
+                        messageId: originalMessageInParent.id,
+                        originalChannelId: interaction.channel.parentId,
+                        task: taskField ? taskField.value : 'unknown',
+                        requesterId: requesterField ? requesterField.value.replace(/<@!?(\d+)>/, '$1') : interaction.user.id,
+                        mapName: mapField ? mapField.value : 'N/A',
+                        server: serverField ? serverField.value : 'N/A',
+                        description: descriptionField ? descriptionField.value : 'No description provided.',
+                        awaitingCompletion: false
+                    };
+                    activeRaidThreads[interaction.channel.id] = raidInfo;
+                    console.log(`Reconstructed raidInfo for thread ${interaction.channel.id}:`, raidInfo);
+                } else {
+                    console.error(`Could not find parent message or embed to reconstruct raidInfo for thread ${interaction.channel.id}`);
+                    await interaction.reply({ content: 'Could not retrieve raid details. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
+                    return;
+                }
+            } catch (error) {
+                console.error(`Error reconstructing raidInfo for thread ${interaction.channel.id}:`, error);
+                await interaction.reply({ content: 'There was an error retrieving raid details. Please try again or create a new raid.', flags: MessageFlags.Ephemeral });
+                return;
+            }
+        }
+
+
+        // Ensure the user interacting is the raid requester for critical actions
+        //if the requester or moderator or officer or raid manager
+        if (interaction.user.id !== raidInfo.requesterId &&
+            !interaction.member.roles.cache.has(OFFICER_ROLE_ID) &&
+            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID)
+            && !interaction.member.roles.cache.has(RAID_MANAGER_ROLE_ID)) {
+            await interaction.reply({ content: 'Only the user who initiated this raid or a staff member can perform this action.', flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        // --- Handle Button Interactions ---
+        if (interaction.isButton()) {
+            switch (interaction.customId) {
+                case 'closeRaidTicket':
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                    raidInfo.awaitingCompletion = true;
+                    console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
+
+                    await interaction.editReply({
+                        content:
+                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
+                            + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)` // Updated for xN on all
+                            + `\n* Include a screenshot if possible.`
+                            + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
+                            + `\n* For multiple tasks, use \`task1 + task2 = @user\``
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                        flags: MessageFlags.Ephemeral
+                    });
+                    break;
+
+                case 'editTask_btn':
+                    const editTaskModal = getEditTaskModal(raidInfo.task);
+                    await interaction.showModal(editTaskModal);
+                    break;
+
+                default:
+                    console.log(`Unhandled button interaction customId: ${interaction.customId}`);
+                    break;
+            }
+        }
+
+        // --- Handle Modal Submissions ---
+        if (interaction.isModalSubmit()) {
+            switch (interaction.customId) {
+                case 'editTaskModal':
+                    const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
+                    const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
+
+                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+                    // Validate new tasks, excluding custom tasks.
+                    for (const taskName of newTasksArray) {
+                        if (!ALLOWED_TASK_NAMES.includes(taskName)) { // Removed custom prefix check
+                            await interaction.editReply({
+                                content: `Invalid task "${taskName}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
+                                embeds: [getCombinedTasksAndPointsEmbed()],
+                                flags: MessageFlags.Ephemeral
+                            });
+                            return;
+                        }
+                    }
+
+                    // Update the raidInfo task string directly (replace, not append)
+                    raidInfo.task = newTasksArray.join(' + ');
+
+                    // Update the thread name to reflect edited tasks
+                    const newThreadName = `${raidInfo.task} | ${raidInfo.mapName} | ${raidInfo.server} | ${interaction.user.username}`;
+                    await interaction.channel.setName(newThreadName);
+
+                    // Update the original embed in the raid logs channel using sharedState's function
+                    await updateRaidLogEmbed(
+                        client,
+                        interaction.channel.id,
+                        {
+                            title: `New Raid Request: ${raidInfo.task}`, // Update embed title
+                            fields: [
+                                { name: 'Task(s)', value: raidInfo.task, inline: true } // Update task field
+                            ]
+                        }
+                    );
+
+                    await interaction.editReply({ content: `Successfully updated raid tasks to "${editedTasksInput}"!`, flags: MessageFlags.Ephemeral });
+                    break;
+
+                default:
+                    console.log(`Unhandled modal submission customId: ${interaction.customId}`);
+                    break;
+            }
+        }
+    });
 }
