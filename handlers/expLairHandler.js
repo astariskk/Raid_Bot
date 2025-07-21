@@ -533,18 +533,18 @@ export function setupExpLairHandlers(client) {
         if (interaction.isButton()) {
             switch (interaction.customId) {
                 case 'closeRaidTicket':
-                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                    // await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // Removed deferReply
                     raidInfo.awaitingCompletion = true;
                     console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
 
-                    await interaction.editReply({
+                    await interaction.reply({ // Note: if this is the first response, use interaction.reply instead of editReply
                         content:
                             'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
-                            + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)` // Updated for xN on all
+                            + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
