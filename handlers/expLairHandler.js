@@ -23,7 +23,7 @@ import {
 import { updateLeaderboard } from './leaderboardCore.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
-import { sendLeaderboardBackup } from './backupHandler.js'; // Import the backup function
+import { sendLeaderboardBackup } from './backupHandler.js' // Import the backup function
 
 // --- Constants for Embed Colors ---
 const COLOR_SUCCESS = 0x57F287; // Green
@@ -195,7 +195,7 @@ async function handleRaidCompletion(message, raidInfo) {
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
                 // keep comment for future testing
-                /* if (user.bot) {      
+                /* if (user.bot) {      
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
                 } */
@@ -544,7 +544,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
@@ -567,12 +567,12 @@ export function setupExpLairHandlers(client) {
                     const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
                     const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
 
-                    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+                    // Removed deferReply, will use direct reply
 
                     // Validate new tasks, excluding custom tasks.
                     for (const taskName of newTasksArray) {
                         if (!ALLOWED_TASK_NAMES.includes(taskName)) { // Removed custom prefix check
-                            await interaction.editReply({
+                            await interaction.reply({ // Changed from editReply to reply
                                 content: `Invalid task "${taskName}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
                                 embeds: [getCombinedTasksAndPointsEmbed()],
                                 flags: MessageFlags.Ephemeral
@@ -600,7 +600,7 @@ export function setupExpLairHandlers(client) {
                         }
                     );
 
-                    await interaction.editReply({ content: `Successfully updated raid tasks to "${editedTasksInput}"!`, flags: MessageFlags.Ephemeral });
+                    await interaction.reply({ content: `Successfully updated raid tasks to "${editedTasksInput}"!`, flags: MessageFlags.Ephemeral }); // Changed from editReply to reply
                     break;
 
                 default:

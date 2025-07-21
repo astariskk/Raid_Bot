@@ -173,7 +173,7 @@ export function setupRaidLogsHandlers(client) {
                     .setColor(0x0099FF)
                     .setTitle('4-Man Raid Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
-                    .setFooter({ text: 'Speaker chart for 4-man raids' });            
+                    .setFooter({ text: 'Speaker chart for 4-man raids' });            
             } else if (threadCommand === '!gramielchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -298,8 +298,7 @@ export function setupRaidLogsHandlers(client) {
                 const server = interaction.fields.getTextInputValue('serverInput');
                 const description = interaction.fields.getTextInputValue('descriptionInput');
 
-                // Defer the reply to give the bot more time to process without timing out.
-                await interaction.deferReply({ ephemeral: true });
+                // Removed deferReply, will use direct reply
 
                 // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
                 const requestedTasks = task.split(/\s*\+\s*/).map(t => t.trim());
@@ -307,7 +306,7 @@ export function setupRaidLogsHandlers(client) {
                 for (const singleTask of requestedTasks) {
                     if (!ALLOWED_TASK_NAMES.includes(singleTask)) { // Removed custom task prefix check
                         // If an invalid task is found, send an error reply with the tasks embed.
-                        await interaction.editReply({
+                        await interaction.reply({ // Changed from editReply to reply
                             content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
                             embeds: [getCombinedTasksAndPointsEmbed()],
                             ephemeral: true
@@ -368,15 +367,15 @@ export function setupRaidLogsHandlers(client) {
                         console.log(`Active raid thread created: ${thread.id} for task ${task} by ${interaction.user.tag}`);
 
                         // Edit the deferred reply to confirm the raid request submission.
-                        await interaction.editReply({ content: 'Your raid request has been submitted and a thread has been created!', ephemeral: true });
+                        await interaction.reply({ content: 'Your raid request has been submitted and a thread has been created!', ephemeral: true }); // Changed from editReply to reply
                     } else {
                         // If the raid logs channel is not a text channel, send an error.
-                        await interaction.editReply({ content: 'Error: Could not find the raid logs channel or it is not a text channel.', ephemeral: true });
+                        await interaction.reply({ content: 'Error: Could not find the raid logs channel or it is not a text channel.', ephemeral: true }); // Changed from editReply to reply
                     }
                 } catch (error) {
                     console.error('Error handling modal submission and creating raid:', error);
                     // Provide a user-friendly error message if something goes wrong.
-                    await interaction.editReply({ content: 'There was an error processing your request and creating the raid. Please try again later.', ephemeral: true });
+                    await interaction.reply({ content: 'There was an error processing your request and creating the raid. Please try again later.', ephemeral: true }); // Changed from editReply to reply
                 }
             }
             // All other modals (like 'editTaskModal') are handled in `expLairHandler.js`.

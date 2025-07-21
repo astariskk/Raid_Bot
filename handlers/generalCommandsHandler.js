@@ -275,39 +275,39 @@ export function getInitialButtonsRow() {
 
 
 /**
- * Sets up the handler for general bot commands and interactions,
- * including the !raidinfo list, custom GIF triggers, and the "Get Help Role" button.
- * @param {Client} client The Discord client instance.
- */
+ * Sets up the handler for general bot commands and interactions,
+ * including the !raidinfo list, custom GIF triggers, and the "Get Help Role" button.
+ * @param {Client} client The Discord client instance.
+ */
 export function setupGeneralCommandsHandler(client) {
-    client.on('messageCreate', async (message) => {
-        if (message.author.bot) return;
+    client.on('messageCreate', async (message) => {
+        if (message.author.bot) return;
 
-        const commandContent = message.content.toLowerCase();
-        const userId = message.author.id;
-        const now = Date.now();
-        const lastUsed = gifCooldowns.get(userId);
+        const commandContent = message.content.toLowerCase();
+        const userId = message.author.id;
+        const now = Date.now();
+        const lastUsed = gifCooldowns.get(userId);
 
-        // Helper function to delete a cooldown warning message
-        const deleteCooldownWarning = async (idToDelete) => {
-            const messageToDelete = cooldownWarningMessages.get(idToDelete);
-            if (messageToDelete) {
-                try {
-                    await messageToDelete.delete();
-                } catch (err) {
-                    // Ignore "Unknown Message" error (10008) if it was already deleted
-                    if (err.code !== 10008) {
-                        console.error(`Error deleting cooldown warning message for user ${idToDelete}:`, err);
-                    }
-                } finally {
-                    cooldownWarningMessages.delete(idToDelete);
-                }
-            }
-        };
+        // Helper function to delete a cooldown warning message
+        const deleteCooldownWarning = async (idToDelete) => {
+            const messageToDelete = cooldownWarningMessages.get(idToDelete);
+            if (messageToDelete) {
+                try {
+                    await messageToDelete.delete();
+                } catch (err) {
+                    // Ignore "Unknown Message" error (10008) if it was already deleted
+                    if (err.code !== 10008) {
+                        console.error(`Error deleting cooldown warning message for user ${idToDelete}:`, err);
+                    }
+                } finally {
+                    cooldownWarningMessages.delete(idToDelete);
+                }
+            }
+        };
 
 
-        // --- Handle the !raidinfo command (formerly !raidcommands) ---
-        if (commandContent === '!raidinfo' && message.channel.id === RAID_CHANNEL_ID) {
+        // --- Handle the !raidinfo command (formerly !raidcommands) ---
+        if (commandContent === '!raidinfo' && message.channel.id === RAID_CHANNEL_ID) {
             let raidHelperRoleName = 'Raid Helper'; // Default name
             if (message.guild) {
                 try {
@@ -323,285 +323,285 @@ export function setupGeneralCommandsHandler(client) {
             const howToUseEmbed = getHowToUseEmbed(raidHelperRoleName);
             const initialButtonsRow = getInitialButtonsRow();
 
-            try {
-                await message.channel.send({ embeds: [howToUseEmbed], components: [initialButtonsRow] });
-            } catch (error) {
-                console.error('Error sending !raidinfo embed:', error);
-                await message.channel.send('Failed to display raid information. Please try again later.');
-            }
-        }
+            try {
+                await message.channel.send({ embeds: [howToUseEmbed], components: [initialButtonsRow] });
+            } catch (error) {
+                console.error('Error sending !raidinfo embed:', error);
+                await message.channel.send('Failed to display raid information. Please try again later.');
+            }
+        }
 
-        // --- Handle the !calculatetask command ---
-        if (commandContent.startsWith('!calculatetask')) {
-            const args = message.content.slice('!calculatetask'.length).trim();
-            const taskNames = args.split('+').map(task => task.trim().toLowerCase()).filter(task => task.length > 0);
+        // --- Handle the !calculatetask command ---
+        if (commandContent.startsWith('!calculatetask')) {
+            const args = message.content.slice('!calculatetask'.length).trim();
+            const taskNames = args.split('+').map(task => task.trim().toLowerCase()).filter(task => task.length > 0);
 
-            if (taskNames.length === 0) {
-                return message.reply({ content: 'Usage: `!calculatetask <task1> + <task2> + ...` (e.g., `!calculatetask speaker + mechabinky`)', ephemeral: true });
-            }
+            if (taskNames.length === 0) {
+                return message.reply({ content: 'Usage: `!calculatetask <task1> + <task2> + ...` (e.g., `!calculatetask speaker + mechabinky`)', ephemeral: true });
+            }
 
-            let originalTotalCalculatedPoints = 0;
-            const unknownTasks = [];
+            let originalTotalCalculatedPoints = 0;
+            const unknownTasks = [];
 
-            for (const taskName of taskNames) {
-                // Check if it's a meta category
-                if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
-                    const categoryTasks = TASK_MAP_CATEGORIES[taskName];
-                    for (const individualTask of categoryTasks) {
-                        if (POINTS_CONFIG.hasOwnProperty(individualTask)) {
-                            originalTotalCalculatedPoints += POINTS_CONFIG[individualTask];
-                        } else {
-                            // This case should ideally not happen if POINTS_CONFIG is comprehensive
-                            console.warn(`Task "${individualTask}" from category "${taskName}" not found in POINTS_CONFIG.`);
-                            unknownTasks.push(individualTask);
-                        }
-                    }
-                } else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
-                    // If not a meta category, check if it's a direct task name in POINTS_CONFIG
-                    originalTotalCalculatedPoints += POINTS_CONFIG[taskName];
-                } else {
-                    // If neither a meta category nor a direct task name
-                    unknownTasks.push(taskName);
-                }
-            }
+            for (const taskName of taskNames) {
+                // Check if it's a meta category
+                if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
+                    const categoryTasks = TASK_MAP_CATEGORIES[taskName];
+                    for (const individualTask of categoryTasks) {
+                        if (POINTS_CONFIG.hasOwnProperty(individualTask)) {
+                            originalTotalCalculatedPoints += POINTS_CONFIG[individualTask];
+                        } else {
+                            // This case should ideally not happen if POINTS_CONFIG is comprehensive
+                            console.warn(`Task "${individualTask}" from category "${taskName}" not found in POINTS_CONFIG.`);
+                            unknownTasks.push(individualTask);
+                        }
+                    }
+                } else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
+                    // If not a meta category, check if it's a direct task name in POINTS_CONFIG
+                    originalTotalCalculatedPoints += POINTS_CONFIG[taskName];
+                } else {
+                    // If neither a meta category nor a direct task name
+                    unknownTasks.push(taskName);
+                }
+            }
 
-            // Apply the 20-point cap to the calculated total
-            let totalCalculatedPoints = Math.min(originalTotalCalculatedPoints, MAX_XP_PER_RAID);
+            // Apply the 20-point cap to the calculated total
+            let totalCalculatedPoints = Math.min(originalTotalCalculatedPoints, MAX_XP_PER_RAID);
 
-            let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
+            let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
 
-            if (unknownTasks.length > 0) {
-                replyContent += `\n\n_Note: The following tasks were not recognized and were not included in the calculation: ${unknownTasks.join(', ')}._`;
-            }
-            // Corrected condition for displaying the capping message
-            if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
-                replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP._`;
-            }
+            if (unknownTasks.length > 0) {
+                replyContent += `\n\n_Note: The following tasks were not recognized and were not included in the calculation: ${unknownTasks.join(', ')}._`;
+            }
+            // Corrected condition for displaying the capping message
+            if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
+                replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP._`;
+            }
 
-            await message.reply({ content: replyContent, ephemeral: true });
-            return;
-        }
+            await message.reply({ content: replyContent, ephemeral: true });
+            return;
+        }
 
 
-        // --- Handle the !commandslb command ---
-        if (commandContent === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
-            const leaderboardCommandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB) // A different color for distinction, e.g., green
-                .setTitle('🏆 Leaderboard Commands List 🏆')
-                .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
-                .addFields(
-                    {
-                        name: 'Leaderboard & Points Check',
-                        value: `
+        // --- Handle the !commandslb command ---
+        if (commandContent === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
+            const leaderboardCommandsEmbed = new EmbedBuilder()
+                .setColor(0x3498DB) // A different color for distinction, e.g., green
+                .setTitle('🏆 Leaderboard Commands List 🏆')
+                .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
+                .addFields(
+                    {
+                        name: 'Leaderboard & Points Check',
+                        value: `
 \`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
 \`!lbcheck [@user] [today/yesterday/day# |-MM-DD | from <start> to <end>]\`: Shows EXP gained on a specific day or date range (overall or for specific user(s)).
 **Example: \`!lbcheck @user1 @user2 from 10 to 15\`**
-                        `
-                    }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Raid Helper Bot | Leaderboard Commands' });
+                        `
+                    }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Raid Helper Bot | Leaderboard Commands' });
 
-            try {
-                await message.channel.send({ embeds: [leaderboardCommandsEmbed] });
-            } catch (error) {
-                console.error('Error sending !commandslb embed:', error);
-                await message.channel.send('Failed to display leaderboard commands. Please try again later.');
-            }
-        }
+            try {
+                await message.channel.send({ embeds: [leaderboardCommandsEmbed] });
+            } catch (error) {
+                console.error('Error sending !commandslb embed:', error);
+                await message.channel.send('Failed to display leaderboard commands. Please try again later.');
+            }
+        }
 
-        // --- handle the moderator commands ---
-        if (commandContent === '!modcommands' && message.channel.id === RAID_MANAGEMENT_CHANNEL_ID) {
-            const leaderboardCommandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB) // A different color for distinction, e.g., green
-                .setTitle('🛡️ Moderator Commands List 🏆')
-                .setDescription('this is shown using `!modcommands`. \nHere are the commands for moderation:')
-                .addFields(
-                    {
-                        name: ' Moderator Commands (Administrator/Officer/Manager Only)',
-                        value: `
+        // --- handle the moderator commands ---
+        if (commandContent === '!modcommands' && message.channel.id === RAID_MANAGEMENT_CHANNEL_ID) {
+            const leaderboardCommandsEmbed = new EmbedBuilder()
+                .setColor(0x3498DB) // A different color for distinction, e.g., green
+                .setTitle('🛡️ Moderator Commands List 🏆')
+                .setDescription('this is shown using `!modcommands`. \nHere are the commands for moderation:')
+                .addFields(
+                    {
+                        name: ' Moderator Commands (Administrator/Officer/Manager Only)',
+                        value: `
 \`!addxp @user @user <amount>\`: Manually adds EXP to a specified user.
 \`!removexp @user @user <amount>\`: Manually removes EXP from a specified user.
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
 \`!lbackup\`: Forces the bot to upload a new leaderboard backup and replace the old one.
 \`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
-                        `
-                    }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Raid Helper Bot | Leaderboard Commands' });
+                        `
+                    }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Raid Helper Bot | Leaderboard Commands' });
 
-            try {
-                await message.channel.send({ embeds: [leaderboardCommandsEmbed] });
-            } catch (error) {
-                console.error('Error sending !commandslb embed:', error);
-                await message.channel.send('Failed to display leaderboard commands. Please try again later.');
-            }
-        }
+            try {
+                await message.channel.send({ embeds: [leaderboardCommandsEmbed] });
+            } catch (error) {
+                console.error('Error sending !commandslb embed:', error);
+                await message.channel.send('Failed to display leaderboard commands. Please try again later.');
+            }
+        }
 
-        // --- Handle !secretcommands to list all GIF commands ---
-        if (commandContent === '!secretcommands') {
-            let secretGifCommandsList = '';
-            // Add commands from gifCommands (embeds)
-            for (const cmd in gifCommands) {
-                secretGifCommandsList += `* \`${cmd}\`\n`;
-            }
-            // Add commands from textGifCommands (no embeds)
-            for (const cmd in textGifCommands) {
-                secretGifCommandsList += `* \`${cmd}\`\n`;
-            }
+        // --- Handle !secretcommands to list all GIF commands ---
+        if (commandContent === '!secretcommands') {
+            let secretGifCommandsList = '';
+            // Add commands from gifCommands (embeds)
+            for (const cmd in gifCommands) {
+                secretGifCommandsList += `* \`${cmd}\`\n`;
+            }
+            // Add commands from textGifCommands (no embeds)
+            for (const cmd in textGifCommands) {
+                secretGifCommandsList += `* \`${cmd}\`\n`;
+            }
 
-            const secretCommandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB) // Pink color for secret commands
-                .setTitle('🤫 Secret Gif Commands List 🤫')
-                .setDescription('**Note:** These commands are for fun and may not be suitable for all audiences. Use them at your own discretion:')
-                .addFields(
-                    {
-                        name: 'Secret GIF Commands',
-                        value: secretGifCommandsList.trim() || 'No secret GIF commands configured.'
-                    }
-                )
-                .setTimestamp()
-                .setFooter({ text: 'Raid Helper Bot | Secret Gif Commands' });
-            try {
-                await message.channel.send({ embeds: [secretCommandsEmbed] });
-            } catch (error) {
-                console.error('Error sending !secretcommands embed:', error);
-                await message.channel.send('Failed to display secret Gif commands. Please try again later.');
-            }
-        }
+            const secretCommandsEmbed = new EmbedBuilder()
+                .setColor(0x3498DB) // Pink color for secret commands
+                .setTitle('🤫 Secret Gif Commands List 🤫')
+                .setDescription('**Note:** These commands are for fun and may not be suitable for all audiences. Use them at your own discretion:')
+                .addFields(
+                    {
+                        name: 'Secret GIF Commands',
+                        value: secretGifCommandsList.trim() || 'No secret GIF commands configured.'
+                    }
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Raid Helper Bot | Secret Gif Commands' });
+            try {
+                await message.channel.send({ embeds: [secretCommandsEmbed] });
+            } catch (error) {
+                console.error('Error sending !secretcommands embed:', error);
+                await message.channel.send('Failed to display secret Gif commands. Please try again later.');
+            }
+        }
 
-        // --- Consolidated Custom GIF Commands Handling ---
-        // Check for regular gif commands (with embeds)
-        if (gifCommands[commandContent]) {
-            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
-                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
-                const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
+        // --- Consolidated Custom GIF Commands Handling ---
+        // Check for regular gif commands (with embeds)
+        if (gifCommands[commandContent]) {
+            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
+                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
+                const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
 
-                // Delete any existing warning message before sending a new one
-                await deleteCooldownWarning(userId);
+                // Delete any existing warning message before sending a new one
+                await deleteCooldownWarning(userId);
 
-                const warningMessage = await message.reply({ content: cooldownMessageContent });
-                cooldownWarningMessages.set(userId, warningMessage);
+                const warningMessage = await message.reply({ content: cooldownMessageContent });
+                cooldownWarningMessages.set(userId, warningMessage);
 
-                // Set a timeout to delete the warning message when the cooldown expires
-                setTimeout(async () => {
-                    await deleteCooldownWarning(userId);
-                }, GIF_COOLDOWN_DURATION);
-                return; // Exit if still on cooldown
-            }
+                // Set a timeout to delete the warning message when the cooldown expires
+                setTimeout(async () => {
+                    await deleteCooldownWarning(userId);
+                }, GIF_COOLDOWN_DURATION);
+                return; // Exit if still on cooldown
+            }
 
-            // If not on cooldown, proceed to send the GIF
-            gifCooldowns.set(userId, now); // Set new cooldown
-            await deleteCooldownWarning(userId); // Delete any lingering warning message
+            // If not on cooldown, proceed to send the GIF
+            gifCooldowns.set(userId, now); // Set new cooldown
+            await deleteCooldownWarning(userId); // Delete any lingering warning message
 
-            const gifInfo = gifCommands[commandContent];
-            const gifEmbed = new EmbedBuilder()
-                .setColor(gifInfo.color)
-                .setTitle(gifInfo.title)
-                .setImage(gifInfo.image)
-                .setFooter({ text: gifInfo.footer });
-            try {
-                await message.channel.send({ embeds: [gifEmbed] });
-            } catch (error) {
-                console.error('Error sending custom GIF:', error);
-                await message.channel.send('Could not display the beautiful thing.');
-            }
-        }
-        // Check for text gif commands (no embeds)
-        else if (textGifCommands[commandContent]) {
-            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
-                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
-                const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
+            const gifInfo = gifCommands[commandContent];
+            const gifEmbed = new EmbedBuilder()
+                .setColor(gifInfo.color)
+                .setTitle(gifInfo.title)
+                .setImage(gifInfo.image)
+                .setFooter({ text: gifInfo.footer });
+            try {
+                await message.channel.send({ embeds: [gifEmbed] });
+            } catch (error) {
+                console.error('Error sending custom GIF:', error);
+                await message.channel.send('Could not display the beautiful thing.');
+            }
+        }
+        // Check for text gif commands (no embeds)
+        else if (textGifCommands[commandContent]) {
+            if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
+                const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
+                const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
 
-                // Delete any existing warning message before sending a new one
-                await deleteCooldownWarning(userId);
+                // Delete any existing warning message before sending a new one
+                await deleteCooldownWarning(userId);
 
-                const warningMessage = await message.reply({ content: cooldownMessageContent });
-                cooldownWarningMessages.set(userId, warningMessage);
+                const warningMessage = await message.reply({ content: cooldownMessageContent });
+                cooldownWarningMessages.set(userId, warningMessage);
 
-                // Set a timeout to delete the warning message when the cooldown expires
-                setTimeout(async () => {
-                    await deleteCooldownWarning(userId);
-                }, GIF_COOLDOWN_DURATION);
-                return; // Exit if still on cooldown
-            }
+                // Set a timeout to delete the warning message when the cooldown expires
+                setTimeout(async () => {
+                    await deleteCooldownWarning(userId);
+                }, GIF_COOLDOWN_DURATION);
+                return; // Exit if still on cooldown
+            }
 
-            // If not on cooldown, proceed to send the GIF
-            gifCooldowns.set(userId, now); // Set new cooldown
-            await deleteCooldownWarning(userId); // Delete any lingering warning message
+            // If not on cooldown, proceed to send the GIF
+            gifCooldowns.set(userId, now); // Set new cooldown
+            await deleteCooldownWarning(userId); // Delete any lingering warning message
 
-            try {
-                await message.channel.send(textGifCommands[commandContent]);
-            } catch (error) {
-                console.error(`Error sending text GIF command "${commandContent}":`, error);
-                await message.channel.send('Could not send the requested GIF message.');
-            }
-        }
+            try {
+                await message.channel.send(textGifCommands[commandContent]);
+            } catch (error) {
+                console.error(`Error sending text GIF command "${commandContent}":`, error);
+                await message.channel.send('Could not send the requested GIF message.');
+            }
+        }
 
-    });
+    });
 
-    client.on('interactionCreate', async (interaction) => {
-        if (!interaction.isButton()) return;
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isButton()) return;
 
-        switch (interaction.customId) {
-            case 'getHelpRole_btn':
-                // --- Logic to assign/remove RAID_HELPER_ROLE_ID to/from the user ---
-                const guild = interaction.guild;
-                const member = interaction.member;
+        switch (interaction.customId) {
+            case 'getHelpRole_btn':
+                // --- Logic to assign/remove RAID_HELPER_ROLE_ID to/from the user ---
+                const guild = interaction.guild;
+                const member = interaction.member;
 
-                if (!guild) {
-                    await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
-                    return;
-                }
+                if (!guild) {
+                    await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+                    return;
+                }
 
-                try {
-                    const role = await guild.roles.fetch(RAID_HELPER_ROLE_ID);
-                    if (!role) {
-                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', ephemeral: true });
-                        return;
-                    }
+                try {
+                    const role = await guild.roles.fetch(RAID_HELPER_ROLE_ID);
+                    if (!role) {
+                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', ephemeral: true });
+                        return;
+                    }
 
-                    const botMember = await guild.members.fetch(client.user.id);
-                    if (!botMember.permissions.has('ManageRoles')) {
-                        await interaction.reply({ content: 'I do not have the necessary permissions (`Manage Roles`) to assign roles. Please ask an administrator to grant me this permission.', ephemeral: true });
-                        return;
-                    }
-                    if (botMember.roles.highest.position <= role.position) {
-                        await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the helper role in the server settings.`, ephemeral: true });
-                        return;
-                    }
+                    const botMember = await guild.members.fetch(client.user.id);
+                    if (!botMember.permissions.has('ManageRoles')) {
+                        await interaction.reply({ content: 'I do not have the necessary permissions (`Manage Roles`) to assign roles. Please ask an administrator to grant me this permission.', ephemeral: true });
+                        return;
+                    }
+                    if (botMember.roles.highest.position <= role.position) {
+                        await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the helper role in the server settings.`, ephemeral: true });
+                        return;
+                    }
 
-                    if (member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
-                        await member.roles.remove(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
-                        await interaction.reply({ content: `Your \`${role.name}\` role has been removed! You will no longer get pinged for new raid requests `, ephemeral: true });
-                    } else {
-                        await member.roles.add(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
-                        await interaction.reply({ content: `You have been given the \`${role.name}\` role! You will now get pinged for new raid requests`, ephemeral: true });
-                    }
+                    if (member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
+                        await member.roles.remove(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
+                        await interaction.reply({ content: `Your \`${role.name}\` role has been removed! You will no longer get pinged for new raid requests `, ephemeral: true });
+                    } else {
+                        await member.roles.add(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
+                        await interaction.reply({ content: `You have been given the \`${role.name}\` role! You will now get pinged for new raid requests`, ephemeral: true });
+                    }
 
-                } catch (error) {
-                    console.error('Error assigning help role:', error);
-                    await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
-                }
-                break;
-            case 'startRaid_btn':
-                // This button interaction should be handled here to open the raid request modal.
-                const raidModal = getRaidRequestModal();
-                await interaction.showModal(raidModal);
-                break;
-            case 'seeRaidTasks_btn':
-                // This button interaction now displays the combined tasks and points embed.
-                const combinedTasksAndPointsEmbed = getCombinedTasksAndPointsEmbed();
-                await interaction.reply({ embeds: [combinedTasksAndPointsEmbed], ephemeral: true });
-                break;
+                } catch (error) {
+                    console.error('Error assigning help role:', error);
+                    await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
+                }
+                break;
+            case 'startRaid_btn':
+                // This button interaction should be handled here to open the raid request modal.
+                const raidModal = getRaidRequestModal();
+                await interaction.showModal(raidModal);
+                break;
+            case 'seeRaidTasks_btn':
+                // This button interaction now displays the combined tasks and points embed.
+                const combinedTasksAndPointsEmbed = getCombinedTasksAndPointsEmbed();
+                await interaction.reply({ embeds: [combinedTasksAndPointsEmbed], ephemeral: true });
+                break;
             case 'showAllCommands_btn':
                 const commandsEmbed = getCommandsEmbed();
                 await interaction.reply({ embeds: [commandsEmbed], ephemeral: true });
                 break;
-            default:
-                console.log(`Unhandled button interaction customId: ${interaction.customId}`);
-                break;
-        }
-    });
+            default:
+                console.log(`Unhandled button interaction customId: ${interaction.customId}`);
+                break;
+        }
+    });
 }
