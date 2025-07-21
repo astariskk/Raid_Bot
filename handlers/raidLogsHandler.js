@@ -309,7 +309,7 @@ export function setupRaidLogsHandlers(client) {
                         // If an invalid task is found, send an error reply with the tasks embed.
                         await interaction.editReply({
                             content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
-                            embeds: [getTasksEmbed()],
+                            embeds: [getCombinedTasksAndPointsEmbed()],
                             ephemeral: true
                         });
                         return; // Stop processing if validation fails.
