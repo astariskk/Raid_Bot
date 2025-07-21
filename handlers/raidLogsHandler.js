@@ -349,7 +349,7 @@ export function setupRaidLogsHandlers(client) {
                         });
 
                         await thread.send({
-                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **waiting**, **ongoing** or **full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
+                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **!waiting**, **!ongoing** or **!full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
                             components: [threadActionRow] // Attach the close and edit buttons.
                         });
 
