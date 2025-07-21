@@ -13,6 +13,7 @@ import {
     ALLOWED_TASK_NAMES,
     GENERIC_TASKS_LIST,
     OTHERS_LIST,
+    TASK_MAP_CATEGORIES,
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
     MAX_XP_PER_RAID,
@@ -23,7 +24,7 @@ import {
 import { updateLeaderboard } from './leaderboardCore.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 import { activeRaidThreads, updateRaidStatus, getEditTaskModal, updateRaidLogEmbed } from '../activeRaidState.js';
-import { sendLeaderboardBackup } from './backupHandler.js' // Import the backup function
+import { sendLeaderboardBackup } from './backupHandler.js'; // Import the backup function
 
 // --- Constants for Embed Colors ---
 const COLOR_SUCCESS = 0x57F287; // Green
@@ -237,21 +238,14 @@ async function handleRaidCompletion(message, raidInfo) {
 
         // 1. Determine all effective tasks AND raw requested strings from the ORIGINAL raid request
         const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
-        const originalRaidEffectiveTasks = new Set();
-        const originalRaidRequestedStrings = new Set();
+        const originalRaidEffectiveTasks = new Set(); // Contains all individual tasks that were part of the original request (expanded meta-tasks)
+        const originalRaidRequestedStrings = new Set(); // Contains the raw strings from the original request (e.g., 'daily', 'ezrajal')
 
         originalRequestedTasksRaw.forEach(task => {
             originalRaidRequestedStrings.add(task);
-            if (task === 'daily' || task === 'dailies') {
-                DAILIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-            } else if (task === 'weekly' || task === 'weeklies') {
-                WEEKLIES_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-            } else if (task === 'templeshrine') {
-                TEMPLESHRINE_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-            } else if (task === 'originul') {
-                ORIGINUL_LIST.forEach(t => originalRaidEffectiveTasks.add(t));
-            }
-            else if (ALLOWED_TASK_NAMES.includes(task)) { // Check against ALLOWED_TASK_NAMES (without custom prefix)
+            if (TASK_MAP_CATEGORIES.hasOwnProperty(task)) {
+                TASK_MAP_CATEGORIES[task].forEach(t => originalRaidEffectiveTasks.add(t));
+            } else if (ALLOWED_TASK_NAMES.includes(task)) {
                 originalRaidEffectiveTasks.add(task);
             }
         });
@@ -279,13 +273,27 @@ async function handleRaidCompletion(message, raidInfo) {
             if (usersForTask.size === 0) continue;
 
             let isValidAssignedTask = false;
-            // Check if the assigned task (e.g., 'daily', 'ezrajal') was part of the original request
+
+            // Case 1: The assigned task name is directly in the original requested strings (e.g., 'daily' was requested, and 'daily' is tagged)
             if (originalRaidRequestedStrings.has(taskName)) {
                 isValidAssignedTask = true;
-            } else {
-                // Also check if it's an effective task (e.g., 'ezrajal' if 'daily' was requested)
-                isValidAssignedTask = originalRaidEffectiveTasks.has(taskName);
             }
+            // Case 2: The assigned task name is an individual task that was part of an expanded meta-task in the original request
+            // (e.g., original was 'daily', effective tasks include 'ezrajal', and 'ezrajal' is tagged)
+            else if (originalRaidEffectiveTasks.has(taskName)) {
+                isValidAssignedTask = true;
+            }
+            // Case 3: The assigned task name is a meta-category (e.g., 'daily')
+            // AND all its constituent tasks were effectively covered by the original request.
+            else if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
+                const metaCategoryTasks = TASK_MAP_CATEGORIES[taskName];
+                // Check if ALL tasks within this meta-category are present in the original effective tasks
+                const allMetaTasksPresent = metaCategoryTasks.every(metaTask => originalRaidEffectiveTasks.has(metaTask));
+                if (allMetaTasksPresent) {
+                    isValidAssignedTask = true;
+                }
+            }
+
 
             if (!isValidAssignedTask) {
                 mismatchedTasks.add(taskName + (multiplier > 1 ? `x${multiplier}` : ''));
@@ -322,10 +330,10 @@ async function handleRaidCompletion(message, raidInfo) {
 
         const embed = new EmbedBuilder()
             .setColor(COLOR_INFO)
-            .setTitle(`Raid Completed by ${message.author.username}`)
+            .setTitle(`Raid Completed by .${message.author.username.toLowerCase()}`) // Changed title format
             .setDescription(`Raid requested by: <@${raidInfo.requesterId}>\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`)
-            .setTimestamp()
-            .setFooter({ text: 'Raid Completion Report' });
+            .setTimestamp() // Keeping timestamp for logging purposes
+            .setFooter({ text: 'Raid Completion Report' }); // Keeping a simple footer
 
         if (attachment) {
             embed.setImage(attachment.url);
@@ -390,10 +398,9 @@ async function handleRaidCompletion(message, raidInfo) {
             await sendLeaderboardBackup(message.client);
         }
 
-        // Clean up and lock original raid thread
+        // Clean up and delete original raid thread
         delete activeRaidThreads[threadId];
-        await originalRaidLogThread.setLocked(true);
-        await originalRaidLogThread.send('This raid thread is now complete and locked.');
+        await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
     } catch (error) {
         console.error('Error processing raid completion:', error);
         await message.reply('There was an error processing the raid completion.');
@@ -409,10 +416,10 @@ async function handleRaidCancellation(message, raidInfo) {
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
 
-    await message.reply('Raid thread closed without helpers/screenshot. Thread locked.');
+    await message.reply('Raid thread closed without helpers/screenshot. Thread deleted.'); // Changed message
     await updateRaidStatus(message.client, threadId, '❌ Cancelled', COLOR_CANCELLED);
     delete activeRaidThreads[threadId];
-    await originalRaidLogThread.setLocked(true);
+    await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
 }
 
 
@@ -533,7 +540,7 @@ export function setupExpLairHandlers(client) {
         if (interaction.isButton()) {
             switch (interaction.customId) {
                 case 'closeRaidTicket':
-                    // await interaction.deferReply({ flags: MessageFlags.Ephemeral }); // Removed deferReply
+                    // removed defer reply
                     raidInfo.awaitingCompletion = true;
                     console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
 
