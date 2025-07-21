@@ -13,13 +13,13 @@ import {
     ALLOWED_TASK_NAMES,
     GENERIC_TASKS_LIST,
     OTHERS_LIST,
-    TASK_MAP_CATEGORIES,
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
     MAX_XP_PER_RAID,
-    MODERATOR_ROLE_ID, // Import Moderator Role ID
+    MODERATOR_ROLE_ID, 
     OFFICER_ROLE_ID,
-    RAID_MANAGER_ROLE_ID, // Import Raid Manager Role ID
+    RAID_MANAGER_ROLE_ID, 
+    TASK_MAP_CATEGORIES 
 } from '../config/constants.js';
 import { updateLeaderboard } from './leaderboardCore.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
@@ -61,8 +61,8 @@ function parseHelperAssignments(content) {
         const trimmedLine = line.trim();
         if (!trimmedLine) continue;
 
-        // Handle "all xN = @user1 @user2" assignments
-        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*=\s*(.*)/i);
+        // Handle "all xN = @user1 @user2" or "all xN : @user1 @user2" assignments
+        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*[=:]\s*(.*)/i); // Modified to accept = or :
         if (allMatch) {
             globalMultiplier = allMatch[2] ? parseInt(allMatch[2], 10) : 1;
             if (isNaN(globalMultiplier) || globalMultiplier < 1) {
@@ -76,19 +76,19 @@ function parseHelperAssignments(content) {
             continue;
         }
 
-        // Handle "task1+task2 = @user1" or "task1xN = @user1" assignments
-        // Split by the first '=' to separate task part from user part
-        const parts = trimmedLine.split('=');
+        // Handle "task1+task2 = @user1" or "task1+task2 : @user1" or "task1xN = @user1" assignments
+        // Split by the first '=' or ':' to separate task part from user part
+        const parts = trimmedLine.split(/=|:/); // Modified to accept = or :
         if (parts.length < 2) {
             // This line doesn't conform to the "task = user" pattern
             if (trimmedLine.length > 0) {
-                unrecognizedTasks.add(trimmedLine); // Still add here if no '='
+                unrecognizedTasks.add(trimmedLine); // Still add here if no '=' or ':'
             }
             continue;
         }
 
         const taskString = parts[0].trim();
-        const userMentionPart = parts.slice(1).join('=').trim();
+        const userMentionPart = parts.slice(1).join(parts[0].includes('=') ? '=' : ':').trim(); // Re-join with the detected separator
 
         const userIds = extractUserIds(userMentionPart); // This only extracts USER IDs
 
@@ -216,8 +216,10 @@ async function handleRaidCompletion(message, raidInfo) {
             + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)` // Updated for xN on all
             + `\n* Include a screenshot if possible.`
             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
-            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1xN = @user\` format.`
+            + `\n* For multiple tasks, use \`task1 + task2 = @user\``
+            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`
         );
+        raidInfo.awaitingCompletion = false; // Reset state if input is invalid
         return;
     }
 
@@ -228,6 +230,7 @@ async function handleRaidCompletion(message, raidInfo) {
         if (!expLairChannel || expLairChannel.type !== ChannelType.GuildText) {
             console.error('EXP Lair channel not found or is not a text channel.');
             await message.reply('Could not find the EXP Lair channel to post the completion details.');
+            raidInfo.awaitingCompletion = false; // Reset state on error
             return;
         }
 
@@ -316,6 +319,7 @@ async function handleRaidCompletion(message, raidInfo) {
         // Updated condition to not check for customTasksInCompletion
         if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
+            raidInfo.awaitingCompletion = false; // Reset state if no valid points awarded
             return;
         }
 
@@ -404,6 +408,8 @@ async function handleRaidCompletion(message, raidInfo) {
     } catch (error) {
         console.error('Error processing raid completion:', error);
         await message.reply('There was an error processing the raid completion.');
+    } finally {
+        raidInfo.awaitingCompletion = false; // Always reset state after processing completion attempt
     }
 }
 
@@ -420,6 +426,7 @@ async function handleRaidCancellation(message, raidInfo) {
     await updateRaidStatus(message.client, threadId, '❌ Cancelled', COLOR_CANCELLED);
     delete activeRaidThreads[threadId];
     await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
+    raidInfo.awaitingCompletion = false; // Reset state after cancellation
 }
 
 
