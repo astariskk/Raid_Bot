@@ -130,6 +130,7 @@ function getCommandsEmbed() {
                 name: '💬 Commands for closing the Raid Request',
                 value: `
 \`cancel\`: Close the raid thread without awarding points.
+\`=\` and \`:\` : Use these to separate tasks and tag helpers.
 \`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).

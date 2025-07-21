@@ -404,7 +404,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
         // Clean up and delete original raid thread
         delete activeRaidThreads[threadId];
-        await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
+        await originalRaidLogThread.setLocked(true); 
     } catch (error) {
         console.error('Error processing raid completion:', error);
         await message.reply('There was an error processing the raid completion.');
@@ -553,7 +553,7 @@ export function setupExpLairHandlers(client) {
 
                     await interaction.reply({ // Note: if this is the first response, use interaction.reply instead of editReply
                         content:
-                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 = @user1 @user2`'
+                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 : @user1 @user2`'
                             + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
