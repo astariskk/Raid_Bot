@@ -31,9 +31,16 @@ const COLOR_SUCCESS = 0x57F287; // Green
 const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
 
+/**
+ * Checks if a message author is an administrator (Moderator, Officer, or Raid Manager).
+ * @param {import('discord.js').Message | import('discord.js').Interaction} source - The message or interaction object.
+ * @returns {boolean} True if the user has an admin role, false otherwise.
+ */
 function isAdmin(source) {
     const member = source.member;
     if (!member) {
+        // This can happen in DMs or if member object isn't available for some reason.
+        // For interactions, member should almost always be present in a guild context.
         console.warn('isAdmin called for a source without a member object.');
         return false;
     }
@@ -51,6 +58,7 @@ function isAdmin(source) {
  * @returns {Promise<boolean>} True if authorized, false otherwise (and sends ephemeral reply).
  */
 async function isAuthorizedToManageRaid(interaction, raidInfo) {
+    // A staff member or the original requester can manage the raid.
     if (interaction.user.id === raidInfo.requesterId || isAdmin(interaction)) {
         return true;
     }
@@ -250,6 +258,8 @@ async function handleRaidCompletion(message, raidInfo) {
             + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`
         );
         // raidInfo.awaitingCompletion = false; // Moved to finally block
+        // Also reset awaitingCompletionRequesterId if the input is invalid and we're prompting again.
+        raidInfo.awaitingCompletionRequesterId = null; 
         return;
     }
 
@@ -261,6 +271,8 @@ async function handleRaidCompletion(message, raidInfo) {
             console.error('EXP Lair channel not found or is not a text channel.');
             await message.reply('Could not find the EXP Lair channel to post the completion details.');
             // raidInfo.awaitingCompletion = false; // Moved to finally block
+            // Also reset awaitingCompletionRequesterId on error.
+            raidInfo.awaitingCompletionRequesterId = null;
             return;
         }
 
@@ -350,6 +362,8 @@ async function handleRaidCompletion(message, raidInfo) {
         if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
             // raidInfo.awaitingCompletion = false; // Moved to finally block
+            // Also reset awaitingCompletionRequesterId if no valid points are awarded.
+            raidInfo.awaitingCompletionRequesterId = null;
             return;
         }
 
@@ -439,7 +453,9 @@ async function handleRaidCompletion(message, raidInfo) {
         console.error('Error processing raid completion:', error);
         await message.reply('There was an error processing the raid completion.');
     } finally {
-        raidInfo.awaitingCompletion = false; // Always reset state after processing completion attempt
+        // Always reset state after processing completion attempt, regardless of success or failure
+        raidInfo.awaitingCompletion = false; 
+        raidInfo.awaitingCompletionRequesterId = null; // Clear the ID
     }
 }
 
@@ -455,15 +471,18 @@ async function handleRaidCancellation(message, raidInfo) {
     await message.reply('Raid thread closed without helpers/screenshot. Thread deleted.'); // Changed message
     await updateRaidStatus(message.client, threadId, '❌ Cancelled', COLOR_CANCELLED);
     delete activeRaidThreads[threadId];
-    await originalRaidLogThread.setLocked(true); // Changed from setLocked(true) to delete()
-    // raidInfo.awaitingCompletion = false; // Moved to finally block in handleRaidCompletion, or can be removed if thread is deleted.
+    await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
+    
+    // Reset awaitingCompletion state and ID upon successful cancellation
+    raidInfo.awaitingCompletion = false;
+    raidInfo.awaitingCompletionRequesterId = null;
 }
 
 
 /**
  * Sets up event handlers for EXP Lair functionalities.
  * @param {import('discord.js').Client} client - The Discord client.
- */
+*/
 export function setupExpLairHandlers(client) {
     // --- Message Create Listener (for handling completion/cancellation messages in raid threads) ---
     client.on("messageCreate", async (message) => {
@@ -472,7 +491,7 @@ export function setupExpLairHandlers(client) {
         const raidInfo = activeRaidThreads[message.channel.id];
 
         // Ensure it's a thread and we have active raid info for it.
-        // The message must be from the requester OR an admin/mod/raid manager.
+        // The message must be from the requester OR an admin/mod/raid manager for general interaction.
         if (
             !message.channel.isThread() ||
             !raidInfo ||
@@ -484,14 +503,22 @@ export function setupExpLairHandlers(client) {
         const contentLower = message.content.toLowerCase().trim();
         const attachment = message.attachments.first();
 
-        // Handle cancellation - only if awaiting completion confirmation
-        if (raidInfo.awaitingCompletion && contentLower === 'cancel' && message.mentions.users.size === 0 && !attachment) {
-            await handleRaidCancellation(message, raidInfo);
-            return;
-        }
-
-        // Handle raid completion - only if awaiting completion confirmation
+        // If awaiting completion, ONLY process messages from the specific user who initiated the completion flow.
         if (raidInfo.awaitingCompletion) {
+            if (message.author.id !== raidInfo.awaitingCompletionRequesterId) {
+                // If a different user (even a mod) sends a message while awaiting completion, ignore it for this flow.
+                // You could add an ephemeral reply here if you want to inform them.
+                // await message.reply({ content: 'Waiting for input from the raid requester to finalize completion.', flags: MessageFlags.Ephemeral });
+                return; 
+            }
+
+            // Handle cancellation - only if awaiting completion confirmation from the specific user
+            if (contentLower === 'cancel' && message.mentions.users.size === 0 && !attachment) {
+                await handleRaidCancellation(message, raidInfo);
+                return;
+            }
+
+            // Handle raid completion - only if awaiting completion confirmation from the specific user
             await handleRaidCompletion(message, raidInfo);
             return;
         }
@@ -547,7 +574,8 @@ export function setupExpLairHandlers(client) {
                         mapName: mapField ? mapField.value : 'N/A',
                         server: serverField ? serverField.value : 'N/A',
                         description: descriptionField ? descriptionField.value : 'No description provided.',
-                        awaitingCompletion: false
+                        awaitingCompletion: false,
+                        awaitingCompletionRequesterId: null // Initialize this new property
                     };
                     activeRaidThreads[interaction.channel.id] = raidInfo;
                     console.log(`Reconstructed raidInfo for thread ${interaction.channel.id}:`, raidInfo);
@@ -573,7 +601,9 @@ export function setupExpLairHandlers(client) {
             switch (interaction.customId) {
                 case 'closeRaidTicket':
                     raidInfo.awaitingCompletion = true;
-                    console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
+                    // Store the ID of the user who pressed the button to expect their next message
+                    raidInfo.awaitingCompletionRequesterId = interaction.user.id; 
+                    console.log(`Thread ${interaction.channel.id} now awaiting completion details from ${interaction.user.tag}.`);
 
                     await interaction.reply({
                         content:
