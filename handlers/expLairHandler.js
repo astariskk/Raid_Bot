@@ -455,7 +455,7 @@ async function handleRaidCancellation(message, raidInfo) {
     await message.reply('Raid thread closed without helpers/screenshot. Thread deleted.'); // Changed message
     await updateRaidStatus(message.client, threadId, '❌ Cancelled', COLOR_CANCELLED);
     delete activeRaidThreads[threadId];
-    await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
+    await originalRaidLogThread.setLocked(true); // Changed from setLocked(true) to delete()
     // raidInfo.awaitingCompletion = false; // Moved to finally block in handleRaidCompletion, or can be removed if thread is deleted.
 }
 
