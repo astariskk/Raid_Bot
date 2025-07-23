@@ -11,8 +11,8 @@ import {
     DAILIES_LIST,
     WEEKLIES_LIST,
     ALLOWED_TASK_NAMES,
-    GENERIC_TASKS_LIST,
-    OTHERS_LIST,
+    GENERIC_TASKS_LIST, // Not used in this file, but kept for consistency if needed elsewhere
+    OTHERS_LIST, // Not used in this file, but kept for consistency if needed elsewhere
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
     MAX_XP_PER_RAID,
@@ -30,6 +30,36 @@ import { sendLeaderboardBackup } from './backupHandler.js'; // Import the backup
 const COLOR_SUCCESS = 0x57F287; // Green
 const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
+
+function isAdmin(source) {
+    const member = source.member;
+    if (!member) {
+        console.warn('isAdmin called for a source without a member object.');
+        return false;
+    }
+    return (
+        member.roles.cache.has(MODERATOR_ROLE_ID) ||
+        member.roles.cache.has(OFFICER_ROLE_ID) ||
+        member.roles.cache.has(RAID_MANAGER_ROLE_ID)
+    );
+}
+
+/**
+ * Checks if the user interacting with a raid thread is authorized (requester or staff).
+ * @param {import('discord.js').Interaction} interaction - The Discord interaction.
+ * @param {object} raidInfo - Information about the active raid.
+ * @returns {Promise<boolean>} True if authorized, false otherwise (and sends ephemeral reply).
+ */
+async function isAuthorizedToManageRaid(interaction, raidInfo) {
+    if (interaction.user.id === raidInfo.requesterId || isAdmin(interaction)) {
+        return true;
+    }
+    await interaction.reply({ 
+        content: 'Only the user who initiated this raid or a staff member can perform this action.', 
+        flags: MessageFlags.Ephemeral 
+    });
+    return false;
+}
 
 /**
  * Extracts user IDs from a string containing mentions.
@@ -144,7 +174,7 @@ function parseHelperAssignments(content) {
  * unless explicitly defined in POINTS_CONFIG.
  * @param {string[]} tasks - An array of task names.
  * @returns {number} The total points.
-*/
+ */
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -219,7 +249,7 @@ async function handleRaidCompletion(message, raidInfo) {
             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
             + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`
         );
-        raidInfo.awaitingCompletion = false; // Reset state if input is invalid
+        // raidInfo.awaitingCompletion = false; // Moved to finally block
         return;
     }
 
@@ -230,7 +260,7 @@ async function handleRaidCompletion(message, raidInfo) {
         if (!expLairChannel || expLairChannel.type !== ChannelType.GuildText) {
             console.error('EXP Lair channel not found or is not a text channel.');
             await message.reply('Could not find the EXP Lair channel to post the completion details.');
-            raidInfo.awaitingCompletion = false; // Reset state on error
+            // raidInfo.awaitingCompletion = false; // Moved to finally block
             return;
         }
 
@@ -319,7 +349,7 @@ async function handleRaidCompletion(message, raidInfo) {
         // Updated condition to not check for customTasksInCompletion
         if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
-            raidInfo.awaitingCompletion = false; // Reset state if no valid points awarded
+            // raidInfo.awaitingCompletion = false; // Moved to finally block
             return;
         }
 
@@ -334,7 +364,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
         const embed = new EmbedBuilder()
             .setColor(COLOR_INFO)
-            .setTitle(`Raid Completed by .${message.author.username.toLowerCase()}`) // Changed title format
+            .setTitle(`Raid Completed by ${message.author.username}`) // Changed title format
             .setDescription(`Raid requested by: <@${raidInfo.requesterId}>\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`)
             .setTimestamp() // Keeping timestamp for logging purposes
             .setFooter({ text: 'Raid Completion Report' }); // Keeping a simple footer
@@ -426,7 +456,7 @@ async function handleRaidCancellation(message, raidInfo) {
     await updateRaidStatus(message.client, threadId, '❌ Cancelled', COLOR_CANCELLED);
     delete activeRaidThreads[threadId];
     await originalRaidLogThread.delete(); // Changed from setLocked(true) to delete()
-    raidInfo.awaitingCompletion = false; // Reset state after cancellation
+    // raidInfo.awaitingCompletion = false; // Moved to finally block in handleRaidCompletion, or can be removed if thread is deleted.
 }
 
 
@@ -441,11 +471,12 @@ export function setupExpLairHandlers(client) {
 
         const raidInfo = activeRaidThreads[message.channel.id];
 
-        // Ensure it's a thread and we have active raid info for it, and the message is from the requester
+        // Ensure it's a thread and we have active raid info for it.
+        // The message must be from the requester OR an admin/mod/raid manager.
         if (
             !message.channel.isThread() ||
             !raidInfo ||
-            message.author.id !== raidInfo.requesterId
+            (message.author.id !== raidInfo.requesterId && !isAdmin(message))
         ) {
             return;
         }
@@ -532,14 +563,8 @@ export function setupExpLairHandlers(client) {
             }
         }
 
-
-        // Ensure the user interacting is the raid requester for critical actions
-        //if the requester or moderator or officer or raid manager
-        if (interaction.user.id !== raidInfo.requesterId &&
-            !interaction.member.roles.cache.has(OFFICER_ROLE_ID) &&
-            !interaction.member.roles.cache.has(MODERATOR_ROLE_ID)
-            && !interaction.member.roles.cache.has(RAID_MANAGER_ROLE_ID)) {
-            await interaction.reply({ content: 'Only the user who initiated this raid or a staff member can perform this action.', flags: MessageFlags.Ephemeral });
+        // Use the new helper function for authorization check
+        if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
             return;
         }
 
@@ -547,11 +572,10 @@ export function setupExpLairHandlers(client) {
         if (interaction.isButton()) {
             switch (interaction.customId) {
                 case 'closeRaidTicket':
-                    // removed defer reply
                     raidInfo.awaitingCompletion = true;
                     console.log(`Thread ${interaction.channel.id} now awaiting completion details.`);
 
-                    await interaction.reply({ // Note: if this is the first response, use interaction.reply instead of editReply
+                    await interaction.reply({
                         content:
                             'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 : @user1 @user2`'
                             + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
@@ -580,8 +604,6 @@ export function setupExpLairHandlers(client) {
                 case 'editTaskModal':
                     const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
                     const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
-
-                    // Removed deferReply, will use direct reply
 
                     // Validate new tasks, excluding custom tasks.
                     for (const taskName of newTasksArray) {
