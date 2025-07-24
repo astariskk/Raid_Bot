@@ -76,7 +76,6 @@ export const textGifCommands = {
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 
     'kaerat': ' https://files.catbox.moe/1leclp.gif', 
-    'marfart': '<@1030038861851664404> [**oil queens lethal fart**](https://files.catbox.moe/zqqbjs.gif)' 
 };
 
 /**
