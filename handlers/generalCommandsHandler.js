@@ -22,6 +22,11 @@ const gifCooldowns = new Map();
 const cooldownWarningMessages = new Map();
 const GIF_COOLDOWN_DURATION = 10 * 1000;
 
+// --- User IDs to ban from specific commands ---
+const BANNED_USERS_FOR_COMMANDS = {
+    'marbike': ['719443918621638660'], // Kuro banned from 'marbike'
+};
+
 // --- Custom GIF Commands (for embeds) ---
 export const gifCommands = {
     'the most beautiful thing you will ever see': {
@@ -71,7 +76,7 @@ export const gifCommands = {
 // --- Custom TEXT GIF Commands (no embeds) ---
 export const textGifCommands = {
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // 467703633618796544
-    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',  // 965985831649169438
+    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',   // 965985831649169438
     'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // 1030038861851664404
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 
@@ -134,7 +139,7 @@ function getCommandsEmbed() {
 \`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
+\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
 `
             }
         )
@@ -511,6 +516,12 @@ export function setupGeneralCommandsHandler(client) {
         }
         // Check for text gif commands (no embeds)
         else if (textGifCommands[commandContent]) {
+            // **New Banned User Check**
+            const bannedUsers = BANNED_USERS_FOR_COMMANDS[commandContent];
+            if (bannedUsers && bannedUsers.includes(userId)) {
+                return; 
+            }
+
             if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
                 const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
                 const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
