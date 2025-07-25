@@ -153,33 +153,33 @@ export function setupRaidLogsHandlers(client) {
             if (threadCommand === '!1man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('1-Man Raid Chart')
+                    .setTitle('1-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/svrjfx.jpg') // Image URL for the chart.
-                    .setFooter({ text: 'Speaker chart for 1-man raids' });
+                    .setFooter({ text: 'Speaker chart for 1-man taunts' });
             } else if (threadCommand === '!2man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('2-Man Raid Chart')
+                    .setTitle('2-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/49a6oj.jpg')
-                    .setFooter({ text: 'Speaker chart for 2-man raids' });
+                    .setFooter({ text: 'Speaker chart for 2-man taunts' });
             } else if (threadCommand === '!3man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('3-Man Raid Chart')
+                    .setTitle('3-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/5x4grv.jpg')
-                    .setFooter({ text: 'Speaker chart for 3-man raids' });
+                    .setFooter({ text: 'Speaker chart for 3-man taunts' });
             } else if (threadCommand === '!4man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('4-Man Raid Chart')
+                    .setTitle('4-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
-                    .setFooter({ text: 'Speaker chart for 4-man raids' });            
+                    .setFooter({ text: 'Speaker chart for 4-man taunts' });            
             } else if (threadCommand === '!gramielchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('Gramiel Raid Chart')
-                    .setImage('https://files.catbox.moe/xp7dwu.png')
-                    .setFooter({ text: 'Speaker chart for Grams raids' });
+                    .setTitle('Gramiel Chart')
+                    .setImage('https://files.catbox.moe/esowjk.png')
+                    .setFooter({ text: 'Gramiel chart made by Lilicht' });
             }
 
             // If a chart embed was created, send it to the thread.
