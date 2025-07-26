@@ -84,12 +84,7 @@ export const textGifCommands = {
     'xytwerk': 'https://files.catbox.moe/4xeq5l.gif' // xy 
 };
 
-/**
- * Helper to format tasks and their points for embed fields.
- * @param {string[]} taskList - An array of task names.
- * @param {object} pointsConfig - The POINTS_CONFIG object.
- * @returns {string} Formatted string for an embed field value.
- */
+
 function formatTasksForEmbed(taskList, pointsConfig) {
     if (!taskList || taskList.length === 0) {
         return 'N/A';
@@ -100,10 +95,6 @@ function formatTasksForEmbed(taskList, pointsConfig) {
     }).join('\n');
 }
 
-/**
- * Generates the embed for the full list of bot commands.
- * @returns {EmbedBuilder} The embed containing all bot commands.
- */
 function getCommandsEmbed() {
     return new EmbedBuilder()
         .setColor(0x3498DB) // blue
@@ -137,10 +128,10 @@ function getCommandsEmbed() {
                 value: `
 \`cancel\`: Close the raid thread without awarding points.
 \`=\` and \`:\` : Use these to separate tasks and tag helpers.
-\`all = @user1 @user2\`: Awards EXP for all tasks in the original raid request to the tagged player(s).
+\`all = @user1 @user2\`: Awards EXP for all tasks requested in the raid to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`xN\` =  \`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
+\`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
 `
             }
         )
@@ -148,38 +139,31 @@ function getCommandsEmbed() {
         .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
 }
 
-/**
- * Generates the embed for the "How to Use" guide.
- * @param {string} raidHelperRoleName The name of the raid helper role.
- * @returns {EmbedBuilder} The embed containing the how-to-use guide.
- */
 export function getHowToUseEmbed(raidHelperRoleName) {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
-.setDescription(
-    `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and get notified of new raid requests.\n\n` +
-    `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Only tasks listed in \`📋 See Raid Tasks\` are accepted. ` +
-    `For tasks not on the list, use generic tasks: \`simple\` (5-10 min), \`moderate\` (<30 min), or \`hard\` (30+ min). Example: \`daily + weekly\`.\n\n` +
-    `**3. Raid Coordination:** A dedicated thread will be created in the raid logs channel for communication with helpers.\n\n` +
-    `**4. Update Status:** As the requester, type \`!waiting\`, \`!ongoing\`, or \`!full\` in your raid thread to update its status. Use the \`✏️ Edit Task\` button to modify tasks.\n\n` +
-    `**5. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You'll be prompted to tag helpers (e.g., \`tsmid x2 + tsleft = @name\` or \`all = @name @name\`) and can optionally attach a screenshot or type \`cancel\` to close. ` +
-    `**Note**: Only tasks listed in your raid request (or edited tasks) will award points. Check the \`📝 Full Commands List\` button below for all available tagging options and commands.\n\n` +
-    `**6. Leaderboard Points:** Check your points and rank using \`!leaderboard\`, \`!lb\`, or \`!lbcheck\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n\n` +
-    `**Press the buttons below to interact with the bot:**`
-)
+        .setDescription(
+            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**.\n\n` +
+            `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Use \`📋 Raid Tasks\` to see accepted tasks and their EXP values. ` +
+            `For tasks not on the list, you can use generic tasks:\n` +
+            ` • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
+            ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
+            ` • \`hard\`: Raids expected to take 30 minutes or more.\n\n` +
+                        `**3. Raid Coordination:** A dedicated thread will be created for your raid. Within this thread, you can use thread-only commands, update your raid's status or edit your request.\n\n` +            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
+            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n\n` +
+            `**Press the buttons below to interact with the bot and get more details:**`
+        )
         .setColor(0x3498DB);
 }
 
-/**
- * Generates the embed displaying all raid tasks and their associated EXP values.
- * This combines the functionality of the old !raidtasks and !raidpoints.
- * @returns {EmbedBuilder} The embed with raid tasks and points.
- */
 export function getCombinedTasksAndPointsEmbed() {
     const embed = new EmbedBuilder()
         .setColor(0x3498DB) // Blue
         .setTitle('📋 Raid Tasks & EXP Values')
-        .setDescription('Here\'s a comprehensive list of all recognized raid tasks and the EXP awarded for completing them. Use these when requesting raids or calculating points!')
+        .setDescription(
+            'You can use the following names for combined multiple tasks: `dailies`, `weeklies`, `templeshrine`, `originul`\n\n' +
+            'Here\'s a comprehensive list of all recognized raid tasks and the EXP awarded for completing them. Use these when requesting raids or calculating points!'
+        )
         .setTimestamp()
         .setFooter({ text: 'Raid Helper Bot | Tasks & Points' });
 
@@ -250,11 +234,6 @@ export function getCombinedTasksAndPointsEmbed() {
     return embed;
 }
 
-
-/**
- * Generates the initial row of buttons for the !raidinfo command.
- * @returns {ActionRowBuilder} The action row containing the initial buttons.
- */
 export function getInitialButtonsRow() {
     const getHelpRoleButton = new ButtonBuilder()
         .setCustomId('getHelpRole_btn')
@@ -599,7 +578,17 @@ export function setupGeneralCommandsHandler(client) {
                 }
                 break;
             case 'startRaid_btn':
-                // This button interaction should be handled here to open the raid request modal.
+                /* re-add check once raid helper role is implemented 
+                // check if they are a raid helper
+                if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
+                    await interaction.reply({
+                        content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Please click the '📣 Get Help Role' button first to obtain it.`,
+                        ephemeral: true
+                    });
+                    return; 
+                }
+                */
+
                 const raidModal = getRaidRequestModal();
                 await interaction.showModal(raidModal);
                 break;
