@@ -100,9 +100,13 @@ process.on('uncaughtException', (error) => {
 
 
 // --- Login ---
+console.log('--> About to call client.login(). Token exists:', !!process.env.DISCORD_TOKEN); // Check if token is loaded
+
 client.login(process.env.DISCORD_TOKEN).catch(error => {
     console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    console.error('!!! FAILED TO LOGIN TO DISCORD:');
+    console.error('!!! FAILED TO LOGIN TO DISCORD (from .catch):');
     console.error(error);
     console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 });
+
+console.log('--> Code execution continued after client.login() call.'); // This should appear immediately
