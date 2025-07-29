@@ -31,16 +31,10 @@ const COLOR_SUCCESS = 0x57F287; // Green
 const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
 
-/**
- * Checks if a message author is an administrator (Moderator, Officer, or Raid Manager).
- * @param {import('discord.js').Message | import('discord.js').Interaction} source - The message or interaction object.
- * @returns {boolean} True if the user has an admin role, false otherwise.
- */
+
 function isAdmin(source) {
     const member = source.member;
     if (!member) {
-        // This can happen in DMs or if member object isn't available for some reason.
-        // For interactions, member should almost always be present in a guild context.
         console.warn('isAdmin called for a source without a member object.');
         return false;
     }
@@ -51,12 +45,6 @@ function isAdmin(source) {
     );
 }
 
-/**
- * Checks if the user interacting with a raid thread is authorized (requester or staff).
- * @param {import('discord.js').Interaction} interaction - The Discord interaction.
- * @param {object} raidInfo - Information about the active raid.
- * @returns {Promise<boolean>} True if authorized, false otherwise (and sends ephemeral reply).
- */
 async function isAuthorizedToManageRaid(interaction, raidInfo) {
     // A staff member or the original requester can manage the raid.
     if (interaction.user.id === raidInfo.requesterId || isAdmin(interaction)) {
@@ -69,11 +57,6 @@ async function isAuthorizedToManageRaid(interaction, raidInfo) {
     return false;
 }
 
-/**
- * Extracts user IDs from a string containing mentions.
- * @param {string} text - The text possibly containing user mentions.
- * @returns {string[]} An array of user IDs.
- */
 function extractUserIds(text) {
     return (text.match(/<@!?(\d+)>/g) || []).map(mention =>
         mention.replace(/<@!?(\d+)>/, '$1')
@@ -100,11 +83,11 @@ function parseHelperAssignments(content) {
         if (!trimmedLine) continue;
 
         // Handle "all xN = @user1 @user2" or "all xN : @user1 @user2" assignments
-        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*[=:]\s*(.*)/i); // Modified to accept = or :
+        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*[=:]\s*(.*)/i); 
         if (allMatch) {
             globalMultiplier = allMatch[2] ? parseInt(allMatch[2], 10) : 1;
             if (isNaN(globalMultiplier) || globalMultiplier < 1) {
-                unrecognizedTasks.add(`all${allMatch[1] || ''}`); // Add "all xInvalid" to unrecognized
+                unrecognizedTasks.add(`all${allMatch[1] || ''}`); 
                 globalMultiplier = 1; // Reset to default
                 continue;
             }
@@ -114,13 +97,11 @@ function parseHelperAssignments(content) {
             continue;
         }
 
-        // Handle "task1+task2 = @user1" or "task1+task2 : @user1" or "task1xN = @user1" assignments
-        // Split by the first '=' or ':' to separate task part from user part
-        const parts = trimmedLine.split(/=|:/); // Modified to accept = or :
+        // Handle assignments and seperators '=' and ':'        
+        const parts = trimmedLine.split(/=|:/); 
         if (parts.length < 2) {
-            // This line doesn't conform to the "task = user" pattern
             if (trimmedLine.length > 0) {
-                unrecognizedTasks.add(trimmedLine); // Still add here if no '=' or ':'
+                unrecognizedTasks.add(trimmedLine); 
             }
             continue;
         }
@@ -128,13 +109,11 @@ function parseHelperAssignments(content) {
         const taskString = parts[0].trim();
         const userMentionPart = parts.slice(1).join(parts[0].includes('=') ? '=' : ':').trim(); // Re-join with the detected separator
 
-        const userIds = extractUserIds(userMentionPart); // This only extracts USER IDs
+        const userIds = extractUserIds(userMentionPart); 
 
         if (userIds.length === 0) {
-            // If no *users* are tagged, this line is invalid for point assignment.
-            // Add the original line to a new set for specific feedback.
             linesWithNoValidUsers.add(trimmedLine);
-            continue; // Skip processing this line further for point assignment
+            continue; 
         }
         hasValidTags = true;
 
@@ -146,7 +125,7 @@ function parseHelperAssignments(content) {
                 // Now, parse each individual entry for its name and potential multiplier
                 const individualTaskMatch = entry.match(/^(.+?)(x(\d+))?$/i);
                 if (!individualTaskMatch) {
-                    unrecognizedTasks.add(entry); // Malformed individual task entry
+                    unrecognizedTasks.add(entry); 
                     return;
                 }
 
@@ -155,7 +134,7 @@ function parseHelperAssignments(content) {
                 const taskMultiplier = taskMultiplierStr ? parseInt(taskMultiplierStr, 10) : 1;
 
                 if (isNaN(taskMultiplier) || taskMultiplier < 1) {
-                    unrecognizedTasks.add(entry); // Invalid multiplier
+                    unrecognizedTasks.add(entry); 
                     return;
                 }
 
@@ -164,11 +143,10 @@ function parseHelperAssignments(content) {
                         helperAssignments[taskName] = { users: new Set(), multiplier: taskMultiplier };
                     }
                     helperAssignments[taskName].users.add(userId);
-                    // If a task is mentioned multiple times with different multipliers, the last one will win.
                     helperAssignments[taskName].multiplier = taskMultiplier;
 
                 } else {
-                    unrecognizedTasks.add(entry); // Unrecognized task name
+                    unrecognizedTasks.add(entry); 
                 }
             });
         });
@@ -176,13 +154,6 @@ function parseHelperAssignments(content) {
     return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
-/**
- * Calculates the total points for a given set of tasks.
- * Handles meta-tasks like 'daily', 'weekly', 'templeshrine', and 'originul'.
- * unless explicitly defined in POINTS_CONFIG.
- * @param {string[]} tasks - An array of task names.
- * @returns {number} The total points.
- */
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -217,7 +188,6 @@ function calculateTaskPoints(tasks) {
  * @param {object} raidInfo - Information about the active raid.
  */
 async function handleRaidCompletion(message, raidInfo) {
-    // Updated: get globalMultiplier, removed customTasksDetected
     const { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
     const threadId = message.channel.id;
@@ -257,8 +227,6 @@ async function handleRaidCompletion(message, raidInfo) {
             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
             + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`
         );
-        // raidInfo.awaitingCompletion = false; // Moved to finally block
-        // Also reset awaitingCompletionRequesterId if the input is invalid and we're prompting again.
         raidInfo.awaitingCompletionRequesterId = null; 
         return;
     }
@@ -361,8 +329,6 @@ async function handleRaidCompletion(message, raidInfo) {
         // Updated condition to not check for customTasksInCompletion
         if (Object.keys(pointsAwarded).length === 0 && !hasValidTags) {
             await message.reply('No valid helpers or tasks specified, or specified tasks were not part of the original request. Please tag helpers with tasks that were part of the raid, or type "cancel" to close without helpers.');
-            // raidInfo.awaitingCompletion = false; // Moved to finally block
-            // Also reset awaitingCompletionRequesterId if no valid points are awarded.
             raidInfo.awaitingCompletionRequesterId = null;
             return;
         }
@@ -378,10 +344,10 @@ async function handleRaidCompletion(message, raidInfo) {
 
         const embed = new EmbedBuilder()
             .setColor(COLOR_INFO)
-            .setTitle(`Raid Completed by ${message.author.username}`) // Changed title format
+            .setTitle(`Raid Completed by ${message.author.username}`) 
             .setDescription(`Raid requested by: <@${raidInfo.requesterId}>\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`)
-            .setTimestamp() // Keeping timestamp for logging purposes
-            .setFooter({ text: 'Raid Completion Report' }); // Keeping a simple footer
+            .setTimestamp() 
+            .setFooter({ text: 'Raid Completion Report' });
 
         if (attachment) {
             embed.setImage(attachment.url);
@@ -442,7 +408,7 @@ async function handleRaidCompletion(message, raidInfo) {
         }
 
         // Trigger a leaderboard backup after points are successfully awarded and leaderboard updated
-        if (Object.keys(pointsAwarded).length > 0) { // Only backup if points were actually awarded
+        if (Object.keys(pointsAwarded).length > 0) { 
             await sendLeaderboardBackup(message.client);
         }
 
@@ -459,11 +425,7 @@ async function handleRaidCompletion(message, raidInfo) {
     }
 }
 
-/**
- * Handles 'cancel' command within a raid thread.
- * @param {import('discord.js').Message} message - The Discord message containing the 'cancel' command.
- * @param {object} raidInfo - Information about the active raid.
- */
+
 async function handleRaidCancellation(message, raidInfo) {
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
@@ -479,10 +441,7 @@ async function handleRaidCancellation(message, raidInfo) {
 }
 
 
-/**
- * Sets up event handlers for EXP Lair functionalities.
- * @param {import('discord.js').Client} client - The Discord client.
-*/
+
 export function setupExpLairHandlers(client) {
     // --- Message Create Listener (for handling completion/cancellation messages in raid threads) ---
     client.on("messageCreate", async (message) => {
@@ -506,8 +465,6 @@ export function setupExpLairHandlers(client) {
         // If awaiting completion, ONLY process messages from the specific user who initiated the completion flow.
         if (raidInfo.awaitingCompletion) {
             if (message.author.id !== raidInfo.awaitingCompletionRequesterId) {
-                // If a different user (even a mod) sends a message while awaiting completion, ignore it for this flow.
-                // You could add an ephemeral reply here if you want to inform them.
                 // await message.reply({ content: 'Waiting for input from the raid requester to finalize completion.', flags: MessageFlags.Ephemeral });
                 return; 
             }
@@ -532,7 +489,6 @@ export function setupExpLairHandlers(client) {
 
         // Check if interaction is in a thread and reply ephemeral if not
         if (!interaction.channel.isThread()) {
-            // These buttons/modals are expected only in threads; reply if used elsewhere
             if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
                 await interaction.reply({ content: 'This button can only be used in a raid thread.', flags: MessageFlags.Ephemeral });
                 return;
@@ -546,7 +502,6 @@ export function setupExpLairHandlers(client) {
 
         let raidInfo = activeRaidThreads[interaction.channel.id];
 
-        // Reconstruct raidInfo if bot restarted and state was lost (only for raid threads)
         if (!raidInfo) {
             console.warn(`Raid info not found in activeRaidThreads for thread ${interaction.channel.id}. Attempting to reconstruct.`);
             try {

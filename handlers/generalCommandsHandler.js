@@ -24,7 +24,7 @@ const GIF_COOLDOWN_DURATION = 10 * 1000;
 
 // --- User IDs to ban from specific commands ---
 const BANNED_USERS_FOR_COMMANDS = {
-    'marbike': ['719443918621638660'], // Kuro banned from 'marbike'
+    'marbike': ['719443918621638660'], // Kuro 719443918621638660 banned from 'marbike'
 };
 
 // --- Custom GIF Commands (for embeds) ---
@@ -78,6 +78,7 @@ export const textGifCommands = {
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // Ace 467703633618796544
     'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',   // xy 965985831649169438
     'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // Amarah 1030038861851664404
+    'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)', // Amarah 1030038861851664404
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // Chaos 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 618790940290842625
     'kaerat': ' https://files.catbox.moe/1leclp.gif',  // kae
@@ -549,11 +550,12 @@ export function setupGeneralCommandsHandler(client) {
 
                 try {
                     const role = await guild.roles.fetch(RAID_HELPER_ROLE_ID);
+
+                    // Debugging Purposes
                     if (!role) {
                         await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', ephemeral: true });
                         return;
                     }
-
                     const botMember = await guild.members.fetch(client.user.id);
                     if (!botMember.permissions.has('ManageRoles')) {
                         await interaction.reply({ content: 'I do not have the necessary permissions (`Manage Roles`) to assign roles. Please ask an administrator to grant me this permission.', ephemeral: true });
@@ -563,15 +565,26 @@ export function setupGeneralCommandsHandler(client) {
                         await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the helper role in the server settings.`, ephemeral: true });
                         return;
                     }
-
+                    
+                    // Role assignment logic
                     if (member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                         await member.roles.remove(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
-                        await interaction.reply({ content: `Your \`${role.name}\` role has been removed! You will no longer get pinged for new raid requests `, ephemeral: true });
+
+                        const embed = new EmbedBuilder()
+                            .setColor(0x3498DB)
+                            .setDescription(`The <@&${RAID_HELPER_ROLE_ID}> role has been removed.`); // Using <@&roleID> to mention the role
+
+                        await interaction.reply({ embeds: [embed], ephemeral: true });
                     } else {
                         await member.roles.add(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
-                        await interaction.reply({ content: `You have been given the \`${role.name}\` role! You will now get pinged for new raid requests`, ephemeral: true });
-                    }
 
+                        const embed = new EmbedBuilder()
+                            .setColor(0x3498DB)
+                            .setDescription(`The <@&${RAID_HELPER_ROLE_ID}> role has been added!`); // Using <@&roleID> to mention the role
+
+                        await interaction.reply({ embeds: [embed], ephemeral: true });
+                    }
+                
                 } catch (error) {
                     console.error('Error assigning help role:', error);
                     await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
