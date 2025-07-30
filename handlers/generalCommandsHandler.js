@@ -24,7 +24,7 @@ const GIF_COOLDOWN_DURATION = 10 * 1000;
 
 // --- User IDs to ban from specific commands ---
 const BANNED_USERS_FOR_COMMANDS = {
-    'marbike': ['719443918621638660'], // Kuro 719443918621638660 banned from 'marbike'
+    // Kuro 719443918621638660 banned from 'marbike'
 };
 
 // --- Custom GIF Commands (for embeds) ---
