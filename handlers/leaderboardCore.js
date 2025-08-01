@@ -1,4 +1,4 @@
-// leaderboardHandler.js - Core logic for leaderboard data, embeds, and monthly task
+// leaderboardCore.js - Core logic for leaderboard data, embeds, and monthly task
 
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { RAID_CHANNEL_ID } from '../config/constants.js';
@@ -199,11 +199,11 @@ export async function createLbCheckResponse(sessionData, client, guild) {
             } else {
                 descriptionContent += `• Total EXP in range: ${userData.totalPointsForRange} EXP\n`;
                 if (userData.dailyBreakdown.length > 1 && userData.totalPointsForRange > 0) {
-                    descriptionContent += `  Breakdown:\n`;
+                    descriptionContent += `  Breakdown:\n`;
                     const maxBreakdownLines = 5;
                     if (userData.dailyBreakdown.length > maxBreakdownLines) {
                         descriptionContent += userData.dailyBreakdown.slice(0, Math.ceil(maxBreakdownLines / 2)).join('\n') + '\n';
-                        descriptionContent += `  ... (${userData.dailyBreakdown.length - Math.floor(maxBreakdownLines / 2) - Math.ceil(maxBreakdownLines / 2)} more days) ...\n`;
+                        descriptionContent += `  ... (${userData.dailyBreakdown.length - Math.floor(maxBreakdownLines / 2) - Math.ceil(maxBreakdownLines / 2)} more days) ...\n`;
                         descriptionContent += userData.dailyBreakdown.slice(-Math.floor(maxBreakdownLines / 2)).join('\n') + '\n';
                     } else {
                         descriptionContent += userData.dailyBreakdown.join('\n') + '\n';
@@ -238,7 +238,7 @@ export async function createLbCheckResponse(sessionData, client, guild) {
  * @param {import('discord.js').Client} client - The Discord client instance.
  */
 export function setupMonthlyResetTask(client) {
-    setInterval(async () => {
+    const performMonthlyCheck = async () => {
         try {
             const leaderboard = await getCachedLeaderboard(); // Use cached version for consistency
             const lastReset = leaderboard._lastResetDate ? new Date(leaderboard._lastResetDate) : null;
@@ -283,7 +283,13 @@ export function setupMonthlyResetTask(client) {
         } catch (error) {
             console.error('Error in monthly leaderboard reset check:', error);
         }
-    }, 24 * 60 * 60 * 1000); // Check once every 24 hours.
+    };
+    
+    // Run the check once immediately when the bot starts
+    performMonthlyCheck();
+
+    // Then, set up the recurring check every 12 hours
+    setInterval(performMonthlyCheck, 12 * 60 * 60 * 1000);
 }
 export {
     getDailyPointsForRange // <--- ADD THIS LINE TO THE EXPORT LIST

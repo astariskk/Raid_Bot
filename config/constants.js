@@ -74,7 +74,7 @@ export const ALLOWED_TASK_NAMES = [
 
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, points]) => `${task} = ${points} EXP`);
 
-export const MAX_XP_PER_RAID = 20000;
+export const MAX_XP_PER_RAID = 30000;   // 30 000 EXP per raid
 
 // --- Task Categories for !taskmaps command ---
 export const TASK_MAP_CATEGORIES = {
