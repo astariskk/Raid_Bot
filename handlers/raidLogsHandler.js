@@ -37,15 +37,15 @@ import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
 // Button to close a raid ticket/thread.
 const closeTicketButton = new ButtonBuilder()
-    .setCustomId("closeRaidTicket") 
-    .setLabel('🔒 Close Raid') 
-    .setStyle(ButtonStyle.Danger); 
+    .setCustomId("closeRaidTicket")
+    .setLabel('🔒 Close Raid')
+    .setStyle(ButtonStyle.Danger);
 
 // Button to edit the tasks associated with a raid.
 const editTaskButton = new ButtonBuilder()
-    .setCustomId("editTask_btn") 
-    .setLabel('✏️ Edit Task') 
-    .setStyle(ButtonStyle.Secondary); 
+    .setCustomId("editTask_btn")
+    .setLabel('✏️ Edit Task')
+    .setStyle(ButtonStyle.Secondary);
 
 
 const threadActionRow = new ActionRowBuilder()
@@ -173,7 +173,7 @@ export function setupRaidLogsHandlers(client) {
                     .setColor(0x0099FF)
                     .setTitle('4-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
-                    .setFooter({ text: 'Speaker chart for 4-man taunts' });            
+                    .setFooter({ text: 'Speaker chart for 4-man taunts' });
             } else if (threadCommand === '!gramielchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -196,7 +196,7 @@ export function setupRaidLogsHandlers(client) {
         // --- Handle !raidmaps without a number ---
         if (message.content.toLowerCase().trim() === '!raidmaps') {
             await message.channel.send('The proper format is `!raidmaps [number]`. Please provide the map number.');
-            return; 
+            return;
         }
 
         // --- Handle the !raidmaps <number> command ---
@@ -249,7 +249,7 @@ export function setupRaidLogsHandlers(client) {
                     'to get join links for the tasks in that specific raid.'
                 );
             }
-            return; 
+            return;
         }
         // --- Handle the !raidsite command ---
         if (message.content.toLowerCase() === '!raidsite') {
@@ -267,7 +267,7 @@ export function setupRaidLogsHandlers(client) {
                 console.error('Error sending !!raidsite embed:', error);
                 await message.channel.send('Failed to display raid site. Please try again later.');
             }
-        } 
+        }
 
         // --- Command to list all available raid tasks with their points ---
         if (message.content.toLowerCase() === '!raidtasks') {
@@ -341,9 +341,14 @@ export function setupRaidLogsHandlers(client) {
                             content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}!`,
                         });
 
+                        // --- FIX START ---
+                        const fullThreadName = interaction.member.displayName;
+                        const threadName = fullThreadName.length > 99 ? fullThreadName.substring(0, 99) : fullThreadName;
+
+
                         // Start a new thread off the sent message for discussion.
                         const thread = await sentMessage.startThread({
-                            name: `${task} | ${mapName} | ${server} | ${interaction.user.username}`, // Thread name.
+                            name: threadName, // Use the new, validated name.
                             autoArchiveDuration: 60, // Thread auto-archives after 60 minutes of inactivity.
                             reason: `Raid request from ${interaction.user.tag}`,
                         });
