@@ -341,8 +341,8 @@ export function setupRaidLogsHandlers(client) {
                             content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}!`,
                         });
 
-                        // --- FIX START ---
-                        const fullThreadName = interaction.member.displayName;
+                        // Create a thread name player's raid request. and below 100 characters.
+                        const fullThreadName = `${interaction.member.displayName}'s Raid Request`;
                         const threadName = fullThreadName.length > 99 ? fullThreadName.substring(0, 99) : fullThreadName;
 
 
