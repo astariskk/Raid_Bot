@@ -2,7 +2,9 @@
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { 
     RAID_CHANNEL_ID, 
-    RAID_HELPER_ROLE_ID, 
+    RAID_HELPER_ROLE_ID,
+    MODERATOR_ROLE_ID,
+    OFFICER_ROLE_ID,
     LEADERBOARD_CHANNEL_ID, 
     RAID_MANAGEMENT_CHANNEL_ID, 
     MAX_XP_PER_RAID, 
@@ -24,7 +26,7 @@ const GIF_COOLDOWN_DURATION = 10 * 1000;
 
 // --- User IDs to ban from specific commands ---
 const BANNED_USERS_FOR_COMMANDS = {
-    // Kuro 719443918621638660 banned from 'marbike'
+     // Kuro 719443918621638660 banned from 'marbike'
 };
 
 // --- Custom GIF Commands (for embeds) ---
@@ -82,7 +84,7 @@ export const textGifCommands = {
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // Chaos 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 618790940290842625
     'kaerat': ' https://files.catbox.moe/1leclp.gif',  // kae
-    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif' // xy 
+    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy 
 };
 
 
@@ -156,6 +158,25 @@ export function getHowToUseEmbed(raidHelperRoleName) {
         )
         .setColor(0x3498DB);
 }
+
+export function getRaidRulesEmbed() {
+    return new EmbedBuilder()
+        .setTitle('📜 Raid Rules')
+        .setDescription(
+            `**Welcome to Vanaheim's Raid Channel** \n\n` + 
+            'Rules for using the channel. \n' +
+            '1. Only 1 request to be made at a time. \n' +
+            '2. You cannot make a request for another person.\n' + 
+            `3. Serious abuse of the channel - excessive pinging of <@&${RAID_HELPER_ROLE_ID}>, <@&${OFFICER_ROLE_ID}> and <@&${MODERATOR_ROLE_ID}> and multiple tickets made within an hour can result in an indefinite ban from the use of the raid assistance channel. \n` + 
+            `4. If no one comes to the raid after 30 minutes - you can re-ping <@&${RAID_HELPER_ROLE_ID}> once. If no one still comes, close the ticket and try again later. \n` +
+            '5. Alts can be used to help with raids, but the raid requester can request the alt to be removed from the raid if they want. \n' +
+            `6. All <@&${MODERATOR_ROLE_ID}> and <@&${OFFICER_ROLE_ID}> have the right to issue warnings and bans as they see fit base on misuse and player misconduct during raids. \n` + 
+            '7. Follow the instructions below for opening and closing the ticket - improper way of doing so can result of a warning which may eventually lead to a ban. \n'
+        )
+        .setColor(0x3498DB);
+}
+
+
 
 export function getCombinedTasksAndPointsEmbed() {
     const embed = new EmbedBuilder()
@@ -316,6 +337,18 @@ export function setupGeneralCommandsHandler(client) {
                 console.error('Error sending !raidinfo embed:', error);
                 await message.channel.send('Failed to display raid information. Please try again later.');
             }
+        }
+
+        // --- Handle the !RaidRules command ---
+        if (commandContent === '!raidrules' && message.channel.id === RAID_CHANNEL_ID) {
+            const raidRulesEmbed = getRaidRulesEmbed();
+            try {
+                await message.channel.send({ embeds: [raidRulesEmbed] });
+            } catch (error) {
+                console.error('Error sending !raidrules embed:', error);
+                await message.channel.send('Failed to display raid rules. Please try again later.');
+            }
+            return; // Exit after handling !raidrules
         }
 
         // --- Handle the !calculatetask command ---
