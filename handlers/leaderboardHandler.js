@@ -501,7 +501,7 @@ export function setupLeaderboardHandlers(client) {
 
             if (!pending || pending.channelId !== message.channel.id || Date.now() - pending.timestamp > RESET_CONFIRMATION_TIMEOUT_MS) {
                 if (!checkAdmin()) {
-                    return message.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+                    return
                 }
                 return message.reply({ content: 'No pending leaderboard reset to cancel.', ephemeral: true });
             }

@@ -97,7 +97,7 @@ function parseHelperAssignments(content) {
             continue;
         }
 
-        // Handle assignments and seperators '=' and ':'        
+        // Handle assignments and seperators '=' and ':'         
         const parts = trimmedLine.split(/=|:/); 
         if (parts.length < 2) {
             if (trimmedLine.length > 0) {
@@ -204,7 +204,7 @@ async function handleRaidCompletion(message, raidInfo) {
             try {
                 const user = await message.client.users.fetch(userId, { force: true });
                 // keep comment for future testing
-                /* if (user.bot) {      
+                /* if (user.bot) {     
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
                 } */
@@ -225,7 +225,7 @@ async function handleRaidCompletion(message, raidInfo) {
             + `\n* Include a screenshot if possible.`
             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`
+            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`
         );
         raidInfo.awaitingCompletionRequesterId = null; 
         return;
@@ -360,7 +360,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
         // Create and send details to a new thread from the *sent message* in EXP Lair
         const expLairThread = await sentExpLairMessage.startThread({
-            name: `COMPLETED-${raidInfo.task}- Raid for ${message.author.username}`,
+            name: `COMPLETED Raid for ${message.member.displayName}`,
             autoArchiveDuration: 60
         });
 
@@ -567,7 +567,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
@@ -604,10 +604,6 @@ export function setupExpLairHandlers(client) {
 
                     // Update the raidInfo task string directly (replace, not append)
                     raidInfo.task = newTasksArray.join(' + ');
-
-                    // Update the thread name to reflect edited tasks
-                    const newThreadName = `${raidInfo.task} | ${raidInfo.mapName} | ${raidInfo.server} | ${interaction.user.username}`;
-                    await interaction.channel.setName(newThreadName);
 
                     // Update the original embed in the raid logs channel using sharedState's function
                     await updateRaidLogEmbed(
