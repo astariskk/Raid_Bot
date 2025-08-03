@@ -5,6 +5,7 @@ import {
     RAID_HELPER_ROLE_ID,
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
+    RECORD_HOLDER_ROLE_ID,
     LEADERBOARD_CHANNEL_ID, 
     RAID_MANAGEMENT_CHANNEL_ID, 
     MAX_XP_PER_RAID, 
@@ -153,7 +154,7 @@ export function getHowToUseEmbed(raidHelperRoleName) {
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more.\n\n` +
                         `**3. Raid Coordination:** A dedicated thread will be created for your raid. Within this thread, you can use thread-only commands, update your raid's status or edit your request.\n\n` +            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
-            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n\n` +
+            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`50000\` points every month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
         .setColor(0x3498DB);
