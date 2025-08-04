@@ -224,25 +224,27 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
             return;
         }
 
-        // Fetch display names for all helpers to avoid pings
+        // Fetch display names for all helpers to avoid pings.
         const helperDisplayNames = [];
         const allHelperIds = Object.keys(pointsAwarded);
         for (const id of allHelperIds) {
             try {
-                const user = await message.client.users.fetch(id);
-                helperDisplayNames.push(user.displayName);
+                // Fetch the guild member to get the server nickname
+                const member = await message.guild.members.fetch(id);
+                helperDisplayNames.push(member.displayName);
             } catch (err) {
-                console.error(`Error fetching user ${id}:`, err);
+                console.error(`Error fetching member ${id}:`, err);
                 helperDisplayNames.push(`User-${id}`); // Fallback
             }
         }
         const helpersString = helperDisplayNames.length > 0 ? helperDisplayNames.join(', ') : 'None';
 
-        // Construct and send embed to EXP Lair Channel
+        // Construct and send embed to EXP Lair Channel, using mentions
+        const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
         const embed = new EmbedBuilder()
             .setColor(COLOR_INFO)
-            .setTitle(`Raid Completed by ${message.author.displayName}`)
-            .setDescription(`Raid requested by: ${message.guild.members.cache.get(raidInfo.requesterId)?.displayName || raidInfo.requesterId}\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`)
+            .setTitle(`Raid Completed by ${message.author}`) // Use message.author to get a mention
+            .setDescription(`Raid requested by: ${requesterMember}\nTask(s): ${raidInfo.task}\nHelpers: ${helpersString}`) // Use requesterMember to get a mention
             .setTimestamp()
             .setFooter({ text: 'Raid Completion Report' });
 
@@ -259,6 +261,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
             autoArchiveDuration: 60
         });
 
+        // The thread message should use regular display names, not mentions
         let expLairThreadContent = `This thread contains the full details for the completed raid by ${message.member.displayName} from <#${originalRaidLogThread.id}>.
 
 **Task Initially Requested:** ${raidInfo.task}
@@ -267,8 +270,9 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
 
         if (Object.keys(pointsAwarded).length > 0) {
             for (const userId in pointsAwarded) {
-                const user = await message.client.users.fetch(userId);
-                expLairThreadContent += `${user.displayName}: ${pointsAwarded[userId]} EXP\n`;
+                // Use the guild member's display name for the points breakdown
+                const member = await message.guild.members.fetch(userId);
+                expLairThreadContent += `${member.displayName}: ${pointsAwarded[userId]} EXP\n`;
             }
         } else {
             expLairThreadContent += `No standard EXP awarded based on submission.`;
@@ -337,14 +341,15 @@ async function handleRaidCompletion(message, raidInfo) {
                 continue;
             }
             try {
-                const user = await message.client.users.fetch(userId, { force: true });
-                if (user.bot) {
+                // Fetch the guild member to get the server nickname (displayName)
+                const member = await message.guild.members.fetch(userId);
+                if (member.user.bot) {
                     await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
                     continue;
                 }
-                validUsers[userId] = user.displayName;
+                validUsers[userId] = member.displayName;
             } catch (error) {
-                console.error(`Could not fetch user ${userId} during validation:`, error);
+                console.error(`Could not fetch guild member ${userId} during validation:`, error);
                 await message.channel.send(`Warning: Could not verify user <@${userId}>. Skipping them for points.`);
             }
         }

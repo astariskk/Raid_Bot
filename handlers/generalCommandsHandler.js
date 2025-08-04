@@ -264,13 +264,6 @@ export function getCombinedTasksAndPointsEmbed() {
     const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
     addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);    
 
-    /*
-    const weekliesPerColumn = Math.ceil(WEEKLIES_LIST.length / 3);    
-    const weekliesCol1 = WEEKLIES_LIST.slice(0, weekliesPerColumn);
-    const weekliesCol2 = WEEKLIES_LIST.slice(weekliesPerColumn, weekliesPerColumn * 2);
-    const weekliesCol3 = WEEKLIES_LIST.slice(weekliesPerColumn * 2);
-    */
-
     // --- Generic Tasks (single field) ---
     embed.addFields(
         { name: '💡 Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
