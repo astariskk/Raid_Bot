@@ -49,7 +49,7 @@ export const POINTS_CONFIG = {
     'lavarockshore': 1000,
 
     // --- generic tasks ---
-    'simple': 500,
+    'simple': 1000,
     'moderate': 5000,
     'hard': 10000,
 };
