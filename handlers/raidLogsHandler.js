@@ -21,19 +21,42 @@ import {
     RAID_HELPER_ROLE_ID,
     DAILIES_LIST,
     WEEKLIES_LIST,
-    OTHERS_LIST,
+    OTHERS_FOUR_LIST,
+    OTHERS_SEVEN_LIST,
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
     TASK_MAP_CATEGORIES, // Crucial for expanding meta tasks
-    TASK_TO_MAP_PREFIX_MAPPING
+    TASK_TO_MAP_PREFIX_MAPPING,
+    // New role IDs for admin status check
+    MODERATOR_ROLE_ID,
+    OFFICER_ROLE_ID,
+    RAID_MANAGER_ROLE_ID
 } from '../config/constants.js';
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
 import { activeRaidThreads, updateRaidStatus } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
+
+// --- Utility Functions ---
+/**
+ * Checks if a message author has an admin role.
+ * @param {import('discord.js').Message} message The message to check.
+ * @returns {boolean} True if the user has an admin role, false otherwise.
+ */
+function isAdmin(message) {
+    if (!message.member) {
+        console.warn('isAdmin called for a message without a member object (e.g., DM).');
+        return false;
+    }
+    return (
+        message.member.roles.cache.has(MODERATOR_ROLE_ID) ||
+        message.member.roles.cache.has(OFFICER_ROLE_ID) ||
+        message.member.roles.cache.has(RAID_MANAGER_ROLE_ID)
+    );
+}
 
 // Button to close a raid ticket/thread.
 const closeTicketButton = new ButtonBuilder()
@@ -117,9 +140,9 @@ export function setupRaidLogsHandlers(client) {
         if (message.author.bot) return; // Ignore messages from bots to prevent infinite loops.
 
         // --- Logic for status updates within active raid threads ---
-        // Check if the message is in an active raid thread and sent by the raid requester.
+        // Check if the message is in an active raid thread and sent by the raid requester OR an admin.
         const raidInfo = activeRaidThreads[message.channel.id];
-        if (message.channel.isThread() && raidInfo && message.author.id === raidInfo.requesterId) {
+        if (message.channel.isThread() && raidInfo && (message.author.id === raidInfo.requesterId || isAdmin(message))) {
             const content = message.content.toLowerCase().trim(); // Get message content, lowercase and trim.
             let newStatus, newColor;
 

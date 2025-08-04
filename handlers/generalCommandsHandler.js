@@ -15,7 +15,8 @@ import {
     WEEKLIES_LIST,
     TEMPLESHRINE_LIST,
     ORIGINUL_LIST,
-    OTHERS_LIST,
+    OTHERS_FOUR_LIST,
+    OTHERS_SEVEN_LIST,
     GENERIC_TASKS_LIST
 } from '../config/constants.js';
 import { getRaidRequestModal } from './raidLogsHandler.js'; 
@@ -242,12 +243,33 @@ export function getCombinedTasksAndPointsEmbed() {
     const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2); 
     addThreeColumnFields('🌌 `Originul` Raids', oRCol1, oRCol2, oRCol3);
 
-    // --- Other Raids (3 column) ---
-    const othersPerColumn = Math.ceil(OTHERS_LIST.length / 3);
-    const othersCol1 = OTHERS_LIST.slice(0, othersPerColumn);
-    const othersCol2 = OTHERS_LIST.slice(othersPerColumn, othersPerColumn * 2);
-    const othersCol3 = OTHERS_LIST.slice(othersPerColumn * 2); 
-    addThreeColumnFields('🗺️ Other Tasks', othersCol1, othersCol2, othersCol3);
+    // --- Other 4 Room Raids (3 column) ---
+    const othersFourpercolumn = Math.ceil(OTHERS_FOUR_LIST.length / 3);
+    const othersFourCol1 = OTHERS_FOUR_LIST.slice(0, othersFourpercolumn);
+    const othersFourCol2 = OTHERS_FOUR_LIST.slice(othersFourpercolumn, othersFourpercolumn * 2);
+    const othersFourCol3 = OTHERS_FOUR_LIST.slice(othersFourpercolumn *2);2
+    addThreeColumnFields('🗺️ Other 4 Room Tasks', othersFourCol1, othersFourCol2, othersFourCol3);
+
+    // --- blank space for 3rd column ---
+    if (dailiesCol3.length === 0) {
+        embed.addFields(
+            { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
+        );
+    }    
+
+    // --- Other 7 Room Raids (3 column) ---
+    const othersSevenperColumn = Math.ceil(OTHERS_SEVEN_LIST.length / 3);
+    const othersSevenCol1 = OTHERS_SEVEN_LIST.slice(0, othersSevenperColumn);
+    const othersSevenCol2 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn, othersSevenperColumn * 2);
+    const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
+    addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);    
+
+    /*
+    const weekliesPerColumn = Math.ceil(WEEKLIES_LIST.length / 3);    
+    const weekliesCol1 = WEEKLIES_LIST.slice(0, weekliesPerColumn);
+    const weekliesCol2 = WEEKLIES_LIST.slice(weekliesPerColumn, weekliesPerColumn * 2);
+    const weekliesCol3 = WEEKLIES_LIST.slice(weekliesPerColumn * 2);
+    */
 
     // --- Generic Tasks (single field) ---
     embed.addFields(
