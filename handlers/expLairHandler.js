@@ -439,15 +439,16 @@ async function handleRaidCompletion(message, raidInfo) {
         });
     }
 
-    // FIX: A submission is only valid if points are awarded. An attachment alone is not enough.
+    //wrong submission
     if (Object.keys(pointsAwarded).length === 0) {
         await message.reply({
-            content: 'No valid players or tasks were detected. Press the close raid button again and tag your helpers or type `cancel` to close this raid.',
+            content: 'No valid players or tasks were detected. Please use the "Close" button to try again.',
             flags: MessageFlags.Ephemeral
         });
+        raidInfo.awaitingCompletion = false;
+        raidInfo.awaitingCompletionRequesterId = null;
         return;
     }
-
 
     // If there are mismatched tasks or unrecognized tasks, send a warning
     if (mismatchedTasks.size > 0 || unrecognizedTasks.size > 0) {
