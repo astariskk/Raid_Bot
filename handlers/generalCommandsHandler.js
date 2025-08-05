@@ -94,7 +94,7 @@ export const textGifCommands = {
     'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)', // Amarah 1030038861851664404
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // Chaos 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 618790940290842625
-    'kaerat': ' https://files.catbox.moe/1leclp.gif',   // kae
+    'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',   // kae
     'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy
 };
 
