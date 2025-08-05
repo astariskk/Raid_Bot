@@ -1,15 +1,15 @@
 // handlers/generalCommandsHandler.js
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { 
-    RAID_CHANNEL_ID, 
+import {
+    RAID_CHANNEL_ID,
     RAID_HELPER_ROLE_ID,
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
     RECORD_HOLDER_ROLE_ID,
-    LEADERBOARD_CHANNEL_ID, 
-    RAID_MANAGEMENT_CHANNEL_ID, 
-    MAX_XP_PER_RAID, 
-    POINTS_CONFIG, 
+    LEADERBOARD_CHANNEL_ID,
+    RAID_MANAGEMENT_CHANNEL_ID,
+    MAX_XP_PER_RAID,
+    POINTS_CONFIG,
     TASK_MAP_CATEGORIES,
     DAILIES_LIST,
     WEEKLIES_LIST,
@@ -19,7 +19,7 @@ import {
     OTHERS_SEVEN_LIST,
     GENERIC_TASKS_LIST
 } from '../config/constants.js';
-import { getRaidRequestModal } from './raidLogsHandler.js'; 
+import { getRaidRequestModal } from './raidLogsHandler.js';
 
 // --- Cooldown management for GIF commands ---
 const gifCooldowns = new Map();
@@ -28,13 +28,13 @@ const GIF_COOLDOWN_DURATION = 10 * 1000;
 
 // --- User IDs to ban from specific commands ---
 const BANNED_USERS_FOR_COMMANDS = {
-     // Kuro 719443918621638660 banned from 'marbike'
+      // Kuro 719443918621638660 banned from 'marbike'
 };
 
 // --- Custom GIF Commands (for embeds) ---
 export const gifCommands = {
     'the most beautiful thing you will ever see': {
-        title: 'The Most Beautiful Thing You will Ever See',
+        title: 'The Most Beautiful Thing you will Ever See',
         image: 'https://files.catbox.moe/5tsmuk.gif',
         footer: 'Feast your eyes on this',
         color: 0xFF0000
@@ -63,12 +63,21 @@ export const gifCommands = {
         footer: 'Time to stop procrastinating and get a job',
         color: 0x1a1a1e
     },
-    "shaboingboing": {
-        title: "You gotta give him that Hawk Tuah",
-        image: 'https://files.catbox.moe/qy74ka.gif',
-        footer: 'Gawk gawk gawk',
-        color: 0xaa8f7d
-    },
+    // UPDATED to be an array of two links, each with their own embed properties
+    "shaboingboing": [
+        {
+            title: "You gotta give him that Hawk Tuah",
+            image: 'https://files.catbox.moe/qy74ka.gif',
+            footer: 'Gawk gawk gawk',
+            color: 0xaa8f7d
+        },
+        {
+            title: "wait, there's another HAWK TUAH!?",
+            image: 'https://files.catbox.moe/21jx2k.gif',
+            footer: 'A surprise, to be sure, but a welcome one.',
+            color: 0xaa8f7d
+        }
+    ],
     "we live we love we lie": {
         title: "We Live, We Love, We Lie",
         image: 'https://files.catbox.moe/d5h906.gif',
@@ -85,8 +94,8 @@ export const textGifCommands = {
     'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)', // Amarah 1030038861851664404
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // Chaos 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 618790940290842625
-    'kaerat': ' https://files.catbox.moe/1leclp.gif',  // kae
-    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy 
+    'kaerat': ' https://files.catbox.moe/1leclp.gif',   // kae
+    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy
 };
 
 
@@ -154,7 +163,8 @@ export function getHowToUseEmbed(raidHelperRoleName) {
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes.\n` +
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: 1% drop chance and Raids expected to take 30 minutes or more.\n\n` +
-                        `**3. Raid Coordination:** A dedicated thread will be created for your raid. Within this thread, you can use thread-only commands, update your raid's status or edit your request.\n\n` +            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
+            `**3. Raid Coordination:** A dedicated thread will be created for your raid. Within this thread, you can use thread-only commands, update your raid's status or edit your request.\n\n` +
+            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`50000\` points every month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
@@ -165,14 +175,14 @@ export function getRaidRulesEmbed() {
     return new EmbedBuilder()
         .setTitle('📜 Raid Rules')
         .setDescription(
-            `**Welcome to Vanaheim's Raid Channel** \n\n` + 
+            `**Welcome to Vanaheim's Raid Channel** \n\n` +
             'Rules for using the channel. \n' +
             '1. Only 1 request to be made at a time. \n' +
-            '2. You cannot make a request for another person.\n' + 
-            `3. Serious abuse of the channel - excessive pinging of <@&${RAID_HELPER_ROLE_ID}>, <@&${OFFICER_ROLE_ID}> and <@&${MODERATOR_ROLE_ID}> and multiple tickets made within an hour can result in an indefinite ban from the use of the raid assistance channel. \n` + 
+            '2. You cannot make a request for another person.\n' +
+            `3. Serious abuse of the channel - excessive pinging of <@&${RAID_HELPER_ROLE_ID}>, <@&${OFFICER_ROLE_ID}> and <@&${MODERATOR_ROLE_ID}> and multiple tickets made within an hour can result in an indefinite ban from the use of the raid assistance channel. \n` +
             `4. If no one comes to the raid after 30 minutes - you can re-ping <@&${RAID_HELPER_ROLE_ID}> once. If no one still comes, close the ticket and try again later. \n` +
             '5. Alts can be used to help with raids, but the raid requester can request the alt to be removed from the raid if they want. \n' +
-            `6. All <@&${MODERATOR_ROLE_ID}> and <@&${OFFICER_ROLE_ID}> have the right to issue warnings and bans as they see fit base on misuse and player misconduct during raids. \n` + 
+            `6. All <@&${MODERATOR_ROLE_ID}> and <@&${OFFICER_ROLE_ID}> have the right to issue warnings and bans as they see fit base on misuse and player misconduct during raids. \n` +
             '7. Follow the instructions below for opening and closing the ticket - improper way of doing so can result of a warning which may eventually lead to a ban. \n'
         )
         .setColor(0x3498DB);
@@ -240,14 +250,14 @@ export function getCombinedTasksAndPointsEmbed() {
     const originulPerColumn = Math.ceil(ORIGINUL_LIST.length / 3);
     const oRCol1 = ORIGINUL_LIST.slice(0, originulPerColumn);
     const oRCol2 = ORIGINUL_LIST.slice(originulPerColumn, originulPerColumn * 2);
-    const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2); 
+    const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2);
     addThreeColumnFields('🌌 `Originul` Raids', oRCol1, oRCol2, oRCol3);
 
     // --- Other 4 Room Raids (3 column) ---
     const othersFourpercolumn = Math.ceil(OTHERS_FOUR_LIST.length / 3);
     const othersFourCol1 = OTHERS_FOUR_LIST.slice(0, othersFourpercolumn);
     const othersFourCol2 = OTHERS_FOUR_LIST.slice(othersFourpercolumn, othersFourpercolumn * 2);
-    const othersFourCol3 = OTHERS_FOUR_LIST.slice(othersFourpercolumn *2);2
+    const othersFourCol3 = OTHERS_FOUR_LIST.slice(othersFourpercolumn * 2);
     addThreeColumnFields('🗺️ Other 4 Room Tasks', othersFourCol1, othersFourCol2, othersFourCol3);
 
     // --- blank space for 3rd column ---
@@ -255,14 +265,14 @@ export function getCombinedTasksAndPointsEmbed() {
         embed.addFields(
             { name: '\u200B', value: '\u200B', inline: true } // Empty field to maintain structure
         );
-    }    
+    }
 
     // --- Other 7 Room Raids (3 column) ---
     const othersSevenperColumn = Math.ceil(OTHERS_SEVEN_LIST.length / 3);
     const othersSevenCol1 = OTHERS_SEVEN_LIST.slice(0, othersSevenperColumn);
     const othersSevenCol2 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn, othersSevenperColumn * 2);
     const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
-    addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);    
+    addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);
 
     // --- Generic Tasks (single field) ---
     embed.addFields(
@@ -423,7 +433,7 @@ export function setupGeneralCommandsHandler(client) {
         if (commandContent === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // A different color for distinction, e.g., green
-                .setTitle('🏆 Leaderboard Commands List 🏆')
+                .setTitle('🏆 Leaderboard Commands List �')
                 .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
                 .addFields(
                     {
@@ -432,7 +442,7 @@ export function setupGeneralCommandsHandler(client) {
 \`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
 \`!lbcheck [@user] [today/yesterday/day# |-MM-DD | from <start> to <end>]\`: Shows EXP gained on a specific day or date range (overall or for specific user(s)).
 **Example: \`!lbcheck @user1 @user2 from 10 to 15\`**
-                        `
+`
                     }
                 )
                 .setTimestamp()
@@ -461,7 +471,7 @@ export function setupGeneralCommandsHandler(client) {
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
 \`!lbackup\`: Forces the bot to upload a new leaderboard backup and replace the old one.
 \`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
-                        `
+`
                     }
                 )
                 .setTimestamp()
@@ -531,7 +541,15 @@ export function setupGeneralCommandsHandler(client) {
             gifCooldowns.set(userId, now); // Set new cooldown
             await deleteCooldownWarning(userId); // Delete any lingering warning message
 
-            const gifInfo = gifCommands[commandContent];
+            // --- Updated logic for multi-gif command ---
+            let gifInfo = gifCommands[commandContent];
+            // Check if the value is an array, if so, pick a random entry
+            if (Array.isArray(gifInfo)) {
+                const randomIndex = Math.floor(Math.random() * gifInfo.length);
+                gifInfo = gifInfo[randomIndex];
+            }
+            // --- End of updated logic ---
+
             const gifEmbed = new EmbedBuilder()
                 .setColor(gifInfo.color)
                 .setTitle(gifInfo.title)
@@ -549,7 +567,7 @@ export function setupGeneralCommandsHandler(client) {
             // **New Banned User Check**
             const bannedUsers = BANNED_USERS_FOR_COMMANDS[commandContent];
             if (bannedUsers && bannedUsers.includes(userId)) {
-                return; 
+                return;
             }
 
             if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
@@ -573,8 +591,10 @@ export function setupGeneralCommandsHandler(client) {
             gifCooldowns.set(userId, now); // Set new cooldown
             await deleteCooldownWarning(userId); // Delete any lingering warning message
 
+            const messageToSend = textGifCommands[commandContent];
+
             try {
-                await message.channel.send(textGifCommands[commandContent]);
+                await message.channel.send(messageToSend);
             } catch (error) {
                 console.error(`Error sending text GIF command "${commandContent}":`, error);
                 await message.channel.send('Could not send the requested GIF message.');
@@ -614,7 +634,7 @@ export function setupGeneralCommandsHandler(client) {
                         await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the helper role in the server settings.`, ephemeral: true });
                         return;
                     }
-                    
+
                     // Role assignment logic
                     if (member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                         await member.roles.remove(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
@@ -633,23 +653,21 @@ export function setupGeneralCommandsHandler(client) {
 
                         await interaction.reply({ embeds: [embed], ephemeral: true });
                     }
-                
+
                 } catch (error) {
                     console.error('Error assigning help role:', error);
                     await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
                 }
                 break;
             case 'startRaid_btn':
-                /* re-add check once raid helper role is implemented 
                 // check if they are a raid helper
                 if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                     await interaction.reply({
                         content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Please click the '📣 Get Help Role' button first to obtain it.`,
                         ephemeral: true
                     });
-                    return; 
+                    return;
                 }
-                */
 
                 const raidModal = getRaidRequestModal();
                 await interaction.showModal(raidModal);

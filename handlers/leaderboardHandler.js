@@ -1,5 +1,5 @@
 // leaderboardHandler.js - Primary handler for Discord commands and interactions
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js'; // Import EmbedBuilder
 import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
 
@@ -123,8 +123,7 @@ function getDateRangeFromArgs(content, message) {
         startDate = getUtcMidnight(parsedDate);
         endDate = getUtcMidnight(parsedDate);
         description = `On ${parts[0]}`;
-    }
-    else {
+    } else {
         return { error: 'Invalid usage. Use `!lbcheck [today|yesterday|<day>|from <start> to <end>|YYYY-MM-DD] [@user(s)]`' };
     }
 
@@ -141,6 +140,27 @@ function getDateRangeFromArgs(content, message) {
         rawEndDate: endDate
     };
 }
+
+/**
+ * Creates an embed for the !addxp and !removexp commands.
+ * @param {'add'|'remove'} action The type of action.
+ * @param {number} amount The amount of EXP.
+ * @param {string[]} userIds An array of user IDs.
+ * @returns {EmbedBuilder} The constructed embed.
+ */
+const createXpEmbed = (action, amount, userIds) => {
+    const isPositive = action === 'add';
+    const xpString = isPositive ? `added ${amount} EXP to` : `removed ${amount} EXP from`;
+    const title = isPositive ? 'EXP Added' : 'EXP Removed';
+    const color = isPositive ? 0x00FF00 : 0xFF0000; // Green for add, Red for remove
+
+    const userMentions = userIds.map(id => `<@${id}>`).join(', ');
+
+    return new EmbedBuilder()
+        .setColor(color)
+        .setTitle(title)
+        .setDescription(`${xpString} to: \n${userMentions}`);
+};
 
 
 /**
@@ -382,15 +402,18 @@ export function setupLeaderboardHandlers(client) {
             }
 
             const amount = parseInt(amountMatch[1], 10);
-            const addedToUsers = [];
+            const addedToUserIds = Array.from(mentions.keys()); // Get an array of IDs
 
             try {
                 // Update leaderboard for each mentioned user.
-                for (const [id, user] of mentions) {
+                for (const id of addedToUserIds) {
                     await updateLeaderboard(id, amount); // This now uses the DB update
-                    addedToUsers.push(`<@${id}>`);
                 }
-                await message.reply(`Successfully added ${amount} EXP to ${addedToUsers.join(', ')}.`);
+                
+                // Use the new helper function to create an embed
+                const xpEmbed = createXpEmbed('add', amount, addedToUserIds);
+                await message.channel.send({ embeds: [xpEmbed] });
+                
                 // Trigger a backup after modifying the leaderboard.
                 await sendLeaderboardBackup(client);
             } catch (error) {
@@ -414,14 +437,17 @@ export function setupLeaderboardHandlers(client) {
             }
 
             const amount = parseInt(amountMatch[1], 10);
-            const removedFromUsers = [];
+            const removedFromUserIds = Array.from(mentions.keys()); // Get an array of IDs
 
             try {
-                for (const [id, user] of mentions) {
+                for (const id of removedFromUserIds) {
                     await updateLeaderboard(id, -amount); // This now uses the DB update
-                    removedFromUsers.push(`<@${id}>`);
                 }
-                await message.reply(`Successfully removed ${amount} EXP from ${removedFromUsers.join(', ')}.`);
+                
+                // Use the new helper function to create an embed
+                const xpEmbed = createXpEmbed('remove', amount, removedFromUserIds);
+                await message.channel.send({ embeds: [xpEmbed] });
+                
                 await sendLeaderboardBackup(client);
             } catch (error) {
                 console.error('Error removing XP:', error);
