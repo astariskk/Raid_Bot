@@ -28,12 +28,15 @@ import {
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
-    TASK_MAP_CATEGORIES, // Crucial for expanding meta tasks
+    TASK_MAP_CATEGORIES, 
     TASK_TO_MAP_PREFIX_MAPPING,
-    // New role IDs for admin status check
+
+    // role IDs for admin status check
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
-    RAID_MANAGER_ROLE_ID
+    RAID_MANAGER_ROLE_ID,
+    RAID_CHAMPION_ROLE_ID,
+    RECORD_HOLDER_ROLE_ID
 } from '../config/constants.js';
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
@@ -54,7 +57,9 @@ function isAdmin(message) {
     return (
         message.member.roles.cache.has(MODERATOR_ROLE_ID) ||
         message.member.roles.cache.has(OFFICER_ROLE_ID) ||
-        message.member.roles.cache.has(RAID_MANAGER_ROLE_ID)
+        message.member.roles.cache.has(RAID_MANAGER_ROLE_ID) ||
+        message.member.roles.cache.has(RAID_CHAMPION_ROLE_ID) ||
+        message.member.roles.cache.has(RECORD_HOLDER_ROLE_ID)
     );
 }
 
