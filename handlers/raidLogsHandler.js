@@ -28,7 +28,7 @@ import {
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
-    TASK_MAP_CATEGORIES, 
+    TASK_MAP_CATEGORIES,
     TASK_TO_MAP_PREFIX_MAPPING,
 
     // role IDs for admin status check
@@ -223,7 +223,11 @@ export function setupRaidLogsHandlers(client) {
 
         // --- Handle !raidmaps without a number ---
         if (message.content.toLowerCase().trim() === '!raidmaps') {
-            await message.channel.send('The proper format is `!raidmaps [number]`. Please provide the map number.');
+            if (message.channel.isThread()) {
+                await message.channel.send('Please provide the map number. Example: `!raidmaps 7070`');
+            } else {
+                await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid thread to get join links for the tasks in that specific raid.');
+            }
             return;
         }
 
@@ -281,16 +285,18 @@ export function setupRaidLogsHandlers(client) {
         }
         // --- Handle the !raidsite command ---
         if (message.content.toLowerCase() === '!raidsite') {
-            const raidMapsEmbed = new EmbedBuilder()
-                .setColor(0x0099FF) // A suitable color
-                .setTitle('🗺️ Raid Maps for AQW')
-                .setDescription('Clicking the link will lead you to a tool that makes joining maps easier:')
-                .setURL('https://neiru.vercel.app/aqw/raid/maps') // The link you provided
-                .setTimestamp()
-                .setFooter({ text: 'Raid Helper Bot | Raid Maps' });
+            const raidSiteButton = new ButtonBuilder()
+                .setLabel('Go to Raid Map Tool')
+                .setStyle(ButtonStyle.Link)
+                .setURL('https://neiru.vercel.app/aqw/raid/maps');
+
+            const raidSiteRow = new ActionRowBuilder().addComponents(raidSiteButton);
 
             try {
-                await message.channel.send({ embeds: [raidMapsEmbed] });
+                await message.channel.send({
+                    content: 'Click the button below for a tool that makes joining maps easier.',
+                    components: [raidSiteRow]
+                });
             } catch (error) {
                 console.error('Error sending !!raidsite embed:', error);
                 await message.channel.send('Failed to display raid site. Please try again later.');
@@ -354,9 +360,9 @@ export function setupRaidLogsHandlers(client) {
                             .setTitle(`New Raid Request by: ${interaction.member.displayName}`) // Title with the user's name.
                             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() }) // Set author as the requesting user.
                             .addFields(
-                                { name: 'Task(s)', value: task, inline: true },
-                                { name: 'Map Name', value: mapName, inline: true },
-                                { name: 'Server', value: server, inline: true },
+                                { name: 'Task(s)', value: task, inline: false },
+                                { name: 'Map Name', value: mapName, inline: true }, 
+                                { name: 'Server', value: server, inline: true },   
                                 { name: 'Status', value: '🔵 Waiting', inline: true }, // Initial status.
                                 { name: 'Description', value: description || 'No description provided.' },
                             )
