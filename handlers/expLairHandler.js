@@ -225,7 +225,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
         }
 
         const sentExpLairMessage = await expLairChannel.send({
-            content: `Raid completed by ${message.author.displayName} from <#${originalRaidLogThread.id}>.`,
+            content: `Raid completed by ${message.member.displayName} from <#${originalRaidLogThread.id}>.`,
             embeds: [embed]
         });
 
