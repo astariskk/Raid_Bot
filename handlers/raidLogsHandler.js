@@ -157,10 +157,10 @@ export function setupRaidLogsHandlers(client) {
                 newColor = 0x0099ff; // Blue for waiting.
             } else if (content === '!full') {
                 newStatus = '🔴 Full';
-                newColor = 0xFF4500; // Red for full.
+                newColor = 0xdd2e44; // Red for full.
             } else if (content === '!ongoing') {
                 newStatus = '🟢 Ongoing';
-                newColor = 0x32CD32; // Lime Green for ongoing.
+                newColor = 0x78b159; // Lime Green for ongoing.
             }
 
             // If a new status was determined, update the raid embed and react to the message.

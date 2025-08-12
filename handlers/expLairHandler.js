@@ -631,7 +631,7 @@ export function setupExpLairHandlers(client) {
                         {
                             title: `New Raid Request: ${raidInfo.task}`, // Update embed title (This title needs to be dynamic based on the actual request, not hardcoded like this)
                             fields: [
-                                { name: 'Task(s)', value: raidInfo.task, inline: true } // Update task field
+                                { name: 'Task(s)', value: raidInfo.task, inline: false } // Update task field
                             ]
                         }
                     );
