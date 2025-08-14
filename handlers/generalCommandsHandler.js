@@ -83,7 +83,7 @@ export const gifCommands = {
         image: 'https://files.catbox.moe/d5h906.gif',
         footer: 'Smurf cat do be speaking faxx',
         color: 0x3498DB
-    }
+    },
 };
 
 // --- Custom TEXT GIF Commands (no embeds) ---
@@ -96,6 +96,7 @@ export const textGifCommands = {
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 618790940290842625
     'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',   // kae
     'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy
+    'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)', 
 };
 
 
@@ -195,7 +196,7 @@ export function getCombinedTasksAndPointsEmbed() {
         .setColor(0x3498DB) // Blue
         .setTitle('📋 Raid Tasks & EXP Values')
         .setDescription(
-            'You can use the following names for combined multiple tasks: `dailies`, `weeklies`, `templeshrine`, `originul`\n\n' +
+            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`\n\n' +
             'Here\'s a comprehensive list of all recognized raid tasks and the EXP awarded for completing them. Use these when requesting raids or calculating points!'
         )
         .setTimestamp()

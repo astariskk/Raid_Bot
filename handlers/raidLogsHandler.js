@@ -172,10 +172,10 @@ export function setupRaidLogsHandlers(client) {
         }
 
         // --- Logic for boss mechanic charts within any thread ---
-        // Check if the message is in a thread (any thread, not just raid threads).
         if (message.channel.isThread()) {
             const threadCommand = message.content.toLowerCase().trim();
             let embedToSend;
+            let messageContent = null; 
 
             // Check for specific chart commands and create the corresponding embed.
             if (threadCommand === '!1man') {
@@ -188,8 +188,9 @@ export function setupRaidLogsHandlers(client) {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('2-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/49a6oj.jpg')
+                    .setImage('https://files.catbox.moe/spq6t1.png')
                     .setFooter({ text: 'Speaker chart for 2-man taunts' });
+                messageContent = "It's movie time <@114514543899705351>";        //ping Veritus            
             } else if (threadCommand === '!3man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -213,7 +214,7 @@ export function setupRaidLogsHandlers(client) {
             // If a chart embed was created, send it to the thread.
             if (embedToSend) {
                 try {
-                    await message.channel.send({ embeds: [embedToSend] });
+                    await message.channel.send({ content: messageContent, embeds: [embedToSend] });
                 } catch (error) {
                     console.error(`Error sending ${threadCommand} chart:`, error);
                     await message.channel.send('Failed to send the chart. Please check the link or try again later.');
