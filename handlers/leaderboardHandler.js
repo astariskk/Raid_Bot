@@ -12,7 +12,8 @@ import {
     createPaginatedLeaderboardEmbed,
     createLbCheckResponse,
     setupMonthlyResetTask,
-    getDailyPointsForRange // Make sure this is imported from leaderboardCore.js
+    getDailyPointsForRange,
+    sendPreviousLeaderboardAnnouncement
 } from './leaderboardCore.js';
 
 // --- Pending Reset Confirmations (Shared State) ---
@@ -23,12 +24,7 @@ export const RESET_CONFIRMATION_TIMEOUT_MS = 30 * 1000; // 30 seconds for confir
 export const activePaginationSessions = new Map();
 export const PAGINATION_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for pagination sessions.
 
-/**
- * Checks if the message author has the designated MODERATOR_ROLE_ID, OFFICER_ROLE_ID, or RAID_MANAGER_ROLE_ID.
- * This function is used to gate administrative commands.
- * @param {import('discord.js').Message} message The Discord message object.
- * @returns {boolean} True if the author has any of the required roles, false otherwise.
- */
+
 function isAdmin(message) {
     if (!message.member) {
         console.warn('isAdmin called for a message without a member object (e.g., DM).');
@@ -41,24 +37,12 @@ function isAdmin(message) {
     );
 }
 
-/**
- * Helper function to parse date arguments for the `!lbcheck` command.
- * It determines the start and end dates for the EXP lookup and a descriptive string.
- * Supports "today", "yesterday", "from X to Y" (day numbers), "X" (single day number), and "YYYY-MM-DD".
- * This version ensures consistent UTC date strings for database queries.
- * @param {string} content - The full message content after `!lbcheck`.
- * @param {import('discord.js').Message} message - The Discord message object, used to remove mentions from content.
- * @returns {{startDateISO: string, endDateISO: string, description: string, rawStartDate: Date, rawEndDate: Date} | {error: string}}
- * An object containing date information or an error message.
- */
+
 function getDateRangeFromArgs(content, message) {
     const now = new Date(); // Current date/time in local timezone
 
     // Helper to get a Date object representing the start of a given day in UTC
-    // This ensures consistency with how `updateUserExp` stores dates.
     const getUtcMidnight = (date) => {
-        // Create a new Date object from the year, month, and day components of the input date,
-        // but construct it in UTC. This effectively gives us midnight UTC for that calendar day.
         const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
         return d;
     };
@@ -128,8 +112,6 @@ function getDateRangeFromArgs(content, message) {
     }
 
     // The getDailyPointsForRange function in dbOps.js uses .toISOString().split('T')[0]
-    // on rawStartDate and rawEndDate. By ensuring rawStartDate and rawEndDate are UTC midnight
-    // for the *intended* calendar day, the ISO string will correctly represent that day.
     const formatToISO = (d) => d.toISOString().split('T')[0];
 
     return {
@@ -141,13 +123,6 @@ function getDateRangeFromArgs(content, message) {
     };
 }
 
-/**
- * Creates an embed for the !addxp and !removexp commands.
- * @param {'add'|'remove'} action The type of action.
- * @param {number} amount The amount of EXP.
- * @param {string[]} userIds An array of user IDs.
- * @returns {EmbedBuilder} The constructed embed.
- */
 const createXpEmbed = (action, amount, userIds) => {
     const isPositive = action === 'add';
     const xpString = isPositive ? `added ${amount} EXP to` : `removed ${amount} EXP from`;
@@ -162,11 +137,6 @@ const createXpEmbed = (action, amount, userIds) => {
         .setDescription(`${xpString} to: \n${userMentions}`);
 };
 
-
-/**
- * Sets up all event handlers for leaderboard functionalities.
- * @param {import('discord.js').Client} client - The Discord client instance.
- */
 export function setupLeaderboardHandlers(client) {
     // --- Message Create Listener (for commands) ---
     client.on('messageCreate', async (message) => {
@@ -545,6 +515,10 @@ export function setupLeaderboardHandlers(client) {
             return;
         }
 
+        if (message.content.toLowerCase() ==='!sendprevlb') {
+        await sendPreviousLeaderboardAnnouncement(client, true); // true indicates it's a manual trigger
+        await interaction.reply({ content: 'Sent previous month\'s leaderboard announcement to the management channel!', ephemeral: true });
+}
     });
 
     // --- Interaction Create Listener (for pagination buttons) ---

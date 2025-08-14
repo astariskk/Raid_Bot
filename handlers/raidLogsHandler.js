@@ -40,7 +40,11 @@ import {
 } from '../config/constants.js';
 
 // Import shared state and functions from activeRaidState.js for managing active raid threads.
-import { activeRaidThreads, updateRaidStatus } from '../activeRaidState.js';
+import {
+    updateRaidStatus,
+    getRaidInfo, // Import the new getRaidInfo
+    createRaid // Import the new createRaid
+} from '../activeRaidState.js'; // activeRaidState now manages DB operations
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
 // --- Utility Functions ---
@@ -146,7 +150,7 @@ export function setupRaidLogsHandlers(client) {
 
         // --- Logic for status updates within active raid threads ---
         // Check if the message is in an active raid thread and sent by the raid requester OR an admin.
-        const raidInfo = activeRaidThreads[message.channel.id];
+        const raidInfo = await getRaidInfo(message.channel.id); // Fetch from DB/cache
         if (message.channel.isThread() && raidInfo && (message.author.id === raidInfo.requesterId || isAdmin(message))) {
             const content = message.content.toLowerCase().trim(); // Get message content, lowercase and trim.
             let newStatus, newColor;
@@ -190,7 +194,7 @@ export function setupRaidLogsHandlers(client) {
                     .setTitle('2-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/spq6t1.png')
                     .setFooter({ text: 'Speaker chart for 2-man taunts' });
-                messageContent = "It's movie time <@114514543899705351>";        //ping Veritus            
+                messageContent = "It's movie time <@114514543899705351>";         //ping Veritus             
             } else if (threadCommand === '!3man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
@@ -239,7 +243,7 @@ export function setupRaidLogsHandlers(client) {
             const mapNumber = raidMapsMatch[1]; // Extract the number
 
             // Check if the command is used within an active raid thread
-            const raidInfo = activeRaidThreads[message.channel.id];
+            const raidInfo = await getRaidInfo(message.channel.id); // Fetch from DB/cache
 
             if (message.channel.isThread() && raidInfo) {
                 const raidTasksString = raidInfo.task; // Get the task string from the active raid info
@@ -333,8 +337,6 @@ export function setupRaidLogsHandlers(client) {
                 const server = interaction.fields.getTextInputValue('serverInput');
                 const description = interaction.fields.getTextInputValue('descriptionInput');
 
-                // Removed deferReply, will use direct reply
-
                 // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
                 const requestedTasks = task.split(/\s*\+\s*/).map(t => t.trim());
                 // Validate each individual task against allowed task names.
@@ -363,7 +365,7 @@ export function setupRaidLogsHandlers(client) {
                             .addFields(
                                 { name: 'Task(s)', value: task, inline: false },
                                 { name: 'Map Name', value: mapName, inline: true }, 
-                                { name: 'Server', value: server, inline: true },   
+                                { name: 'Server', value: server, inline: true },  
                                 { name: 'Status', value: '🔵 Waiting', inline: true }, // Initial status.
                                 { name: 'Description', value: description || 'No description provided.' },
                             )
@@ -393,8 +395,8 @@ export function setupRaidLogsHandlers(client) {
                             components: [threadActionRow] // Attach the close and edit buttons.
                         });
 
-                        // Store the raid's information in the `activeRaidThreads` shared state.
-                        activeRaidThreads[thread.id] = {
+                        // Store the raid's information in the database using createRaid.
+                        await createRaid(thread.id, { // Use the new createRaid function
                             messageId: sentMessage.id,
                             originalChannelId: raidLogsChannel.id,
                             task: task, // Store the combined task string
@@ -403,8 +405,8 @@ export function setupRaidLogsHandlers(client) {
                             server: server,
                             description: description,
                             awaitingCompletion: false // Initial state: not awaiting completion.
-                        };
-                        console.log(`Active raid thread created: ${thread.id} for task ${task} by ${interaction.user.tag}`);
+                        });
+                        console.log(`Active raid thread created and stored in DB: ${thread.id} for task ${task} by ${interaction.user.tag}`);
 
                         // Edit the deferred reply to confirm the raid request submission.
                         await interaction.reply({ content: 'Your raid request has been submitted and a thread has been created!', ephemeral: true }); // Changed from editReply to reply

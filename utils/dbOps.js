@@ -2,27 +2,27 @@
 
 import { MongoClient } from 'mongodb';
 
-const DB_NAME = 'raid_bot_db'; // You can change your database name here
+const DB_NAME = 'raid_bot_db';
 
 let dbClient;
 let leaderboardCollection;
 let dailyPointsCollection;
 let metadataCollection;
+export let raidStatesCollection; // ADDED: Export the new collection
 
 /**
  * Connects to the MongoDB database.
  * @returns {Promise<void>}
  */
 export async function connectDB() {
-    // Read the variable INSIDE the function
     const MONGODB_URI = process.env.MONGODB_URI;
 
     if (dbClient && dbClient.topology.isConnected()) {
-        console.log('Already connected to MongoDB.');
+        // console.log('Already connected to MongoDB.'); // This log can be noisy, consider removing
         return;
     }
 
-    if (!MONGODB_URI) { // <-- Now this check will work correctly
+    if (!MONGODB_URI) {
         console.error('MONGODB_URI is not defined in environment variables. Please set it.');
         throw new Error('MONGODB_URI is not defined.');
     }
@@ -33,16 +33,20 @@ export async function connectDB() {
         console.log('Connected to MongoDB successfully!');
 
         const db = dbClient.db(DB_NAME);
+        
+        // --- Initialize all collections here ---
         leaderboardCollection = db.collection('leaderboard_data');
         dailyPointsCollection = db.collection('daily_points');
         metadataCollection = db.collection('metadata');
+        raidStatesCollection = db.collection('raid_states'); // ADDED: Initialize the collection
 
-        // Ensure indexes for efficient queries if needed
-        // The unique: true option was removed from _id index as it's redundant and caused an error.
-        // _id is always unique by default.
+        // --- Create all indexes here ---
         await leaderboardCollection.createIndex({ totalExp: -1 }).catch(console.error);
         await dailyPointsCollection.createIndex({ date: 1, userId: 1 }, { unique: true }).catch(console.error);
-        await metadataCollection.createIndex({ _id: 1 }).catch(console.error); // FIX: Removed { unique: true }
+        await metadataCollection.createIndex({ _id: 1 }).catch(console.error);
+        await raidStatesCollection.createIndex({ _id: 1 }).catch(console.error); // ADDED: Create index for the new collection
+        
+        console.log("All database collections initialized."); // ADDED: Confirmation log
 
     } catch (error) {
         console.error('Failed to connect to MongoDB:', error);
