@@ -1,8 +1,8 @@
 // leaderboardCore.js - Core logic for leaderboard data, embeds, and monthly task
 
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_CHANNEL_ID } from '../config/constants.js';
-import { sendLeaderboardBackup } from './backupHandler.js'; // Assuming backupHandler is in 'handlers'
+import { RAID_MANAGEMENT_CHANNEL_ID } from '../config/constants.js';
+import { sendLeaderboardBackup } from './backupHandler.js';
 
 // Import database operations instead of file operations
 import { connectDB, getLeaderboardData as fetchLeaderboardFromDB, setLeaderboardData as writeLeaderboardToDB, updateUserExp as updateExpInDB, getDailyPointsForRange } from '../utils/dbOps.js';
@@ -117,7 +117,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
     const embed = new EmbedBuilder()
         .setColor(0x0099FF) // Blue color.
         .setTitle('🏆 Raid Leaderboard 🏆')
-        .setDescription(`Current Leaderboard by Total EXP!\n\n${resetInfo}`)
+        .setDescription(`${resetInfo}\n\n`) // Move resetInfo here for multi-embed announcement consistency
         .setTimestamp()
         .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Helper Bot | Keep raiding for more points!` });
 
@@ -146,9 +146,10 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
         }
     }
 
-    // Create pagination buttons.
-    const row = new ActionRowBuilder()
-        .addComponents(
+    // Create pagination buttons ONLY if it's not a scheduled reset (i.e., not for the multi-embed thread)
+    const row = new ActionRowBuilder();
+    if (originalRequesterId !== 'scheduled_reset') {
+        row.addComponents(
             new ButtonBuilder()
                 .setCustomId(`lb_prev_${originalRequesterId}_${timestamp}`)
                 .setLabel('⬅️ Previous')
@@ -160,8 +161,11 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === totalPages)
         );
+    }
 
-    return { embeds: [embed], components: [row] };
+
+    // Return components only if there are any (i.e., not for scheduled reset)
+    return { embeds: [embed], components: row.components.length > 0 ? [row] : [] };
 }
 
 
@@ -199,11 +203,11 @@ export async function createLbCheckResponse(sessionData, client, guild) {
             } else {
                 descriptionContent += `• Total EXP in range: ${userData.totalPointsForRange} EXP\n`;
                 if (userData.dailyBreakdown.length > 1 && userData.totalPointsForRange > 0) {
-                    descriptionContent += `  Breakdown:\n`;
+                    descriptionContent += `  Breakdown:\n`;
                     const maxBreakdownLines = 5;
                     if (userData.dailyBreakdown.length > maxBreakdownLines) {
                         descriptionContent += userData.dailyBreakdown.slice(0, Math.ceil(maxBreakdownLines / 2)).join('\n') + '\n';
-                        descriptionContent += `  ... (${userData.dailyBreakdown.length - Math.floor(maxBreakdownLines / 2) - Math.ceil(maxBreakdownLines / 2)} more days) ...\n`;
+                        descriptionContent += `  ... (${userData.dailyBreakdown.length - Math.floor(maxBreakdownLines / 2) - Math.ceil(maxBreakdownLines / 2)} more days) ...\n`;
                         descriptionContent += userData.dailyBreakdown.slice(-Math.floor(maxBreakdownLines / 2)).join('\n') + '\n';
                     } else {
                         descriptionContent += userData.dailyBreakdown.join('\n') + '\n';
@@ -233,10 +237,64 @@ export async function createLbCheckResponse(sessionData, client, guild) {
     return { embeds: [embed], components: [row] };
 }
 
-/**
- * Sets up the scheduled task for monthly leaderboard reset.
- * @param {import('discord.js').Client} client - The Discord client instance.
- */
+export async function sendPreviousLeaderboardAnnouncement(client, isManualTrigger = false) {
+    try {
+        const now = new Date();
+        const managementChannel = await client.channels.fetch(RAID_MANAGEMENT_CHANNEL_ID);
+        if (!managementChannel || !managementChannel.isTextBased()) {
+            console.warn(`RAID_MANAGEMENT_CHANNEL_ID (${RAID_MANAGEMENT_CHANNEL_ID}) is not a text channel or could not be fetched.`);
+            return;
+        }
+
+        const guild = client.guilds.cache.first(); // Assuming one main guild.
+        if (!guild) {
+            console.warn('No guild found to create leaderboard embed for announcement.');
+            return;
+        }
+
+        const oldLeaderboard = await getCachedLeaderboard();
+        const allSortedPlayers = getSortedLeaderboard(oldLeaderboard, Infinity, true);
+
+        const USERS_PER_PAGE = 10;
+        const totalPages = Math.ceil(allSortedPlayers.length / USERS_PER_PAGE);
+
+        const targetMonth = new Date(now.getFullYear(), now.getMonth() - (isManualTrigger ? 0 : 1), 1); // Adjust for manual trigger to show current month, otherwise previous
+        const displayMonthYear = targetMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+        const resetInfoDescription = `Final Leaderboard for ${displayMonthYear}`;
+
+        if (allSortedPlayers.length === 0) {
+            await managementChannel.send(`Monthly Raid Leaderboard for ${displayMonthYear}: No raids were recorded last month.`);
+            return;
+        }
+
+        const initialMessage = await managementChannel.send(`## Monthly Raid Leaderboard for ${displayMonthYear}`);
+
+        const threadChannel = await initialMessage.startThread({
+            name: `Raid Leaderboard - ${displayMonthYear}`,
+            autoArchiveDuration: 1440,
+            reason: `Monthly leaderboard announcement for ${displayMonthYear}`,
+        });
+        console.log(`Created new thread for monthly leaderboard: ${threadChannel.name}`);
+
+        for (let i = 1; i <= totalPages; i++) {
+            const sessionData = {
+                currentPage: i,
+                totalPages: totalPages,
+                usersData: allSortedPlayers,
+                resetInfo: resetInfoDescription,
+                originalRequesterId: 'scheduled_reset', // Still use this to prevent buttons
+                timestamp: Date.now()
+            };
+            const { embeds } = await createPaginatedLeaderboardEmbed(sessionData, client, guild);
+            await threadChannel.send({ embeds: embeds });
+        }
+    } catch (error) {
+        console.error('Error sending previous leaderboard announcement:', error);
+    }
+}
+
+
+// Sets up the scheduled task for monthly leaderboard reset.
 export function setupMonthlyResetTask(client) {
     const performMonthlyCheck = async () => {
         try {
@@ -248,43 +306,19 @@ export function setupMonthlyResetTask(client) {
             if (!lastReset || lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
                 console.log('Performing automatic monthly leaderboard reset...');
 
-                // Announce the reset in the RAID_CHANNEL_ID.
-                try {
-                    const raidChannel = await client.channels.fetch(RAID_CHANNEL_ID);
-                    if (raidChannel && raidChannel.isTextBased()) {
-                        // Fetch the top players just before reset for the announcement.
-                        const oldLeaderboard = await getCachedLeaderboard();
-                        const topPlayersBeforeReset = getSortedLeaderboard(oldLeaderboard, 10, true); // Get top 10 for old leaderboard
-                        const guild = client.guilds.cache.first(); // Get the first guild the bot is in, assuming one main guild.
-                        if (guild) {
-                            const embed = await createPaginatedLeaderboardEmbed({ // Use the new function for consistency
-                                currentPage: 1,
-                                totalPages: 1,
-                                usersData: topPlayersBeforeReset,
-                                resetInfo: "Final Leaderboard for Last Month",
-                                originalRequesterId: 'scheduled_reset', // Use a dummy ID for scheduled tasks
-                                timestamp: Date.now()
-                            }, client, guild);
-                            await raidChannel.send({ embeds: embed.embeds, components: [] }); // No buttons for final announcement
-                            await raidChannel.send('📈 The monthly leaderboard has been automatically reset! Good luck this month, raiders!');
-                        } else {
-                            console.warn('No guild found to create leaderboard embed for announcement.');
-                        }
-                    } else {
-                        console.warn(`RAID_CHANNEL_ID (${RAID_CHANNEL_ID}) is not a text channel or could not be fetched.`);
-                    }
-                } catch (channelError) {
-                    console.error('Error sending leaderboard reset announcement:', channelError);
-                }
+                // Send the announcement for the *previous* month
+                await sendPreviousLeaderboardAnnouncement(client, false); // false indicates not a manual trigger
 
+                // After sending all pages, perform the reset and backup
                 await resetLeaderboard(false);
                 await sendLeaderboardBackup(client);
+
             }
         } catch (error) {
             console.error('Error in monthly leaderboard reset check:', error);
         }
     };
-    
+
     // Run the check once immediately when the bot starts
     performMonthlyCheck();
 
@@ -292,5 +326,5 @@ export function setupMonthlyResetTask(client) {
     setInterval(performMonthlyCheck, 12 * 60 * 60 * 1000);
 }
 export {
-    getDailyPointsForRange // <--- ADD THIS LINE TO THE EXPORT LIST
+    getDailyPointsForRange,
 };

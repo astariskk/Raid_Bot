@@ -12,7 +12,8 @@ import {
     createPaginatedLeaderboardEmbed,
     createLbCheckResponse,
     setupMonthlyResetTask,
-    getDailyPointsForRange // Make sure this is imported from leaderboardCore.js
+    getDailyPointsForRange,
+    sendPreviousLeaderboardAnnouncement
 } from './leaderboardCore.js';
 
 // --- Pending Reset Confirmations (Shared State) ---
@@ -135,7 +136,6 @@ const createXpEmbed = (action, amount, userIds) => {
         .setTitle(title)
         .setDescription(`${xpString} to: \n${userMentions}`);
 };
-
 
 export function setupLeaderboardHandlers(client) {
     // --- Message Create Listener (for commands) ---
@@ -515,6 +515,10 @@ export function setupLeaderboardHandlers(client) {
             return;
         }
 
+        if (message.content.toLowerCase() ==='!sendprevlb') {
+        await sendPreviousLeaderboardAnnouncement(client, true); // true indicates it's a manual trigger
+        await interaction.reply({ content: 'Sent previous month\'s leaderboard announcement to the management channel!', ephemeral: true });
+}
     });
 
     // --- Interaction Create Listener (for pagination buttons) ---
