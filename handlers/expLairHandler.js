@@ -8,14 +8,7 @@ import { EmbedBuilder, ChannelType, MessageFlags } from 'discord.js';
 import {
     EXP_LAIR_CHANNEL_ID,
     POINTS_CONFIG,
-    DAILIES_LIST,
-    WEEKLIES_LIST,
     ALLOWED_TASK_NAMES,
-    GENERIC_TASKS_LIST,
-    OTHERS_FOUR_LIST,
-    OTHERS_SEVEN_LIST,
-    TEMPLESHRINE_LIST,
-    ORIGINUL_LIST,
     MAX_XP_PER_RAID,
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
@@ -74,31 +67,42 @@ async function isAuthorizedToManageRaid(interaction, raidInfo) {
     return false;
 }
 
+/**
+ * Extracts all user ID strings from a given text.
+ * @param {string} text The text to parse for user mentions.
+ * @returns {string[]} An array of user IDs.
+ */
 function extractUserIds(text) {
     return (text.match(/<@!?(\d+)>/g) || []).map(mention =>
         mention.replace(/<@!?(\d+)>/, '$1')
     );
 }
 
+/**
+ * Parses the helper assignment message content to determine tasks, users, and multipliers.
+ * @param {string} content The message content.
+ * @returns {object} An object containing parsed assignment details.
+ */
 function parseHelperAssignments(content) {
-    const helperAssignments = {};
+    const helperAssignments = {}; // Stores { 'taskName': { users: Set<string>, multiplier: number } }
     const globalTaggedUsers = new Set();
     let globalMultiplier = 1;
     let hasValidTags = false;
-    const unrecognizedTasks = new Set();
-    const linesWithNoValidUsers = new Set();
+    const unrecognizedTasks = new Set(); // For tasks that are not in ALLOWED_TASK_NAMES or malformed task strings
+    const linesWithNoValidUsers = new Set(); // For lines where no actual users were tagged
 
     const lines = content.split('\n');
     for (const line of lines) {
         const trimmedLine = line.trim();
         if (!trimmedLine) continue;
 
+        // Handle "all xN = @user1 @user2" or "all xN : @user1 @user2" assignments
         const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*[=:]\s*(.*)/i);
         if (allMatch) {
             globalMultiplier = allMatch[2] ? parseInt(allMatch[2], 10) : 1;
             if (isNaN(globalMultiplier) || globalMultiplier < 1) {
                 unrecognizedTasks.add(`all${allMatch[1] || ''}`);
-                globalMultiplier = 1;
+                globalMultiplier = 1; // Reset to default
                 continue;
             }
             const userIds = extractUserIds(allMatch[3]);
@@ -107,6 +111,7 @@ function parseHelperAssignments(content) {
             continue;
         }
 
+        // Handle assignments and seperators '=' and ':'
         const parts = trimmedLine.split(/=|:/);
         if (parts.length < 2) {
             if (trimmedLine.length > 0) {
@@ -116,7 +121,8 @@ function parseHelperAssignments(content) {
         }
 
         const taskString = parts[0].trim();
-        const userMentionPart = parts.slice(1).join(parts[0].includes('=') ? '=' : ':').trim();
+        const userMentionPart = parts.slice(1).join(parts[0].includes('=') ? '=' : ':').trim(); // Re-join with the detected separator
+
         const userIds = extractUserIds(userMentionPart);
 
         if (userIds.length === 0) {
@@ -125,10 +131,12 @@ function parseHelperAssignments(content) {
         }
         hasValidTags = true;
 
+        // Split the taskString by '+' to handle multiple tasks in one line
         const individualTaskEntries = taskString.split('+').map(t => t.trim());
 
         userIds.forEach(userId => {
             individualTaskEntries.forEach(entry => {
+                // Now, parse each individual entry for its name and potential multiplier
                 const individualTaskMatch = entry.match(/^(.+?)(x(\d+))?$/i);
                 if (!individualTaskMatch) {
                     unrecognizedTasks.add(entry);
@@ -143,12 +151,14 @@ function parseHelperAssignments(content) {
                     unrecognizedTasks.add(entry);
                     return;
                 }
-
+                
+                // Allow meta-tasks like 'daily' and 'weekly'
                 if (ALLOWED_TASK_NAMES.includes(taskName) || TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
                     if (!helperAssignments[taskName]) {
                         helperAssignments[taskName] = { users: new Set(), multiplier: taskMultiplier };
                     }
                     helperAssignments[taskName].users.add(userId);
+                    // Ensure the multiplier is the maximum of any assigned in the line.
                     helperAssignments[taskName].multiplier = Math.max(helperAssignments[taskName].multiplier, taskMultiplier);
                 } else {
                     unrecognizedTasks.add(entry);
@@ -159,6 +169,11 @@ function parseHelperAssignments(content) {
     return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
+/**
+ * Calculates the total EXP points for a given set of tasks.
+ * @param {string[]} tasks An array of task names.
+ * @returns {number} The total calculated points, capped at MAX_XP_PER_RAID.
+ */
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -179,84 +194,16 @@ function calculateTaskPoints(tasks) {
 }
 
 /**
- * NEWLY ADDED: Handles the entire raid completion logic from a user's message.
- * @param {import('discord.js').Message} message The message containing helper details.
- * @param {object} raidInfo The raid information object.
+ * Finalizes the raid completion process by posting summaries, awarding points, and locking the thread.
+ * @param {import('discord.js').Message} message The message that triggered completion.
+ * @param {object} raidInfo The raid's information.
+ * @param {object} pointsAwarded A map of user IDs to points awarded.
+ * @param {string[]} helperSummaries An array of strings summarizing helper contributions.
+ * @param {Set<string>} unrecognizedTasks A set of task strings that were not recognized.
+ * @param {Set<string>} linesWithNoValidUsers A set of lines that had no valid user mentions.
+ * @param {Set<string>} mismatchedTasks A set of tasks submitted that were not in the original request.
+ * @param {import('discord.js').Attachment} [attachment] An optional attachment from the completion message.
  */
-async function handleRaidCompletion(message, raidInfo) {
-    const attachment = message.attachments.first();
-    const {
-        helperAssignments,
-        globalTaggedUsers,
-        globalMultiplier,
-        hasValidTags,
-        unrecognizedTasks,
-        linesWithNoValidUsers
-    } = parseHelperAssignments(message.content);
-
-    if (!hasValidTags && !attachment) {
-        await message.reply('Please tag at least one helper or provide a screenshot to complete the raid. If you wish to cancel, type `cancel`.');
-        return;
-    }
-
-    const originalTasks = new Set(raidInfo.task.split(/\s*\+\s*/).map(t => t.trim().toLowerCase()));
-    const submittedTasks = new Set(Object.keys(helperAssignments));
-    const mismatchedTasks = new Set([...submittedTasks].filter(t => !originalTasks.has(t) && !TASK_MAP_CATEGORIES[t]));
-
-    const pointsAwarded = {};
-    const helperSummaries = [];
-
-    // Process specific task assignments
-    for (const taskName in helperAssignments) {
-        const { users, multiplier } = helperAssignments[taskName];
-        let effectiveTasksForPoints = [];
-
-        if (TASK_MAP_CATEGORIES[taskName]) {
-            effectiveTasksForPoints = TASK_MAP_CATEGORIES[taskName];
-        } else {
-            effectiveTasksForPoints.push(taskName);
-        }
-
-        const pointsPerTaskSet = calculateTaskPoints(effectiveTasksForPoints);
-        const totalPointsForTaskSet = pointsPerTaskSet * multiplier;
-
-        users.forEach(userId => {
-            if (!pointsAwarded[userId]) pointsAwarded[userId] = 0;
-            pointsAwarded[userId] += totalPointsForTaskSet;
-            helperSummaries.push(`- ${taskName} (x${multiplier}) by <@${userId}>: ${totalPointsForTaskSet} EXP`);
-        });
-    }
-
-    // Process global "all" assignments
-    if (globalTaggedUsers.size > 0) {
-        const pointsForAll = calculateTaskPoints(Array.from(originalTasks));
-        const totalPointsForAll = pointsForAll * globalMultiplier;
-
-        globalTaggedUsers.forEach(userId => {
-            if (!pointsAwarded[userId]) pointsAwarded[userId] = 0;
-            pointsAwarded[userId] += totalPointsForAll;
-        });
-        helperSummaries.push(`- All tasks (x${globalMultiplier}) by ${Array.from(globalTaggedUsers).map(id => `<@${id}>`).join(', ')}: ${totalPointsForAll} EXP`);
-    }
-
-    // Cap total points per user
-    for (const userId in pointsAwarded) {
-        pointsAwarded[userId] = Math.min(pointsAwarded[userId], MAX_XP_PER_RAID);
-    }
-
-    await finalizeRaidCompletion(
-        message,
-        raidInfo,
-        pointsAwarded,
-        helperSummaries,
-        unrecognizedTasks,
-        linesWithNoValidUsers,
-        mismatchedTasks,
-        attachment
-    );
-}
-
-
 async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachment) {
     const originalRaidLogThread = message.channel;
     const threadId = originalRaidLogThread.id;
@@ -271,6 +218,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
             return;
         }
 
+        // Fetch display names for all helpers to avoid pings.
         const helperDisplayNames = [];
         const allHelperIds = Object.keys(pointsAwarded);
         for (const id of allHelperIds) {
@@ -279,18 +227,19 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
                 helperDisplayNames.push(member.displayName);
             } catch (err) {
                 console.error(`Error fetching member ${id}:`, err);
-                helperDisplayNames.push(`User-${id}`);
+                helperDisplayNames.push(`User-${id}`); // Fallback
             }
         }
         const helpersString = helperDisplayNames.length > 0 ? helperDisplayNames.join(', ') : 'None';
 
         const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
 
+        // Construct and send embed to EXP Lair Channel
         const embed = new EmbedBuilder()
             .setColor(COLOR_INFO)
             .setTitle(`Raid Completion Report`)
             .setDescription(
-                `**Raid requested by:** ${requesterMember.displayName}\n` + // Use displayName
+                `**Raid requested by:** ${requesterMember}\n` +
                 `**Task(s):** ${raidInfo.task}\n` +
                 `**Helpers:** ${helpersString}`
             )
@@ -307,7 +256,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
         });
 
         const expLairThread = await sentExpLairMessage.startThread({
-            name: `COMPLETED Raid for ${requesterMember.displayName}`, // Use requester's name
+            name: `COMPLETED Raid for ${requesterMember.displayName}`,
             autoArchiveDuration: 60
         });
 
@@ -331,7 +280,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
 
         if (linesWithNoValidUsers.size > 0) {
             const invalidUserLinesList = Array.from(linesWithNoValidUsers).map(line => `\`${line}\``).join('\n');
-            expLairThreadContent += (`\n**Warning**: The following lines were ignored because no valid users were tagged: \n${invalidUserLinesList}\n`);
+            expLairThreadContent += (`\n**Warning**: The following lines were ignored because no valid users were tagged (e.g., only roles were mentioned, or no one was tagged):\n${invalidUserLinesList}\n`);
         }
 
         if (mismatchedTasks.size > 0) {
@@ -349,19 +298,150 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
             await sendLeaderboardBackup(message.client);
         }
 
-        await message.reply(`Raid completed. This thread will now be locked.`);
-        await deleteRaid(threadId);
+        await message.reply(`Raid completed, This thread will now be locked.`);
+        await deleteRaid(threadId); // Use new state management
         await originalRaidLogThread.setLocked(true);
-
     } catch (error) {
         console.error('Error processing raid completion:', error);
         await message.reply('There was an error processing the raid completion.');
     } finally {
+        // Reset state using new state management
         await updateRaid(threadId, { awaitingCompletion: false, awaitingCompletionRequesterId: null });
     }
 }
 
+/**
+ * Handles the logic for processing a raid completion message, including validation and point calculation.
+ * @param {import('discord.js').Message} message The message containing helper details.
+ * @param {object} raidInfo The raid information object.
+ */
+async function handleRaidCompletion(message, raidInfo) {
+    const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
+    const attachment = message.attachments.first();
 
+    const filterAndGetDisplayNames = async (userIds) => {
+        const validUsers = {};
+        for (const userId of userIds) {
+            if (userId === message.author.id) {
+                await message.channel.send(`Heads up! You (the requester) cannot award yourself points. Ignoring <@${userId}> for this submission.`);
+                continue;
+            }
+            try {
+                const member = await message.guild.members.fetch(userId);
+                if (member.user.bot) {
+                    await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
+                    continue;
+                }
+                validUsers[userId] = member.displayName;
+            } catch (error) {
+                console.error(`Could not fetch guild member ${userId} during validation:`, error);
+                await message.channel.send(`Warning: Could not verify user <@${userId}>. Skipping them for points.`);
+            }
+        }
+        return validUsers;
+    };
+
+    const pointsAwarded = {};
+    const helperSummaries = [];
+    const mismatchedTasks = new Set();
+    const assignedUsers = new Set();
+
+    const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
+    const originalRaidEffectiveTasks = new Set();
+    const originalRaidRequestedStrings = new Set();
+
+    originalRequestedTasksRaw.forEach(task => {
+        originalRaidRequestedStrings.add(task);
+        if (TASK_MAP_CATEGORIES.hasOwnProperty(task)) {
+            TASK_MAP_CATEGORIES[task].forEach(t => originalRaidEffectiveTasks.add(t));
+        } else if (ALLOWED_TASK_NAMES.includes(task)) {
+            originalRaidEffectiveTasks.add(task);
+        }
+    });
+
+    for (const taskName in helperAssignments) {
+        const { users, multiplier } = helperAssignments[taskName];
+        const validUsers = await filterAndGetDisplayNames(users);
+        const usersForTask = Object.keys(validUsers);
+
+        if (usersForTask.length === 0) continue;
+
+        let isValidAssignedTask = false;
+        if (originalRaidRequestedStrings.has(taskName) || originalRaidEffectiveTasks.has(taskName)) {
+            isValidAssignedTask = true;
+        } else if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
+            const metaCategoryTasks = TASK_MAP_CATEGORIES[taskName];
+            if (metaCategoryTasks.every(metaTask => originalRaidEffectiveTasks.has(metaTask))) {
+                isValidAssignedTask = true;
+            }
+        }
+
+        if (!isValidAssignedTask) {
+            mismatchedTasks.add(taskName + (multiplier > 1 ? `x${multiplier}` : ''));
+            continue;
+        }
+
+        let pointsForThisTask = calculateTaskPoints([taskName]) * multiplier;
+
+        if (pointsForThisTask > 0) {
+            const helperNames = Object.values(validUsers).join(', ');
+            helperSummaries.push(`**${taskName}${multiplier > 1 ? `x${multiplier}` : ''}:** ${helperNames} (${pointsForThisTask} EXP each)`);
+            usersForTask.forEach(userId => {
+                pointsAwarded[userId] = (pointsAwarded[userId] || 0) + pointsForThisTask;
+                assignedUsers.add(userId);
+            });
+        }
+    }
+
+    const unassignedGlobalTaggedUsers = Array.from(globalTaggedUsers).filter(id => !assignedUsers.has(id));
+    const validGlobalTaggedUsers = await filterAndGetDisplayNames(new Set(unassignedGlobalTaggedUsers));
+    if (Object.keys(validGlobalTaggedUsers).length > 0) {
+        const tasksForGlobalHelpers = Array.from(originalRaidEffectiveTasks);
+        let totalPointsForGlobalHelpers = calculateTaskPoints(tasksForGlobalHelpers) * globalMultiplier;
+
+        const helperNames = Object.values(validGlobalTaggedUsers).join(', ');
+        helperSummaries.push(`**All Helpers:** ${helperNames} Total ${totalPointsForGlobalHelpers} EXP each from tasks: (${raidInfo.task}${globalMultiplier > 1 ? `) x${globalMultiplier}` : ')'}`);
+        Object.keys(validGlobalTaggedUsers).forEach(userId => {
+            pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
+        });
+    }
+
+    if (Object.keys(pointsAwarded).length === 0) {
+        await message.reply({
+            content: 'No valid players or tasks were detected. Please use the "Close Raid" button to try again.',
+            flags: MessageFlags.Ephemeral
+        });
+        await updateRaid(message.channel.id, { awaitingCompletion: false, awaitingCompletionRequesterId: null });
+        return;
+    }
+
+    if (mismatchedTasks.size > 0 || unrecognizedTasks.size > 0) {
+        let warningMessage = '⚠️ **Warning:** Your submission contained the following issues:\n';
+        if (unrecognizedTasks.size > 0) {
+            const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
+            warningMessage += `- The task(s) ${unrecognizedList} were not recognized\n`;
+        }
+        if (mismatchedTasks.size > 0) {
+            const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
+            warningMessage += `- The task(s) ${mismatchedList} were not part of the original raid request\n`;
+        }
+        warningMessage += 'Please use the `Close Raid` button to try again.';
+        await message.reply({ content: warningMessage, flags: MessageFlags.Ephemeral });
+        await updateRaid(message.channel.id, { awaitingCompletion: false, awaitingCompletionRequesterId: null });
+        return;
+    }
+
+    for (const userId in pointsAwarded) {
+        pointsAwarded[userId] = Math.min(pointsAwarded[userId], MAX_XP_PER_RAID);
+    }
+    await finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachment);
+}
+
+/**
+ * Handles the cancellation of a raid thread.
+ * @param {import('discord.js').Message} message The message that triggered cancellation.
+ * @param {object} raidInfo The raid's information.
+ */
 async function handleRaidCancellation(message, raidInfo) {
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
@@ -373,7 +453,10 @@ async function handleRaidCancellation(message, raidInfo) {
     await updateRaid(threadId, { awaitingCompletion: false, awaitingCompletionRequesterId: null });
 }
 
-
+/**
+ * Sets up all the message and interaction listeners for handling raid completions.
+ * @param {import('discord.js').Client} client The Discord client instance.
+ */
 export function setupExpLairHandlers(client) {
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
@@ -391,12 +474,12 @@ export function setupExpLairHandlers(client) {
                 return;
             }
 
-            if (contentLower === 'cancel') {
+            // Handle standard cancellation (more robust check)
+            if (contentLower === 'cancel' && message.mentions.users.size === 0 && !message.attachments.first()) {
                 await handleRaidCancellation(message, raidInfo);
                 return;
             }
-            
-            // CHANGED: Call the new handler function
+
             await handleRaidCompletion(message, raidInfo);
             return;
         }
@@ -447,7 +530,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
@@ -457,7 +540,6 @@ export function setupExpLairHandlers(client) {
                     await interaction.showModal(editTaskModal);
                     break;
                 default:
-                    // console.log(`Unhandled button interaction customId: ${interaction.customId}`);
                     break;
             }
         }
@@ -497,7 +579,6 @@ export function setupExpLairHandlers(client) {
                     break;
 
                 default:
-                    // console.log(`Unhandled modal submission customId: ${interaction.customId}`);
                     break;
             }
         }
