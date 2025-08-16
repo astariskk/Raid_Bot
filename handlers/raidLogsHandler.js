@@ -192,8 +192,8 @@ export function setupRaidLogsHandlers(client) {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('2-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/spq6t1.png')
-                    .setFooter({ text: 'Speaker chart for 2-man taunts' });
+                    .setImage('https://files.catbox.moe/e8dz0j.png')
+                    .setFooter({ text: 'Speaker chart for 2-man taunts by Veritus' });
                 messageContent = "It's movie time <@114514543899705351>";         //ping Veritus             
             } else if (threadCommand === '!3man') {
                 embedToSend = new EmbedBuilder()
