@@ -97,7 +97,8 @@ export const textGifCommands = {
     'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',   // kae
     'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)', 
-};
+    'wordlsfart': '<@252026199667245056> [**FLAME ON**](https://files.catbox.moe/15k2gi.gif)',
+}
 
 
 function formatTasksForEmbed(taskList, pointsConfig) {
