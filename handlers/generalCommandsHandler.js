@@ -28,7 +28,7 @@ const GIF_COOLDOWN_DURATION = 10 * 1000;
 
 // --- User IDs to ban from specific commands ---
 const BANNED_USERS_FOR_COMMANDS = {
-      // Kuro 719443918621638660 banned from 'marbike'
+     // Kuro 719443918621638660 banned from 'marbike'
 };
 
 // --- Custom GIF Commands (for embeds) ---
@@ -372,48 +372,73 @@ export function setupGeneralCommandsHandler(client) {
         // --- Handle the !calculatetask command ---
         if (commandContent.startsWith('!calculatetask')) {
             const args = message.content.slice('!calculatetask'.length).trim();
-            const taskNames = args.split('+').map(task => task.trim().toLowerCase()).filter(task => task.length > 0);
+            // Split tasks by '+' and then process each task for potential multipliers
+            const rawTaskEntries = args.split('+').map(task => task.trim()).filter(task => task.length > 0);
 
-            if (taskNames.length === 0) {
-                return message.reply({ content: 'Usage: `!calculatetask <task1> + <task2> + ...` (e.g., `!calculatetask speaker + mechabinky`)', ephemeral: true });
+            if (rawTaskEntries.length === 0) {
+                return message.reply({ content: 'Usage: `!calculatetask <task1> [xN] + <task2> [xN] + ...` (e.g., `!calculatetask speaker + daily x2`)', ephemeral: true });
             }
 
             let originalTotalCalculatedPoints = 0;
             const unknownTasks = [];
 
-            for (const taskName of taskNames) {
-                // Check if it's a meta category
-                if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
-                    const categoryTasks = TASK_MAP_CATEGORIES[taskName];
-                    for (const individualTask of categoryTasks) {
-                        if (POINTS_CONFIG.hasOwnProperty(individualTask)) {
-                            originalTotalCalculatedPoints += POINTS_CONFIG[individualTask];
-                        } else {
-                            // This case should ideally not happen if POINTS_CONFIG is comprehensive
-                            console.warn(`Task "${individualTask}" from category "${taskName}" not found in POINTS_CONFIG.`);
-                            unknownTasks.push(individualTask);
-                        }
-                    }
-                } else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
-                    // If not a meta category, check if it's a direct task name in POINTS_CONFIG
-                    originalTotalCalculatedPoints += POINTS_CONFIG[taskName];
-                } else {
-                    // If neither a meta category nor a direct task name
-                    unknownTasks.push(taskName);
+            for (const entry of rawTaskEntries) {
+                const taskMatch = entry.match(/^(.+?)(x(\d+))?$/i); // Regex to capture task name and optional multiplier
+                if (!taskMatch) {
+                    unknownTasks.push(entry);
+                    continue;
                 }
+
+                let taskName = taskMatch[1].trim().toLowerCase();
+                const multiplier = taskMatch[3] ? parseInt(taskMatch[3], 10) : 1;
+
+                if (isNaN(multiplier) || multiplier < 1) {
+                    unknownTasks.push(entry);
+                    continue;
+                }
+
+                let taskPoints = 0;
+                let effectiveTasks = new Set();
+
+                // Handle meta categories
+                if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
+                    TASK_MAP_CATEGORIES[taskName].forEach(t => effectiveTasks.add(t));
+                } else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
+                    effectiveTasks.add(taskName);
+                } else {
+                    unknownTasks.push(entry);
+                    continue;
+                }
+
+                let currentEntryPoints = 0;
+                effectiveTasks.forEach(t => {
+                    if (POINTS_CONFIG.hasOwnProperty(t)) {
+                        currentEntryPoints += POINTS_CONFIG[t];
+                    } else {
+                        console.warn(`Task "${t}" from category "${taskName}" not found in POINTS_CONFIG.`);
+                        unknownTasks.push(t); 
+                    }
+                });
+                
+                // Apply multiplier to the current entry's total points
+                taskPoints = currentEntryPoints * multiplier;
+                originalTotalCalculatedPoints += taskPoints;
+
             }
 
-            // Apply the 20-point cap to the calculated total
+            // Apply the 20-point cap to the calculated total (MAX_XP_PER_RAID)
             let totalCalculatedPoints = Math.min(originalTotalCalculatedPoints, MAX_XP_PER_RAID);
 
-            let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
+            let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP\n\n`;
+
 
             if (unknownTasks.length > 0) {
                 replyContent += `\n\n_Note: The following tasks were not recognized and were not included in the calculation: ${unknownTasks.join(', ')}._`;
             }
+            
             // Corrected condition for displaying the capping message
             if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
-                replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP._`;
+                replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP (original total: ${originalTotalCalculatedPoints} EXP)._`;
             }
 
             await message.reply({ content: replyContent, ephemeral: true });
@@ -425,7 +450,7 @@ export function setupGeneralCommandsHandler(client) {
         if (commandContent === '!lbcommands' && message.channel.id === LEADERBOARD_CHANNEL_ID) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
                 .setColor(0x3498DB) // A different color for distinction, e.g., green
-                .setTitle('🏆 Leaderboard Commands List �')
+                .setTitle('🏆 Leaderboard Commands List 🏆')
                 .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
                 .addFields(
                     {
@@ -531,7 +556,7 @@ export function setupGeneralCommandsHandler(client) {
 
             // If not on cooldown, proceed to send the GIF
             gifCooldowns.set(userId, now);
-            await deleteCooldownWarning(userId); 
+            await deleteCooldownWarning(userId);
 
             let gifInfo = gifCommands[commandContent];
             // Check if the value is an array, if so, pick a random entry
@@ -578,8 +603,8 @@ export function setupGeneralCommandsHandler(client) {
             }
 
             // If not on cooldown, proceed to send the GIF
-            gifCooldowns.set(userId, now); 
-            await deleteCooldownWarning(userId); 
+            gifCooldowns.set(userId, now);
+            await deleteCooldownWarning(userId);
 
             const messageToSend = textGifCommands[commandContent];
 
@@ -612,7 +637,7 @@ export function setupGeneralCommandsHandler(client) {
 
                     // Debugging Purposes
                     if (!role) {
-                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', ephemeral: true });
+                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an an administrator.', ephemeral: true });
                         return;
                     }
                     const botMember = await guild.members.fetch(client.user.id);

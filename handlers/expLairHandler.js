@@ -32,11 +32,6 @@ const COLOR_SUCCESS = 0x57F287; // Green
 const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
 
-/**
- * Checks if a member has an admin/moderator role.
- * @param {object} source - The source object, either a Discord message or interaction.
- * @returns {boolean}
- */
 function isAdmin(source) {
     const member = source.member;
     if (!member) {
@@ -49,7 +44,6 @@ function isAdmin(source) {
         member.roles.cache.has(RAID_MANAGER_ROLE_ID)
     );
 }
-
 
 async function isAuthorizedToManageRaid(interaction, raidInfo) {
     if (interaction.user.id === raidInfo.requesterId || isAdmin(interaction)) {
@@ -68,18 +62,13 @@ function extractUserIds(text) {
     );
 }
 
-/**
- * Parses the helper assignment message content to determine tasks, users, and multipliers.
- * @param {string} content The message content.
- * @returns {object} An object containing parsed assignment details.
- */
 function parseHelperAssignments(content) {
     const helperAssignments = {}; // Stores { 'taskName': { users: Set<string>, multiplier: number } }
     const globalTaggedUsers = new Set();
     let globalMultiplier = 1;
     let hasValidTags = false;
-    const unrecognizedTasks = new Set(); // For tasks that are not in ALLOWED_TASK_NAMES or malformed task strings
-    const linesWithNoValidUsers = new Set(); // For lines where no actual users were tagged
+    const unrecognizedTasks = new Set(); 
+    const linesWithNoValidUsers = new Set(); 
 
     const lines = content.split('\n');
     for (const line of lines) {
@@ -141,7 +130,7 @@ function parseHelperAssignments(content) {
                     unrecognizedTasks.add(entry);
                     return;
                 }
-                
+
                 // Allow meta-tasks like 'daily' and 'weekly'
                 if (ALLOWED_TASK_NAMES.includes(taskName) || TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
                     if (!helperAssignments[taskName]) {
@@ -304,13 +293,29 @@ async function handleRaidCompletion(message, raidInfo) {
     const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
 
-    const filterAndGetDisplayNames = async (userIds) => {
+    const filterAndGetDisplayNames = async (userIds, currentRaidInfo) => { 
         const validUsers = {};
         for (const userId of userIds) {
+
+
             if (userId === message.author.id) {
-                await message.channel.send(`Heads up! You (the requester) cannot award yourself points. Ignoring <@${userId}> for this submission.`);
-                continue;
+                // If the user submitting is ALSO the original raid requester, they cannot award themselves points.
+                if (message.author.id === currentRaidInfo.requesterId) {
+                    await message.channel.send(`Heads up! As the raid requester, you cannot award yourself points for your own raid. Ignoring <@${userId}>.`);
+                    continue;
+                }
+
+                else if (isAdmin(message)) {
+                    // No 'continue' here, so processing proceeds.
+                }
+                
+                // If the user submitting is NOT the original raid requester, AND they are NOT an admin,
+                else {
+                    await message.channel.send(`Heads up! You are trying to award yourself points for someone else's raid, but only staff members can do so. Ignoring <@${userId}>.`);
+                    continue;
+                }
             }
+            // Existing check for bots and valid user fetching
             try {
                 const member = await message.guild.members.fetch(userId);
                 if (member.user.bot) {
@@ -346,7 +351,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
     for (const taskName in helperAssignments) {
         const { users, multiplier } = helperAssignments[taskName];
-        const validUsers = await filterAndGetDisplayNames(users);
+        const validUsers = await filterAndGetDisplayNames(users, raidInfo); // Pass raidInfo
         const usersForTask = Object.keys(validUsers);
 
         if (usersForTask.length === 0) continue;
@@ -379,7 +384,7 @@ async function handleRaidCompletion(message, raidInfo) {
     }
 
     const unassignedGlobalTaggedUsers = Array.from(globalTaggedUsers).filter(id => !assignedUsers.has(id));
-    const validGlobalTaggedUsers = await filterAndGetDisplayNames(new Set(unassignedGlobalTaggedUsers));
+    const validGlobalTaggedUsers = await filterAndGetDisplayNames(new Set(unassignedGlobalTaggedUsers), raidInfo); // Pass raidInfo
     if (Object.keys(validGlobalTaggedUsers).length > 0) {
         const tasksForGlobalHelpers = Array.from(originalRaidEffectiveTasks);
         let totalPointsForGlobalHelpers = calculateTaskPoints(tasksForGlobalHelpers) * globalMultiplier;
@@ -507,7 +512,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done  \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done   \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
@@ -541,7 +546,7 @@ export function setupExpLairHandlers(client) {
                     const newRaidTaskString = newTasksArray.join(' + ');
 
                     await updateRaid(interaction.channel.id, { task: newRaidTaskString });
-                    
+
                     await updateRaidLogEmbed(
                         client,
                         interaction.channel.id,
