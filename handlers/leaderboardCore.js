@@ -119,7 +119,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
         .setTitle('🏆 Raid Leaderboard 🏆')
         .setDescription(`${resetInfo}\n\n`) // Move resetInfo here for multi-embed announcement consistency
         .setTimestamp()
-        .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Helper Bot | Keep raiding for more points!` });
+        .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Leaderboard Rankings` });
 
     if (usersOnPage.length === 0) {
         embed.addFields({ name: 'No Data Yet', value: 'The leaderboard is empty. Start earning some EXP!' });

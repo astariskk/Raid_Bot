@@ -48,7 +48,6 @@ import {
     updateRaidStatus, // This will be modified to rename channels
     getRaidInfo,
     createRaid,
-    updateRaid // Added for updating raid details if needed
 } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
@@ -140,59 +139,50 @@ export function getRaidRequestModal() {
     return modal;
 }
 
-/**
- * Sets up event handlers for raid logging functionalities, including raid requests (now as channels),
- * status updates within channels, and boss mechanic charts in channels.
- * @param {import('discord.js').Client} client The Discord client instance.
- */
 export function setupRaidLogsHandlers(client) {
     // --- Message Create Listener (for commands and status updates within channels) ---
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return; // Ignore messages from bots.
 
-        // Check if the message is in a raid ticket channel (not a main channel or general thread)
-        // A raid ticket channel's ID will be stored in our DB.
         const raidInfo = await getRaidInfo(message.channel.id);
         const isRaidTicketChannel = raidInfo && message.channel.type === ChannelType.GuildText && message.channel.parentId === RAID_CATEGORY_ID;
 
-
         if (isRaidTicketChannel) {
             const content = message.content.toLowerCase().trim();
-            let newStatusTag = ''; // e.g., '[waiting]'
+            let newStatusTag = ''; // e.g., 'waiting'
             let newColor = 0x0099ff; // Default blue
 
             if (content === '!waiting') {
-                newStatusTag = '[waiting]';
-                newColor = 0x0099ff;
+                newStatusTag = 'Waiting';
+                newColor = 0x0099ff; // Blue for waiting.
             } else if (content === '!full') {
-                newStatusTag = '[full]';
-                newColor = 0xdd2e44;
+                newStatusTag = 'Full';
+                newColor = 0xdd2e44; // Red for full.
             } else if (content === '!ongoing') {
-                newStatusTag = '[ongoing]';
-                newColor = 0x78b159;
+                newStatusTag = 'Ongoing';
+                newColor = 0x78b159; // Lime Green for ongoing.
             }
-
-            if (newStatusTag) {
+            
+            if (newStatusTag) { // Only requester or admin can change status
                 try {
-                    // Fetch the guild member using the requesterId from raidInfo
+                    // Update the channel name via updateRaidStatus (which includes DB update)
+                    await updateRaidStatus(client, message.channel.id, newStatusTag, newColor);
+
+                    // --- edit channel name to include new status ---
                     const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
                     if (!requesterMember) {
                         await message.channel.send('Could not find the original raid requester to update the channel name.');
                         return;
-                    }
-
-                    // Construct the base name using the requester's display name
+                    }                    
                     const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
                     const newChannelName = `${baseName}-${newStatusTag}`;
+                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);  
 
-                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);
-                    // Update the raid status in the database (this still makes sense for internal state)
-                    await updateRaid(message.channel.id, { status: newStatusTag, color: newColor });
                     await message.react('👍');
                     return;
                 } catch (error) {
-                    console.error(`Error renaming channel ${message.channel.id}:`, error);
-                    await message.channel.send('Failed to update channel name. Ensure the new name is valid and within Discord\'s length limits (100 characters).');
+                    console.error(`Error updating status for channel ${message.channel.id}:`, error);
+                    await message.channel.send('Failed to update raid status. Ensure the new name is valid and try again later.');
                 }
             }
         }
@@ -371,7 +361,7 @@ export function setupRaidLogsHandlers(client) {
                     // Create the new raid ticket channel
                     // Name: requester-raid-request-[status]
                     const baseChannelName = `${interaction.member.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
-                    const initialChannelName = `${baseChannelName}-[waiting]`;
+                    const initialChannelName = `${baseChannelName}-waiting`;
 
                     // Define permissions for the new channel
                     const permissionOverwrites = [
@@ -406,6 +396,7 @@ export function setupRaidLogsHandlers(client) {
                             { name: 'Task(s)', value: task, inline: false },
                             { name: 'Map Name', value: mapName, inline: true },
                             { name: 'Server', value: server, inline: true },
+                            { name: 'Status', value: 'Waiting', inline: true },
                             { name: 'Description', value: description || 'No description provided.' },
                         )
                         .setTimestamp()

@@ -170,11 +170,6 @@ function parseHelperAssignments(content) {
     return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
-/**
- * Calculates the total points for a given set of tasks, respecting MAX_XP_PER_RAID.
- * @param {string[]} tasks An array of task names.
- * @returns {number} The calculated total points.
- */
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -194,17 +189,6 @@ function calculateTaskPoints(tasks) {
     return Math.min(totalPoints, MAX_XP_PER_RAID);
 }
 
-/**
- * Finalizes the raid completion process: updates status, posts report, awards points, and deletes the channel.
- * @param {import('discord.js').Message} message The message that triggered completion.
- * @param {object} raidInfo The raid information.
- * @param {object} pointsAwarded An object mapping user IDs to awarded points.
- * @param {string[]} helperSummaries Summaries of helper assignments.
- * @param {Set<string>} unrecognizedTasks Set of unrecognized tasks.
- * @param {Set<string>} linesWithNoValidUsers Set of lines with no valid users.
- * @param {Set<string>} mismatchedTasks Set of tasks not part of the original request.
- * @param {import('discord.js').Attachment} attachment Any attached screenshot.
- */
 async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachment) {
     const raidTicketChannel = message.channel; // This is now the ticket channel
     const channelId = raidTicketChannel.id;
@@ -316,12 +300,6 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
     }
 }
 
-/**
- * Processes a message to finalize a raid completion.
- * Parses helpers from the message, calculates points, and calls the finalization function.
- * @param {import('discord.js').Message} message The message containing completion details.
- * @param {object} raidInfo The raid information object from the database.
- */
 async function handleRaidCompletion(message, raidInfo) {
     const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
