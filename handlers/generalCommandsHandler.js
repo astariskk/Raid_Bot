@@ -99,7 +99,6 @@ export const textGifCommands = {
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)', 
 }
 
-
 function formatTasksForEmbed(taskList, pointsConfig) {
     if (!taskList || taskList.length === 0) {
         return 'N/A';
@@ -189,15 +188,13 @@ export function getRaidRulesEmbed() {
         .setColor(0x3498DB);
 }
 
-
-
 export function getCombinedTasksAndPointsEmbed() {
     const embed = new EmbedBuilder()
         .setColor(0x3498DB) // Blue
         .setTitle('📋 Raid Tasks & EXP Values')
         .setDescription(
-            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`\n\n' +
-            'Here\'s a comprehensive list of all recognized raid tasks and the EXP awarded for completing them. Use these when requesting raids or calculating points!'
+            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`\n' +
+            'below are the list of available tasks and their exp values sectioned by category.\n\n'
         )
         .setTimestamp()
         .setFooter({ text: 'Raid Helper Bot | Tasks & Points' });
@@ -309,11 +306,6 @@ export function getInitialButtonsRow() {
 }
 
 
-/**
- * Sets up the handler for general bot commands and interactions,
- * including the !raidinfo list, custom GIF triggers, and the "Get Help Role" button.
- * @param {Client} client The Discord client instance.
- */
 export function setupGeneralCommandsHandler(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
@@ -330,7 +322,6 @@ export function setupGeneralCommandsHandler(client) {
                 try {
                     await messageToDelete.delete();
                 } catch (err) {
-                    // Ignore "Unknown Message" error (10008) if it was already deleted
                     if (err.code !== 10008) {
                         console.error(`Error deleting cooldown warning message for user ${idToDelete}:`, err);
                     }
@@ -539,17 +530,15 @@ export function setupGeneralCommandsHandler(client) {
             }
 
             // If not on cooldown, proceed to send the GIF
-            gifCooldowns.set(userId, now); // Set new cooldown
-            await deleteCooldownWarning(userId); // Delete any lingering warning message
+            gifCooldowns.set(userId, now);
+            await deleteCooldownWarning(userId); 
 
-            // --- Updated logic for multi-gif command ---
             let gifInfo = gifCommands[commandContent];
             // Check if the value is an array, if so, pick a random entry
             if (Array.isArray(gifInfo)) {
                 const randomIndex = Math.floor(Math.random() * gifInfo.length);
                 gifInfo = gifInfo[randomIndex];
             }
-            // --- End of updated logic ---
 
             const gifEmbed = new EmbedBuilder()
                 .setColor(gifInfo.color)
@@ -565,7 +554,7 @@ export function setupGeneralCommandsHandler(client) {
         }
         // Check for text gif commands (no embeds)
         else if (textGifCommands[commandContent]) {
-            // **New Banned User Check**
+            // Banned User Check
             const bannedUsers = BANNED_USERS_FOR_COMMANDS[commandContent];
             if (bannedUsers && bannedUsers.includes(userId)) {
                 return;
@@ -589,8 +578,8 @@ export function setupGeneralCommandsHandler(client) {
             }
 
             // If not on cooldown, proceed to send the GIF
-            gifCooldowns.set(userId, now); // Set new cooldown
-            await deleteCooldownWarning(userId); // Delete any lingering warning message
+            gifCooldowns.set(userId, now); 
+            await deleteCooldownWarning(userId); 
 
             const messageToSend = textGifCommands[commandContent];
 

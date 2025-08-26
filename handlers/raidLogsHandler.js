@@ -167,11 +167,11 @@ export function setupRaidLogsHandlers(client) {
                 newColor = 0x78b159; // Lime Green for ongoing.
             }
 
-            // If a new status was determined, update the raid embed and react to the message.
+            
             if (newStatus) {
                 await updateRaidStatus(client, message.channel.id, newStatus, newColor);
-                await message.react('👍'); // React with a thumbs-up to acknowledge.
-                return; // Stop further processing as this message was a status update.
+                await message.react('👍'); 
+                return; 
             }
         }
 
@@ -186,7 +186,7 @@ export function setupRaidLogsHandlers(client) {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('1-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/svrjfx.jpg') // Image URL for the chart.
+                    .setImage('https://files.catbox.moe/svrjfx.jpg') 
                     .setFooter({ text: 'Speaker chart for 1-man taunts' });
             } else if (threadCommand === '!2man') {
                 embedToSend = new EmbedBuilder()
@@ -240,13 +240,13 @@ export function setupRaidLogsHandlers(client) {
         const raidMapsMatch = message.content.toLowerCase().match(/^!raidmaps\s+(\d+)$/);
 
         if (raidMapsMatch) {
-            const mapNumber = raidMapsMatch[1]; // Extract the number
+            const mapNumber = raidMapsMatch[1]; 
 
             // Check if the command is used within an active raid thread
-            const raidInfo = await getRaidInfo(message.channel.id); // Fetch from DB/cache
+            const raidInfo = await getRaidInfo(message.channel.id); 
 
             if (message.channel.isThread() && raidInfo) {
-                const raidTasksString = raidInfo.task; // Get the task string from the active raid info
+                const raidTasksString = raidInfo.task; 
                 // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
                 const rawRequestedTasks = raidTasksString.split(/\s*\+\s*/).map(t => t.trim());
 
@@ -280,7 +280,6 @@ export function setupRaidLogsHandlers(client) {
                     await message.channel.send('Failed to display raid maps for this thread. Please try again later.');
                 }
             } else {
-                // If not in an active raid thread, inform the user about correct usage
                 await message.channel.send(
                     'The `!raidmaps [number]` command can only be used inside an active raid thread ' +
                     'to get join links for the tasks in that specific raid.'

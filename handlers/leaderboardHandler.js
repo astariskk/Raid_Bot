@@ -127,7 +127,7 @@ const createXpEmbed = (action, amount, userIds) => {
     const isPositive = action === 'add';
     const xpString = isPositive ? `added ${amount} EXP to` : `removed ${amount} EXP from`;
     const title = isPositive ? 'EXP Added' : 'EXP Removed';
-    const color = isPositive ? 0x00FF00 : 0xFF0000; // Green for add, Red for remove
+    const color = isPositive ? 0x0099ff : 0xFF0000; // Blue for add, Red for remove
 
     const userMentions = userIds.map(id => `<@${id}>`).join(', ');
 
@@ -185,15 +185,25 @@ export function setupLeaderboardHandlers(client) {
                             const disabledRow = new ActionRowBuilder()
                                 .addComponents(
                                     new ButtonBuilder()
+                                        .setCustomId(`lb_start_disabled_${sessionTimestamp}`)
+                                        .setLabel('⏮️')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(true),
+                                    new ButtonBuilder()
                                         .setCustomId(`lb_prev_disabled_${sessionTimestamp}`)
-                                        .setLabel('⬅️ Previous')
+                                        .setLabel('⬅️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true),
                                     new ButtonBuilder()
                                         .setCustomId(`lb_next_disabled_${sessionTimestamp}`)
-                                        .setLabel('Next ➡️')
+                                        .setLabel('➡️')
                                         .setStyle(ButtonStyle.Primary)
-                                        .setDisabled(true)
+                                        .setDisabled(true),
+                                    new ButtonBuilder()
+                                        .setCustomId(`lb_end_disabled_${sessionTimestamp}`)
+                                        .setLabel('⏭️')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(true),
                                 );
                             await expiredMessage.edit({ components: [disabledRow] });
                             console.log(`!leaderboard session for message ${sentMessage.id} expired and buttons disabled.`);
@@ -331,13 +341,23 @@ export function setupLeaderboardHandlers(client) {
                             const disabledRow = new ActionRowBuilder()
                                 .addComponents(
                                     new ButtonBuilder()
+                                        .setCustomId(`lbcheck_start_disabled_${sessionTimestamp}`)
+                                        .setLabel('⏮️')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(true),
+                                    new ButtonBuilder()
                                         .setCustomId(`lbcheck_prev_disabled_${sessionTimestamp}`)
-                                        .setLabel('⬅️ Previous')
+                                        .setLabel('⬅️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true),
                                     new ButtonBuilder()
                                         .setCustomId(`lbcheck_next_disabled_${sessionTimestamp}`)
-                                        .setLabel('Next ➡️')
+                                        .setLabel('➡️')
+                                        .setStyle(ButtonStyle.Primary)
+                                        .setDisabled(true),
+                                    new ButtonBuilder()
+                                        .setCustomId(`lbcheck_end_disabled_${sessionTimestamp}`)
+                                        .setLabel('⏭️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true)
                                 );
@@ -379,11 +399,11 @@ export function setupLeaderboardHandlers(client) {
                 for (const id of addedToUserIds) {
                     await updateLeaderboard(id, amount); // This now uses the DB update
                 }
-                
+
                 // Use the new helper function to create an embed
                 const xpEmbed = createXpEmbed('add', amount, addedToUserIds);
                 await message.channel.send({ embeds: [xpEmbed] });
-                
+
                 // Trigger a backup after modifying the leaderboard.
                 await sendLeaderboardBackup(client);
             } catch (error) {
@@ -401,23 +421,21 @@ export function setupLeaderboardHandlers(client) {
             const mentions = message.mentions.users;
             const amountMatch = message.content.match(/(-?\d+)$/);
 
-            // Validate command usage.
             if (mentions.size === 0 || !amountMatch) {
                 return message.reply({ content: 'Usage: `!removexp @user1 [@user2 ...] <amount>`', ephemeral: true });
             }
 
             const amount = parseInt(amountMatch[1], 10);
-            const removedFromUserIds = Array.from(mentions.keys()); // Get an array of IDs
+            const removedFromUserIds = Array.from(mentions.keys());
 
             try {
                 for (const id of removedFromUserIds) {
-                    await updateLeaderboard(id, -amount); // This now uses the DB update
+                    await updateLeaderboard(id, -amount);
                 }
-                
-                // Use the new helper function to create an embed
+
                 const xpEmbed = createXpEmbed('remove', amount, removedFromUserIds);
                 await message.channel.send({ embeds: [xpEmbed] });
-                
+
                 await sendLeaderboardBackup(client);
             } catch (error) {
                 console.error('Error removing XP:', error);
@@ -481,7 +499,7 @@ export function setupLeaderboardHandlers(client) {
             pendingResets.delete(message.author.id);
 
             try {
-                await resetLeaderboard(pending.fullReset); // Perform the reset.
+                await resetLeaderboard(pending.fullReset); 
                 await message.reply({ content: `Leaderboard ${pending.fullReset ? 'fully' : 'monthly'} reset successfully!`, ephemeral: true });
                 await sendLeaderboardBackup(client);
             } catch (error) {
@@ -516,7 +534,7 @@ export function setupLeaderboardHandlers(client) {
         }
 
         if (message.content.toLowerCase() ==='!sendprevlb') {
-        await sendPreviousLeaderboardAnnouncement(client, true); // true indicates it's a manual trigger
+        await sendPreviousLeaderboardAnnouncement(client, true);
         await interaction.reply({ content: 'Sent previous month\'s leaderboard announcement to the management channel!', ephemeral: true });
 }
     });
@@ -543,8 +561,10 @@ export function setupLeaderboardHandlers(client) {
 
                 const disabledRow = new ActionRowBuilder()
                     .addComponents(
-                        new ButtonBuilder().setCustomId('expired_prev').setLabel('⬅️ Previous').setStyle(ButtonStyle.Secondary).setDisabled(true),
-                        new ButtonBuilder().setCustomId('expired_next').setLabel('Next ➡️').setStyle(ButtonStyle.Secondary).setDisabled(true)
+                        new ButtonBuilder().setCustomId('expired_start').setLabel('⏮️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_prev').setLabel('⬅️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_next').setLabel('➡️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_end').setLabel('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(true)
                     );
                 await interaction.update({ components: [disabledRow] }).catch(e => console.error("Error updating expired pagination message:", e));
                 return interaction.followUp({ content: 'This session has expired. Please run the command again.', ephemeral: true });
@@ -567,13 +587,21 @@ export function setupLeaderboardHandlers(client) {
                     if (expiredMessage) {
                         const disabledRow = new ActionRowBuilder()
                             .addComponents(
+                                new ButtonBuilder().setCustomId(`${prefix}_start_disabled_${sessionTimestamp}`)
+                                    .setLabel('⏮️')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
                                 new ButtonBuilder().setCustomId(`${prefix}_prev_disabled_${sessionTimestamp}`)
-                                    .setLabel('⬅️ Previous')
+                                    .setLabel('⬅️')
                                     .setStyle(ButtonStyle.Primary)
                                     .setDisabled(true),
                                 new ButtonBuilder()
                                     .setCustomId(`${prefix}_next_disabled_${sessionTimestamp}`)
-                                    .setLabel('Next ➡️')
+                                    .setLabel('➡️')
+                                    .setStyle(ButtonStyle.Primary)
+                                    .setDisabled(true),
+                                new ButtonBuilder().setCustomId(`${prefix}_end_disabled_${sessionTimestamp}`)
+                                    .setLabel('⏭️')
                                     .setStyle(ButtonStyle.Primary)
                                     .setDisabled(true)
                             );
@@ -586,7 +614,12 @@ export function setupLeaderboardHandlers(client) {
             }, PAGINATION_SESSION_LIFETIME_MS);
 
 
-            if (action === 'next') {
+            // Handle page navigation actions
+            if (action === 'start') { 
+                sessionData.currentPage = 1;
+            } else if (action === 'end') { 
+                sessionData.currentPage = sessionData.totalPages;
+            } else if (action === 'next') {
                 sessionData.currentPage++;
             } else if (action === 'prev') {
                 sessionData.currentPage--;
@@ -610,6 +643,5 @@ export function setupLeaderboardHandlers(client) {
         }
     });
 
-    // Setup the monthly reset task when the main handler is set up
     setupMonthlyResetTask(client);
 }

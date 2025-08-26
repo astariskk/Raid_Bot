@@ -151,13 +151,23 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
     if (originalRequesterId !== 'scheduled_reset') {
         row.addComponents(
             new ButtonBuilder()
+                .setCustomId(`lb_start_${originalRequesterId}_${timestamp}`) // Added 'start' button
+                .setLabel('⏮️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === 1),
+            new ButtonBuilder()
                 .setCustomId(`lb_prev_${originalRequesterId}_${timestamp}`)
-                .setLabel('⬅️ Previous')
+                .setLabel('⬅️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`lb_next_${originalRequesterId}_${timestamp}`)
-                .setLabel('Next ➡️')
+                .setLabel('➡️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === totalPages),
+            new ButtonBuilder()
+                .setCustomId(`lb_end_${originalRequesterId}_${timestamp}`) // Added 'end' button
+                .setLabel('⏭️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === totalPages)
         );
@@ -203,11 +213,11 @@ export async function createLbCheckResponse(sessionData, client, guild) {
             } else {
                 descriptionContent += `• Total EXP in range: ${userData.totalPointsForRange} EXP\n`;
                 if (userData.dailyBreakdown.length > 1 && userData.totalPointsForRange > 0) {
-                    descriptionContent += `  Breakdown:\n`;
+                    descriptionContent += `  Breakdown:\n`;
                     const maxBreakdownLines = 5;
                     if (userData.dailyBreakdown.length > maxBreakdownLines) {
                         descriptionContent += userData.dailyBreakdown.slice(0, Math.ceil(maxBreakdownLines / 2)).join('\n') + '\n';
-                        descriptionContent += `  ... (${userData.dailyBreakdown.length - Math.floor(maxBreakdownLines / 2) - Math.ceil(maxBreakdownLines / 2)} more days) ...\n`;
+                        descriptionContent += `  ... (${userData.dailyBreakdown.length - Math.floor(maxBreakdownLines / 2) - Math.ceil(maxBreakdownLines / 2)} more days) ...\n`;
                         descriptionContent += userData.dailyBreakdown.slice(-Math.floor(maxBreakdownLines / 2)).join('\n') + '\n';
                     } else {
                         descriptionContent += userData.dailyBreakdown.join('\n') + '\n';
@@ -223,13 +233,23 @@ export async function createLbCheckResponse(sessionData, client, guild) {
     const row = new ActionRowBuilder()
         .addComponents(
             new ButtonBuilder()
+                .setCustomId(`lbcheck_start_${originalRequesterId}_${timestamp}`)
+                .setLabel('⏮️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === 1),
+            new ButtonBuilder()
                 .setCustomId(`lbcheck_prev_${originalRequesterId}_${timestamp}`)
-                .setLabel('⬅️ Previous')
+                .setLabel('⬅️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`lbcheck_next_${originalRequesterId}_${timestamp}`)
-                .setLabel('Next ➡️')
+                .setLabel('➡️')
+                .setStyle(ButtonStyle.Primary)
+                .setDisabled(currentPage === totalPages),
+            new ButtonBuilder()
+                .setCustomId(`lbcheck_end_${originalRequesterId}_${timestamp}`)
+                .setLabel('⏭️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === totalPages)
         );

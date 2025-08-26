@@ -50,12 +50,7 @@ function isAdmin(source) {
     );
 }
 
-/**
- * Checks if a user is authorized to manage a raid (requester or staff).
- * @param {import('discord.js').Interaction} interaction The interaction object.
- * @param {object} raidInfo The raid information object.
- * @returns {Promise<boolean>} True if authorized, false otherwise.
- */
+
 async function isAuthorizedToManageRaid(interaction, raidInfo) {
     if (interaction.user.id === raidInfo.requesterId || isAdmin(interaction)) {
         return true;
@@ -67,11 +62,6 @@ async function isAuthorizedToManageRaid(interaction, raidInfo) {
     return false;
 }
 
-/**
- * Extracts all user ID strings from a given text.
- * @param {string} text The text to parse for user mentions.
- * @returns {string[]} An array of user IDs.
- */
 function extractUserIds(text) {
     return (text.match(/<@!?(\d+)>/g) || []).map(mention =>
         mention.replace(/<@!?(\d+)>/, '$1')
@@ -310,11 +300,6 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
     }
 }
 
-/**
- * Handles the logic for processing a raid completion message, including validation and point calculation.
- * @param {import('discord.js').Message} message The message containing helper details.
- * @param {object} raidInfo The raid information object.
- */
 async function handleRaidCompletion(message, raidInfo) {
     const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
@@ -437,11 +422,6 @@ async function handleRaidCompletion(message, raidInfo) {
     await finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachment);
 }
 
-/**
- * Handles the cancellation of a raid thread.
- * @param {import('discord.js').Message} message The message that triggered cancellation.
- * @param {object} raidInfo The raid's information.
- */
 async function handleRaidCancellation(message, raidInfo) {
     const threadId = message.channel.id;
     const originalRaidLogThread = message.channel;
@@ -453,10 +433,7 @@ async function handleRaidCancellation(message, raidInfo) {
     await updateRaid(threadId, { awaitingCompletion: false, awaitingCompletionRequesterId: null });
 }
 
-/**
- * Sets up all the message and interaction listeners for handling raid completions.
- * @param {import('discord.js').Client} client The Discord client instance.
- */
+
 export function setupExpLairHandlers(client) {
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
