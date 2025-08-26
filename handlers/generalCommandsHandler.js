@@ -20,6 +20,7 @@ import {
     GENERIC_TASKS_LIST
 } from '../config/constants.js';
 import { getRaidRequestModal } from './raidLogsHandler.js';
+import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
 
 // --- Cooldown management for GIF commands ---
 const gifCooldowns = new Map();
@@ -119,7 +120,7 @@ function getCommandsEmbed() {
                 name: '📊 General Raid & Status Commands',
                 value: `
 \`!raidtasks\`: Lists all available raid tasks **by category**.
-\`!calculatetask <task1> + <task2> + ...\`: Calculates total points for specified tasks.
+\`!calculatetask <task1> [xN] + <task2> [xN] + ...\`: Calculates total points for specified tasks.
 `
             },
             {
@@ -194,7 +195,7 @@ export function getCombinedTasksAndPointsEmbed() {
         .setTitle('📋 Raid Tasks & EXP Values')
         .setDescription(
             'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`\n' +
-            'below are the list of available tasks and their exp values sectioned by category.\n\n'
+            'below are the list of available tasks and exp values sectioned by their category.\n\n'
         )
         .setTimestamp()
         .setFooter({ text: 'Raid Helper Bot | Tasks & Points' });
@@ -372,62 +373,13 @@ export function setupGeneralCommandsHandler(client) {
         // --- Handle the !calculatetask command ---
         if (commandContent.startsWith('!calculatetask')) {
             const args = message.content.slice('!calculatetask'.length).trim();
-            // Split tasks by '+' and then process each task for potential multipliers
-            const rawTaskEntries = args.split('+').map(task => task.trim()).filter(task => task.length > 0);
 
-            if (rawTaskEntries.length === 0) {
-                return message.reply({ content: 'Usage: `!calculatetask <task1> [xN] + <task2> [xN] + ...` (e.g., `!calculatetask speaker + daily x2`)', ephemeral: true });
-            }
-
-            let originalTotalCalculatedPoints = 0;
-            const unknownTasks = [];
-
-            for (const entry of rawTaskEntries) {
-                const taskMatch = entry.match(/^(.+?)(x(\d+))?$/i); // Regex to capture task name and optional multiplier
-                if (!taskMatch) {
-                    unknownTasks.push(entry);
-                    continue;
-                }
-
-                let taskName = taskMatch[1].trim().toLowerCase();
-                const multiplier = taskMatch[3] ? parseInt(taskMatch[3], 10) : 1;
-
-                if (isNaN(multiplier) || multiplier < 1) {
-                    unknownTasks.push(entry);
-                    continue;
-                }
-
-                let taskPoints = 0;
-                let effectiveTasks = new Set();
-
-                // Handle meta categories
-                if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
-                    TASK_MAP_CATEGORIES[taskName].forEach(t => effectiveTasks.add(t));
-                } else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
-                    effectiveTasks.add(taskName);
-                } else {
-                    unknownTasks.push(entry);
-                    continue;
-                }
-
-                let currentEntryPoints = 0;
-                effectiveTasks.forEach(t => {
-                    if (POINTS_CONFIG.hasOwnProperty(t)) {
-                        currentEntryPoints += POINTS_CONFIG[t];
-                    } else {
-                        console.warn(`Task "${t}" from category "${taskName}" not found in POINTS_CONFIG.`);
-                        unknownTasks.push(t); 
-                    }
-                });
-                
-                // Apply multiplier to the current entry's total points
-                taskPoints = currentEntryPoints * multiplier;
-                originalTotalCalculatedPoints += taskPoints;
-
-            }
-
-            // Apply the 20-point cap to the calculated total (MAX_XP_PER_RAID)
-            let totalCalculatedPoints = Math.min(originalTotalCalculatedPoints, MAX_XP_PER_RAID);
+            // Use the new helper function
+            const {
+                totalCalculatedPoints,
+                originalTotalCalculatedPoints,
+                unknownTasks
+            } = calculateTaskPointsWithMultiplier(args);
 
             let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP\n\n`;
 
@@ -436,7 +388,6 @@ export function setupGeneralCommandsHandler(client) {
                 replyContent += `\n\n_Note: The following tasks were not recognized and were not included in the calculation: ${unknownTasks.join(', ')}._`;
             }
             
-            // Corrected condition for displaying the capping message
             if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
                 replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP (original total: ${originalTotalCalculatedPoints} EXP)._`;
             }

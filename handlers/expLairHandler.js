@@ -67,8 +67,8 @@ function parseHelperAssignments(content) {
     const globalTaggedUsers = new Set();
     let globalMultiplier = 1;
     let hasValidTags = false;
-    const unrecognizedTasks = new Set(); 
-    const linesWithNoValidUsers = new Set(); 
+    const unrecognizedTasks = new Set(); // For tasks that are not in ALLOWED_TASK_NAMES or malformed task strings
+    const linesWithNoValidUsers = new Set(); // For lines where no actual users were tagged
 
     const lines = content.split('\n');
     for (const line of lines) {
@@ -148,11 +148,6 @@ function parseHelperAssignments(content) {
     return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
-/**
- * Calculates the total EXP points for a given set of tasks.
- * @param {string[]} tasks An array of task names.
- * @returns {number} The total calculated points, capped at MAX_XP_PER_RAID.
- */
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -172,17 +167,6 @@ function calculateTaskPoints(tasks) {
     return Math.min(totalPoints, MAX_XP_PER_RAID);
 }
 
-/**
- * Finalizes the raid completion process by posting summaries, awarding points, and locking the thread.
- * @param {import('discord.js').Message} message The message that triggered completion.
- * @param {object} raidInfo The raid's information.
- * @param {object} pointsAwarded A map of user IDs to points awarded.
- * @param {string[]} helperSummaries An array of strings summarizing helper contributions.
- * @param {Set<string>} unrecognizedTasks A set of task strings that were not recognized.
- * @param {Set<string>} linesWithNoValidUsers A set of lines that had no valid user mentions.
- * @param {Set<string>} mismatchedTasks A set of tasks submitted that were not in the original request.
- * @param {import('discord.js').Attachment} [attachment] An optional attachment from the completion message.
- */
 async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachment) {
     const originalRaidLogThread = message.channel;
     const threadId = originalRaidLogThread.id;
@@ -197,19 +181,23 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
             return;
         }
 
-        // Fetch display names for all helpers to avoid pings.
+        // Fetch display names and mentions for all helpers.
         const helperDisplayNames = [];
+        const helperMentions = []; // Store mentions for the embed
         const allHelperIds = Object.keys(pointsAwarded);
         for (const id of allHelperIds) {
             try {
                 const member = await message.guild.members.fetch(id);
                 helperDisplayNames.push(member.displayName);
+                helperMentions.push(`<@${id}>`); // Add mention for the embed
             } catch (err) {
                 console.error(`Error fetching member ${id}:`, err);
                 helperDisplayNames.push(`User-${id}`); // Fallback
+                helperMentions.push(`User-${id}`); // Fallback for mention too
             }
         }
-        const helpersString = helperDisplayNames.length > 0 ? helperDisplayNames.join(', ') : 'None';
+        const helpersStringForEmbed = helperMentions.length > 0 ? helperMentions.join(', ') : 'None';
+        const helpersStringForThread = helperDisplayNames.length > 0 ? helperDisplayNames.join(', ') : 'None';
 
         const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
 
@@ -220,7 +208,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
             .setDescription(
                 `**Raid requested by:** ${requesterMember}\n` +
                 `**Task(s):** ${raidInfo.task}\n` +
-                `**Helpers:** ${helpersString}`
+                `**Helpers:** ${helpersStringForEmbed}` // Use mentions here
             )
             .setTimestamp()
             .setFooter({ text: 'Raid Completion Details' });
@@ -244,7 +232,7 @@ async function finalizeRaidCompletion(message, raidInfo, pointsAwarded, helperSu
         if (Object.keys(pointsAwarded).length > 0) {
             for (const userId in pointsAwarded) {
                 const member = await message.guild.members.fetch(userId);
-                expLairThreadContent += `${member.displayName}: ${pointsAwarded[userId]} EXP\n`;
+                expLairThreadContent += `${member.displayName}: ${pointsAwarded[userId]} EXP\n`; // Use display name here
             }
         } else {
             expLairThreadContent += `No standard EXP awarded based on submission.`;
@@ -293,35 +281,28 @@ async function handleRaidCompletion(message, raidInfo) {
     const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
 
-    const filterAndGetDisplayNames = async (userIds, currentRaidInfo) => { 
+    const filterAndGetDisplayNames = async (userIds) => {
         const validUsers = {};
         for (const userId of userIds) {
-
-
-            if (userId === message.author.id) {
-                // If the user submitting is ALSO the original raid requester, they cannot award themselves points.
-                if (message.author.id === currentRaidInfo.requesterId) {
-                    await message.channel.send(`Heads up! As the raid requester, you cannot award yourself points for your own raid. Ignoring <@${userId}>.`);
-                    continue;
+            // Check if the user is the raid requester.
+            if (userId === raidInfo.requesterId) {
+                try {
+                    const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
+                    await message.channel.send(`Heads up! The requester cannot award themselves points. Ignoring **${requesterMember.displayName}** for this submission.`);
+                } catch (error) {
+                    console.error(`Could not fetch requester member ${raidInfo.requesterId} for warning:`, error);
+                    await message.channel.send(`Heads up! The requester cannot award themselves points. Ignoring <@${raidInfo.requesterId}> for this submission.`);
                 }
-
-                else if (isAdmin(message)) {
-                    // No 'continue' here, so processing proceeds.
-                }
-                
-                // If the user submitting is NOT the original raid requester, AND they are NOT an admin,
-                else {
-                    await message.channel.send(`Heads up! You are trying to award yourself points for someone else's raid, but only staff members can do so. Ignoring <@${userId}>.`);
-                    continue;
-                }
+                continue;
             }
-            // Existing check for bots and valid user fetching
             try {
                 const member = await message.guild.members.fetch(userId);
+                //bot check
                 if (member.user.bot) {
-                    await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring <@${userId}> for this submission.`);
+                    await message.channel.send(`Heads up! Bots cannot be awarded points. Ignoring ${member.displayName} for this submission.`);
                     continue;
                 }
+                
                 validUsers[userId] = member.displayName;
             } catch (error) {
                 console.error(`Could not fetch guild member ${userId} during validation:`, error);
@@ -351,7 +332,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
     for (const taskName in helperAssignments) {
         const { users, multiplier } = helperAssignments[taskName];
-        const validUsers = await filterAndGetDisplayNames(users, raidInfo); // Pass raidInfo
+        const validUsers = await filterAndGetDisplayNames(users);
         const usersForTask = Object.keys(validUsers);
 
         if (usersForTask.length === 0) continue;
@@ -384,7 +365,7 @@ async function handleRaidCompletion(message, raidInfo) {
     }
 
     const unassignedGlobalTaggedUsers = Array.from(globalTaggedUsers).filter(id => !assignedUsers.has(id));
-    const validGlobalTaggedUsers = await filterAndGetDisplayNames(new Set(unassignedGlobalTaggedUsers), raidInfo); // Pass raidInfo
+    const validGlobalTaggedUsers = await filterAndGetDisplayNames(new Set(unassignedGlobalTaggedUsers));
     if (Object.keys(validGlobalTaggedUsers).length > 0) {
         const tasksForGlobalHelpers = Array.from(originalRaidEffectiveTasks);
         let totalPointsForGlobalHelpers = calculateTaskPoints(tasksForGlobalHelpers) * globalMultiplier;
@@ -512,7 +493,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the thread without tagging helpers.`
                             + `\n* For multiple tasks, use \`task1 + task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done   \`task1xN = @user\` format.`,
+                            + `\n* For multiple runs of the same tasks, a multiplier can done \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;
