@@ -1,6 +1,7 @@
 // handlers/raidLogsHandler.js
-// This file contains handlers for creating raid requests, managing raid status updates,
-// displaying boss mechanics charts within raid threads, and showing raid task EXP points.
+// This file contains handlers for creating raid requests (now as new channels/tickets),
+// managing raid status updates by renaming the channel,
+// displaying boss mechanics charts within raid tickets, and showing raid task EXP points.
 
 // Import necessary Discord.js components for UI elements like buttons, modals, embeds.
 import {
@@ -10,14 +11,16 @@ import {
     TextInputBuilder,
     TextInputStyle,
     ActionRowBuilder,
-    TextChannel, // Used for type checking Discord channels
-    EmbedBuilder
+    TextChannel, 
+    EmbedBuilder,
+    PermissionFlagsBits,
+    ChannelType 
 } from 'discord.js';
 
 // Import constants related to channel IDs, role IDs, task lists, and points configuration
 import {
-    RAID_CHANNEL_ID,
-    RAID_LOGS_CHANNEL_ID,
+    RAID_CHANNEL_ID, // This will be the parent category for new ticket channels
+    RAID_LOGS_CHANNEL_ID, // Still used for a public log/announcement if desired
     RAID_HELPER_ROLE_ID,
     DAILIES_LIST,
     WEEKLIES_LIST,
@@ -36,38 +39,40 @@ import {
     OFFICER_ROLE_ID,
     RAID_MANAGER_ROLE_ID,
     RAID_CHAMPION_ROLE_ID,
-    RECORD_HOLDER_ROLE_ID
+    RECORD_HOLDER_ROLE_ID,
+    RAID_CATEGORY_ID
 } from '../config/constants.js';
 
-// Import shared state and functions from activeRaidState.js for managing active raid threads.
+// Import shared state and functions from activeRaidState.js for managing active raid tickets.
 import {
-    updateRaidStatus,
-    getRaidInfo, // Import the new getRaidInfo
-    createRaid // Import the new createRaid
-} from '../activeRaidState.js'; // activeRaidState now manages DB operations
+    updateRaidStatus, // This will be modified to rename channels
+    getRaidInfo,
+    createRaid,
+    updateRaid // Added for updating raid details if needed
+} from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
 // --- Utility Functions ---
 /**
  * Checks if a message author has an admin role.
- * @param {import('discord.js').Message} message The message to check.
+ * @param {import('discord.js').Message | import('discord.js').Interaction} source The message or interaction to check.
  * @returns {boolean} True if the user has an admin role, false otherwise.
  */
-function isAdmin(message) {
-    if (!message.member) {
-        console.warn('isAdmin called for a message without a member object (e.g., DM).');
+function isAdmin(source) {
+    if (!source.member) {
+        console.warn('isAdmin called for a source without a member object (e.g., DM).');
         return false;
     }
     return (
-        message.member.roles.cache.has(MODERATOR_ROLE_ID) ||
-        message.member.roles.cache.has(OFFICER_ROLE_ID) ||
-        message.member.roles.cache.has(RAID_MANAGER_ROLE_ID) ||
-        message.member.roles.cache.has(RAID_CHAMPION_ROLE_ID) ||
-        message.member.roles.cache.has(RECORD_HOLDER_ROLE_ID)
+        source.member.roles.cache.has(MODERATOR_ROLE_ID) ||
+        source.member.roles.cache.has(OFFICER_ROLE_ID) ||
+        source.member.roles.cache.has(RAID_MANAGER_ROLE_ID) ||
+        source.member.roles.cache.has(RAID_CHAMPION_ROLE_ID) ||
+        source.member.roles.cache.has(RECORD_HOLDER_ROLE_ID)
     );
 }
 
-// Button to close a raid ticket/thread.
+// Button to close a raid ticket/channel.
 const closeTicketButton = new ButtonBuilder()
     .setCustomId("closeRaidTicket")
     .setLabel('🔒 Close Raid')
@@ -79,10 +84,8 @@ const editTaskButton = new ButtonBuilder()
     .setLabel('✏️ Edit Task')
     .setStyle(ButtonStyle.Secondary);
 
-
-const threadActionRow = new ActionRowBuilder()
+const threadActionRow = new ActionRowBuilder() // Renamed to actionRow for channel
     .addComponents(closeTicketButton, editTaskButton);
-
 
 /**
  * Creates and returns the Modal for submitting new raid assistance requests.
@@ -138,76 +141,95 @@ export function getRaidRequestModal() {
 }
 
 /**
- * Sets up event handlers for raid logging functionalities, including raid requests,
- * status updates within threads, and boss mechanic charts in threads.
+ * Sets up event handlers for raid logging functionalities, including raid requests (now as channels),
+ * status updates within channels, and boss mechanic charts in channels.
  * @param {import('discord.js').Client} client The Discord client instance.
  */
 export function setupRaidLogsHandlers(client) {
-    // --- Message Create Listener (for commands and status updates within threads) ---
-    // This listener processes messages sent in any channel.
+    // --- Message Create Listener (for commands and status updates within channels) ---
     client.on("messageCreate", async (message) => {
-        if (message.author.bot) return; // Ignore messages from bots to prevent infinite loops.
+        if (message.author.bot) return; // Ignore messages from bots.
 
-        // --- Logic for status updates within active raid threads ---
-        // Check if the message is in an active raid thread and sent by the raid requester OR an admin.
-        const raidInfo = await getRaidInfo(message.channel.id); // Fetch from DB/cache
-        if (message.channel.isThread() && raidInfo && (message.author.id === raidInfo.requesterId || isAdmin(message))) {
-            const content = message.content.toLowerCase().trim(); // Get message content, lowercase and trim.
-            let newStatus, newColor;
+        // Check if the message is in a raid ticket channel (not a main channel or general thread)
+        // A raid ticket channel's ID will be stored in our DB.
+        const raidInfo = await getRaidInfo(message.channel.id);
+        const isRaidTicketChannel = raidInfo && message.channel.type === ChannelType.GuildText && message.channel.parentId === RAID_CATEGORY_ID;
 
-            // Determine the new status and color based on specific keywords.
+
+        if (isRaidTicketChannel) {
+            const content = message.content.toLowerCase().trim();
+            let newStatusTag = ''; // e.g., '[waiting]'
+            let newColor = 0x0099ff; // Default blue
+
             if (content === '!waiting') {
-                newStatus = '🔵 Waiting';
-                newColor = 0x0099ff; // Blue for waiting.
+                newStatusTag = '[waiting]';
+                newColor = 0x0099ff;
             } else if (content === '!full') {
-                newStatus = '🔴 Full';
-                newColor = 0xdd2e44; // Red for full.
+                newStatusTag = '[full]';
+                newColor = 0xdd2e44;
             } else if (content === '!ongoing') {
-                newStatus = '🟢 Ongoing';
-                newColor = 0x78b159; // Lime Green for ongoing.
+                newStatusTag = '[ongoing]';
+                newColor = 0x78b159;
             }
 
-            
-            if (newStatus) {
-                await updateRaidStatus(client, message.channel.id, newStatus, newColor);
-                await message.react('👍'); 
-                return; 
+            if (newStatusTag) {
+                try {
+                    // Fetch the guild member using the requesterId from raidInfo
+                    const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
+                    if (!requesterMember) {
+                        await message.channel.send('Could not find the original raid requester to update the channel name.');
+                        return;
+                    }
+
+                    // Construct the base name using the requester's display name
+                    const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
+                    const newChannelName = `${baseName}-${newStatusTag}`;
+
+                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);
+                    // Update the raid status in the database (this still makes sense for internal state)
+                    await updateRaid(message.channel.id, { status: newStatusTag, color: newColor });
+                    await message.react('👍');
+                    return;
+                } catch (error) {
+                    console.error(`Error renaming channel ${message.channel.id}:`, error);
+                    await message.channel.send('Failed to update channel name. Ensure the new name is valid and within Discord\'s length limits (100 characters).');
+                }
             }
         }
 
-        // --- Logic for boss mechanic charts within any thread ---
-        if (message.channel.isThread()) {
-            const threadCommand = message.content.toLowerCase().trim();
+        // --- Logic for boss mechanic charts within any raid ticket channel ---
+        if (isRaidTicketChannel) {
+            const channelCommand = message.content.toLowerCase().trim();
             let embedToSend;
-            let messageContent = null; 
+            let messageContent = null;
 
             // Check for specific chart commands and create the corresponding embed.
-            if (threadCommand === '!1man') {
+            if (channelCommand === '!1man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('1-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/svrjfx.jpg') 
+                    .setImage('https://files.catbox.moe/svrjfx.jpg')
                     .setFooter({ text: 'Speaker chart for 1-man taunts' });
-            } else if (threadCommand === '!2man') {
+            } else if (channelCommand === '!2man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('2-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/hvccl7.png')
                     .setFooter({ text: 'Speaker chart for 2-man taunts by Veritus' });
-                messageContent = "It's movie time <@114514543899705351>";         //ping Veritus             
-            } else if (threadCommand === '!3man') {
+                messageContent = "It's movie time <@114514543899705351>"; //ping Veritus
+            } else if (channelCommand === '!3man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('3-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/5x4grv.jpg')
                     .setFooter({ text: 'Speaker chart for 3-man taunts' });
-            } else if (threadCommand === '!4man') {
+            } else if (channelCommand === '!4man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('4-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
                     .setFooter({ text: 'Speaker chart for 4-man taunts' });
-            } else if (threadCommand === '!gramielchart') {
+            } else if (channelCommand === '!gramielchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('Gramiel Chart')
@@ -215,12 +237,11 @@ export function setupRaidLogsHandlers(client) {
                     .setFooter({ text: 'Gramiel chart made by Lilicht' });
             }
 
-            // If a chart embed was created, send it to the thread.
             if (embedToSend) {
                 try {
                     await message.channel.send({ content: messageContent, embeds: [embedToSend] });
                 } catch (error) {
-                    console.error(`Error sending ${threadCommand} chart:`, error);
+                    console.error(`Error sending ${channelCommand} chart:`, error);
                     await message.channel.send('Failed to send the chart. Please check the link or try again later.');
                 }
             }
@@ -228,10 +249,10 @@ export function setupRaidLogsHandlers(client) {
 
         // --- Handle !raidmaps without a number ---
         if (message.content.toLowerCase().trim() === '!raidmaps') {
-            if (message.channel.isThread()) {
+            if (isRaidTicketChannel) {
                 await message.channel.send('Please provide the map number. Example: `!raidmaps 7070`');
             } else {
-                await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid thread to get join links for the tasks in that specific raid.');
+                await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
             return;
         }
@@ -240,28 +261,21 @@ export function setupRaidLogsHandlers(client) {
         const raidMapsMatch = message.content.toLowerCase().match(/^!raidmaps\s+(\d+)$/);
 
         if (raidMapsMatch) {
-            const mapNumber = raidMapsMatch[1]; 
+            const mapNumber = raidMapsMatch[1];
 
-            // Check if the command is used within an active raid thread
-            const raidInfo = await getRaidInfo(message.channel.id); 
-
-            if (message.channel.isThread() && raidInfo) {
-                const raidTasksString = raidInfo.task; 
-                // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
+            if (isRaidTicketChannel && raidInfo) {
+                const raidTasksString = raidInfo.task;
                 const rawRequestedTasks = raidTasksString.split(/\s*\+\s*/).map(t => t.trim());
 
                 let expandedTasks = [];
-                // Expand meta-tasks into their individual components
                 for (const task of rawRequestedTasks) {
                     if (TASK_MAP_CATEGORIES[task]) {
-                        // If it's a category (like 'daily' or 'weekly'), add its individual tasks
                         expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);
                     } else {
                         expandedTasks.push(task);
                     }
                 }
 
-                // Generate the /join links for each task
                 const joinLinksWithPoints = expandedTasks.map(task => {
                     const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
                     return `* /join ${mapPrefix}-${mapNumber}`;
@@ -276,17 +290,18 @@ export function setupRaidLogsHandlers(client) {
                 try {
                     await message.channel.send({ embeds: [embedToSend] });
                 } catch (error) {
-                    console.error(`Error sending !raidmaps for thread ${message.channel.id}:`, error);
-                    await message.channel.send('Failed to display raid maps for this thread. Please try again later.');
+                    console.error(`Error sending !raidmaps for channel ${message.channel.id}:`, error);
+                    await message.channel.send('Failed to display raid maps for this channel. Please try again later.');
                 }
             } else {
                 await message.channel.send(
-                    'The `!raidmaps [number]` command can only be used inside an active raid thread ' +
+                    'The `!raidmaps [number]` command can only be used inside an active raid ticket channel ' +
                     'to get join links for the tasks in that specific raid.'
                 );
             }
             return;
         }
+
         // --- Handle the !raidsite command ---
         if (message.content.toLowerCase() === '!raidsite') {
             const raidSiteButton = new ButtonBuilder()
@@ -302,7 +317,7 @@ export function setupRaidLogsHandlers(client) {
                     components: [raidSiteRow]
                 });
             } catch (error) {
-                console.error('Error sending !!raidsite embed:', error);
+                console.error('Error sending !raidsite embed:', error);
                 await message.channel.send('Failed to display raid site. Please try again later.');
             }
         }
@@ -319,107 +334,112 @@ export function setupRaidLogsHandlers(client) {
     });
 
     // --- Interaction Create Listener (for button clicks and modal submissions) ---
-    // This listener processes interactions (button clicks, modal submissions, etc.).
     client.on('interactionCreate', async interaction => {
-        // Only process buttons and modal submissions in this handler.
         if (!interaction.isButton() && !interaction.isModalSubmit()) {
             return;
         }
 
         // --- Handle Modal Submissions ---
         if (interaction.isModalSubmit()) {
-            // Check if the submitted modal is the 'raidRequestModal'.
             if (interaction.customId === 'raidRequestModal') {
-                // Extract values from the modal's input fields.
                 const task = interaction.fields.getTextInputValue('taskInput').toLowerCase();
                 const mapName = interaction.fields.getTextInputValue('mapNameInput');
                 const server = interaction.fields.getTextInputValue('serverInput');
                 const description = interaction.fields.getTextInputValue('descriptionInput');
 
-                // Split tasks by '+' to handle multiple tasks (e.g., 'task1 + task2').
                 const requestedTasks = task.split(/\s*\+\s*/).map(t => t.trim());
-                // Validate each individual task against allowed task names.
                 for (const singleTask of requestedTasks) {
-                    if (!ALLOWED_TASK_NAMES.includes(singleTask)) { // Removed custom task prefix check
-                        // If an invalid task is found, send an error reply with the tasks embed.
-                        await interaction.reply({ // Changed from editReply to reply
+                    if (!ALLOWED_TASK_NAMES.includes(singleTask)) {
+                        await interaction.reply({
                             content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
                             embeds: [getCombinedTasksAndPointsEmbed()],
                             ephemeral: true
                         });
-                        return; // Stop processing if validation fails.
+                        return;
                     }
                 }
+
+                await interaction.deferReply({ ephemeral: true }); // Defer immediately for longer processing
 
                 try {
-                    const raidLogsChannel = await client.channels.fetch(RAID_LOGS_CHANNEL_ID);
-
-                    // Ensure the fetched channel is a text channel before sending messages.
-                    if (raidLogsChannel instanceof TextChannel) {
-                        // Create the embed message for the new raid request.
-                        const embedMessage = new EmbedBuilder()
-                            .setColor(0x0099ff) // Blue color.
-                            .setTitle(`New Raid Request by: ${interaction.member.displayName}`) // Title with the user's name.
-                            .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() }) // Set author as the requesting user.
-                            .addFields(
-                                { name: 'Task(s)', value: task, inline: false },
-                                { name: 'Map Name', value: mapName, inline: true }, 
-                                { name: 'Server', value: server, inline: true },  
-                                { name: 'Status', value: '🔵 Waiting', inline: true }, // Initial status.
-                                { name: 'Description', value: description || 'No description provided.' },
-                            )
-                            .setTimestamp() // Timestamp for when the request was made.
-                            .setFooter({ text: 'Raid Request System' });
-
-                        // Send the embed message to the raid logs channel, tagging the Raid Helper role.
-                        const sentMessage = await raidLogsChannel.send({
-                            embeds: [embedMessage],
-                            content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}!`,
-                        });
-
-                        // Create a thread name player's raid request. and below 100 characters.
-                        const fullThreadName = `${interaction.member.displayName}'s Raid Request`;
-                        const threadName = fullThreadName.length > 99 ? fullThreadName.substring(0, 99) : fullThreadName;
-
-
-                        // Start a new thread off the sent message for discussion.
-                        const thread = await sentMessage.startThread({
-                            name: threadName, // Use the new, validated name.
-                            autoArchiveDuration: 60, // Thread auto-archives after 60 minutes of inactivity.
-                            reason: `Raid request from ${interaction.user.tag}`,
-                        });
-
-                        await thread.send({
-                            content: `Discuss details here!\n\nTo update the status, the raid requester can type **!waiting**, **!ongoing** or **!full** in this thread.\n\nClick the button below once the raid is complete or to edit tasks:`,
-                            components: [threadActionRow] // Attach the close and edit buttons.
-                        });
-
-                        // Store the raid's information in the database using createRaid.
-                        await createRaid(thread.id, { // Use the new createRaid function
-                            messageId: sentMessage.id,
-                            originalChannelId: raidLogsChannel.id,
-                            task: task, // Store the combined task string
-                            requesterId: interaction.user.id,
-                            mapName: mapName,
-                            server: server,
-                            description: description,
-                            awaitingCompletion: false // Initial state: not awaiting completion.
-                        });
-                        console.log(`Active raid thread created and stored in DB: ${thread.id} for task ${task} by ${interaction.user.tag}`);
-
-                        // Edit the deferred reply to confirm the raid request submission.
-                        await interaction.reply({ content: 'Your raid request has been submitted and a thread has been created!', ephemeral: true }); // Changed from editReply to reply
-                    } else {
-                        // If the raid logs channel is not a text channel, send an error.
-                        await interaction.reply({ content: 'Error: Could not find the raid logs channel or it is not a text channel.', ephemeral: true }); // Changed from editReply to reply
+                    const guild = interaction.guild;
+                    if (!guild) {
+                        await interaction.editReply({ content: 'Error: This command can only be used in a server.' });
+                        return;
                     }
+
+                    // Create the new raid ticket channel
+                    // Name: requester-raid-request-[status]
+                    const baseChannelName = `${interaction.member.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
+                    const initialChannelName = `${baseChannelName}-[waiting]`;
+
+                    // Define permissions for the new channel
+                    const permissionOverwrites = [
+                        {
+                            id: guild.id, // @everyone role
+                            deny: [PermissionFlagsBits.ViewChannel] // Deny view for everyone by default
+                        },
+                        {
+                            id: RAID_HELPER_ROLE_ID, // Raid Helper role
+                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        },
+                        {
+                            id: interaction.user.id, // The raid requester
+                            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+                        }
+                    ];
+
+                    const raidTicketChannel = await guild.channels.create({
+                        name: initialChannelName,
+                        type: ChannelType.GuildText,
+                        parent: RAID_CATEGORY_ID, // Parent category ID
+                        permissionOverwrites: permissionOverwrites,
+                        reason: `Raid request from ${interaction.user.tag}`
+                    });
+
+                    // Create the embed message for the new raid request.
+                    const embedMessage = new EmbedBuilder()
+                        .setColor(0x0099ff) // Blue color.
+                        .setTitle(`New Raid Request by: ${interaction.member.displayName}`)
+                        .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
+                        .addFields(
+                            { name: 'Task(s)', value: task, inline: false },
+                            { name: 'Map Name', value: mapName, inline: true },
+                            { name: 'Server', value: server, inline: true },
+                            { name: 'Description', value: description || 'No description provided.' },
+                        )
+                        .setTimestamp()
+                        .setFooter({ text: 'Raid Request System' });
+
+                    // Send the embed and buttons to the new ticket channel
+                    const sentMessage = await raidTicketChannel.send({
+                        embeds: [embedMessage],
+                        content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}\n\nTo update the status, type **!waiting**, **!ongoing** or **!full** in this channel.`,
+                        components: [threadActionRow]
+                    });
+
+                    // Store the raid's information in the database.
+                    await createRaid(raidTicketChannel.id, { // Use channelId as the primary ID
+                        messageId: sentMessage.id, // The ID of the initial embed message in the ticket channel
+                        originalChannelId: raidTicketChannel.id, // This ticket channel itself is the 'original'
+                        task: task,
+                        requesterId: interaction.user.id,
+                        mapName: mapName,
+                        server: server,
+                        description: description,
+                        status: initialChannelName, // Store the initial status tag
+                        color: 0x0099ff, // Store initial color
+                        awaitingCompletion: false
+                    });
+                    console.log(`Raid ticket channel created and stored in DB: ${raidTicketChannel.id} for task ${task} by ${interaction.user.tag}`);
+
+                    await interaction.editReply({ content: `Your raid request has been submitted! Check out your new raid ticket: <#${raidTicketChannel.id}>`, ephemeral: true });
+
                 } catch (error) {
-                    console.error('Error handling modal submission and creating raid:', error);
-                    // Provide a user-friendly error message if something goes wrong.
-                    await interaction.reply({ content: 'There was an error processing your request and creating the raid. Please try again later.', ephemeral: true }); // Changed from editReply to reply
+                    console.error('Error handling modal submission and creating raid ticket channel:', error);
+                    await interaction.editReply({ content: 'There was an error processing your request and creating the raid ticket. Please try again later.', ephemeral: true });
                 }
             }
-            // All other modals (like 'editTaskModal') are handled in `expLairHandler.js`.
         }
     });
 }
