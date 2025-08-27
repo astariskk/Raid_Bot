@@ -395,7 +395,7 @@ async function presentRaidCompletionForManagerReview(
         await updateRaidStatus(message.client, channelId, 'Completed', COLOR_SUCCESS);
         
         // Update the raid channel name to indicate pending review
-        const newChannelName = `Completed-Raid`;
+        const newChannelName = `Pending-Raid`;
         await message.channel.setName(newChannelName, `Status change to ${newChannelName}`);   
 
         const managerMessage = await raidTicketChannel.send({
