@@ -124,7 +124,7 @@ function getCommandsEmbed() {
 `
             },
             {
-                name: '⚔️ Commands Inside Raid Threads',
+                name: '⚔️ Commands Inside Raid Tickets',
                 value: `
 \`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
 \`!raidsite\`: Sends a website for making joining maps easier.
@@ -164,7 +164,7 @@ export function getHowToUseEmbed(raidHelperRoleName) {
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
-            `**3. Raid Coordination:** A dedicated thread will be created for your raid. Within this thread, you can use thread-only commands, update your raid's status or edit your request.\n\n` +
+            `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
             `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`10000\` points every month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`

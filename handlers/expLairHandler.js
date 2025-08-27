@@ -41,11 +41,7 @@ const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
 const COLOR_PENDING = 0xFFA500; // Orange (for manager review)
 
-/**
- * Checks if a message author or interaction user has an admin role.
- * @param {import('discord.js').Message | import('discord.js').Interaction} source The message or interaction to check.
- * @returns {boolean} True if the user has an admin role, false otherwise.
- */
+
 function isAdmin(source) {
     const member = source.member;
     if (!member) {
@@ -59,12 +55,6 @@ function isAdmin(source) {
     );
 }
 
-/**
- * Checks if the interaction user is authorized to manage the raid (requester or admin).
- * @param {import('discord.js').Interaction} interaction The interaction to check.
- * @param {object} raidInfo The raid information object.
- * @returns {Promise<boolean>} True if authorized, false otherwise (and sends an ephemeral reply).
- */
 async function isAuthorizedToManageRaid(interaction, raidInfo) {
     if (interaction.user.id === raidInfo.requesterId || isAdmin(interaction)) {
         return true;
@@ -76,11 +66,6 @@ async function isAuthorizedToManageRaid(interaction, raidInfo) {
     return false;
 }
 
-/**
- * Checks if the interaction user is a staff member.
- * @param {import('discord.js').Interaction} interaction The interaction to check.
- * @returns {Promise<boolean>} True if staff, false otherwise (and sends an ephemeral reply).
- */
 async function isStaff(interaction) {
     if (isAdmin(interaction)) {
         return true;
@@ -92,29 +77,19 @@ async function isStaff(interaction) {
     return false;
 }
 
-/**
- * Extracts user IDs from a string containing Discord mentions.
- * @param {string} text The text to parse.
- * @returns {string[]} An array of extracted user IDs.
-*/
 function extractUserIds(text) {
     return (text.match(/<@!?(\d+)>/g) || []).map(mention =>
         mention.replace(/<@!?(\d+)>/, '$1')
     );
 }
 
-/**
- * Parses the content of a completion message to extract helper assignments and multipliers.
- * @param {string} content The message content.
- * @returns {object} An object containing helper assignments, global tagged users, multipliers, and parsing errors.
- */
 function parseHelperAssignments(content) {
     const helperAssignments = {}; // Stores { 'taskName': { users: Set<string>, multiplier: number } }
     const globalTaggedUsers = new Set();
     let globalMultiplier = 1;
     let hasValidTags = false;
-    const unrecognizedTasks = new Set(); // For tasks that are not in ALLOWED_TASK_NAMES or malformed task strings
-    const linesWithNoValidUsers = new Set(); // For lines where no actual users were tagged
+    const unrecognizedTasks = new Set();
+    const linesWithNoValidUsers = new Set(); 
 
     const lines = content.split('\n');
     for (const line of lines) {
@@ -194,11 +169,6 @@ function parseHelperAssignments(content) {
     return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
-/**
- * Calculates the total points for a given set of tasks, respecting MAX_XP_PER_RAID.
- * @param {string[]} tasks An array of task names.
- * @returns {number} The calculated total points.
- */
 function calculateTaskPoints(tasks) {
     let uniqueEffectiveTasks = new Set();
 
@@ -218,16 +188,6 @@ function calculateTaskPoints(tasks) {
     return Math.min(totalPoints, MAX_XP_PER_RAID);
 }
 
-/**
- * Finalizes the raid completion process: updates status, posts report, awards points, and deletes the channel.
- * This function is now called by a manager's "Confirm" button.
- * @param {import('discord.js').Client} client The Discord client.
- * @param {string} channelId The ID of the raid ticket channel.
- * @param {object} raidInfo The raid information.
- * @param {object} completionData Object containing pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachmentUrl.
- * @param {string} completionInitiatorId The ID of the user who initially triggered completion (requester).
- * @param {string | null} managerConfirmationMessageId The ID of the message with manager buttons, if applicable.
- */
 async function finalizeRaid(client, channelId, raidInfo, completionData, completionInitiatorId, managerConfirmationMessageId = null) {
     const { pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachmentUrl } = completionData;
 
@@ -368,18 +328,6 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
     }
 }
 
-
-/**
- * Presents the raid completion details to managers for review.
- * @param {import('discord.js').Message} message The message that triggered completion.
- * @param {object} raidInfo The raid information.
- * @param {object} pointsAwarded An object mapping user IDs to awarded points.
- * @param {string[]} helperSummaries Summaries of helper assignments.
- * @param {Set<string>} unrecognizedTasks Set of unrecognized tasks.
- * @param {Set<string>} linesWithNoValidUsers Set of lines with no valid users.
- * @param {Set<string>} mismatchedTasks Set of tasks not part of the original request.
- * @param {import('discord.js').Attachment | null} attachment Any attached screenshot.
- */
 async function presentRaidCompletionForManagerReview(
     message,
     raidInfo,
@@ -395,7 +343,7 @@ async function presentRaidCompletionForManagerReview(
 
     // Construct the embed for manager review
     const managerEmbed = new EmbedBuilder()
-        .setColor(COLOR_PENDING)
+        .setColor(COLOR_INFO)
         .setTitle('Raid Completion Pending Manager Review')
         .setDescription(
             `<@&${RAID_MANAGER_ROLE_ID}>: A raid completion has been submitted and requires your review.\n` +
@@ -444,7 +392,7 @@ async function presentRaidCompletionForManagerReview(
 
     try {
         // Update the raid channel name and status
-        await updateRaidStatus(message.client, channelId, '[pending]', COLOR_PENDING);
+        await updateRaidStatus(message.client, channelId, 'Awaiting Completion', COLOR_PENDING);
 
         const managerMessage = await raidTicketChannel.send({
             content: `<@&${RAID_MANAGER_ROLE_ID}>`,
@@ -454,9 +402,9 @@ async function presentRaidCompletionForManagerReview(
 
         // Store the completion data and manager message ID in the raid state for later retrieval
         await updateRaid(channelId, {
-            status: 'pending_manager_review', // New status for manager review
-            awaitingCompletion: false, // This flag is no longer the primary status indicator
-            awaitingCompletionRequesterId: null, // Reset as manager is now in control
+            status: 'pending_manager_review', 
+            awaitingCompletion: false, 
+            awaitingCompletionRequesterId: null, 
             pendingData: {
                 pointsAwarded: pointsAwarded,
                 helperSummaries: helperSummaries,
@@ -478,12 +426,6 @@ async function presentRaidCompletionForManagerReview(
 }
 
 
-/**
- * Processes a message to finalize a raid completion.
- * Parses helpers from the message, calculates points, and calls the finalization function.
- * @param {import('discord.js').Message} message The message containing completion details.
- * @param {object} raidInfo The raid information object from the database.
- */
 async function handleRaidCompletion(message, raidInfo) {
     const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
     const attachment = message.attachments.first();
@@ -594,8 +536,6 @@ async function handleRaidCompletion(message, raidInfo) {
 
     // --- Final validation and warnings before completing the raid ---
     if (Object.keys(pointsAwarded).length === 0) {
-        // No points awarded at all means no valid helpers or tasks were recognized
-        // Reset internal status to 'active' so requester can try again
         await updateRaid(message.channel.id, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null, pendingData: null });
         await message.reply({
             content: 'No valid players were found or no points could be assigned based on your submission. Please use the `Close Raid` button to try again with correct formatting and valid users.',
@@ -622,11 +562,6 @@ async function handleRaidCompletion(message, raidInfo) {
     );
 }
 
-/**
- * Handles the cancellation of a raid: updates status, sends cancellation message, and deletes the channel.
- * @param {import('discord.js').Message} message The message that triggered cancellation.
- * @param {object} raidInfo The raid information.
- */
 async function handleRaidCancellation(message, raidInfo) {
     const channelId = message.channel.id;
     const raidTicketChannel = message.channel;
@@ -723,9 +658,6 @@ export function setupExpLairHandlers(client) {
                         });
                         return;
                     }
-
-                    // Reset channel name and status to signal user input is awaited
-                    await updateRaidStatus(client, interaction.channel.id, '[raid]', raidInfo.color); // Revert to generic raid tag
                     
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
@@ -736,7 +668,7 @@ export function setupExpLairHandlers(client) {
 
                     await interaction.reply({
                         content:
-                            'Please specify helpers e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 : @user1 @user2`'
+                            'Mention those who helped e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 : @user1 @user2`'
                             + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the ticket without tagging helpers.`
@@ -799,7 +731,7 @@ export function setupExpLairHandlers(client) {
                     console.log(`Manager ${interaction.user.tag} overriding pending raid ${interaction.channel.id}.`);
 
                     // Revert the channel name and status
-                    await updateRaidStatus(client, interaction.channel.id, '[raid]', raidInfo.color); // Revert to generic active tag
+                    await updateRaidStatus(client, interaction.channel.id, 'Waiting', raidInfo.color); // Revert to generic active tag
 
                     // Clear pending data and reset status to active
                     await updateRaid(interaction.channel.id, {

@@ -186,23 +186,31 @@ export function setupRaidLogsHandlers(client) {
             let newColor = 0x0099ff; // Default blue
 
             if (content === '!waiting') {
-                newStatusTag = '[waiting]';
+                newStatusTag = 'waiting';
                 newColor = COLOR_WAITING;
             } else if (content === '!full') {
-                newStatusTag = '[full]';
+                newStatusTag = 'full';
                 newColor = COLOR_FULL;
             } else if (content === '!ongoing') {
-                newStatusTag = '[ongoing]';
+                newStatusTag = 'ongoing';
                 newColor = COLOR_ONGOING;
             }
             
             if (newStatusTag) {
-                if (!await isAuthorizedToChangeStatus(message, raidInfo)) {
-                    return; // isAuthorizedToChangeStatus sends an ephemeral reply
-                }
                 try {
-                    // updateRaidStatus will handle the channel renaming and DB update for 'status' and 'color'
+                    // Update the channel name via updateRaidStatus (which includes DB update)
                     await updateRaidStatus(client, message.channel.id, newStatusTag, newColor);
+
+                    // --- edit channel name to include new status ---
+                    const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
+                    if (!requesterMember) {
+                        await message.channel.send('Could not find the original raid requester to update the channel name.');
+                        return;
+                    }                    
+                    const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
+                    const newChannelName = `${baseName}-${newStatusTag}`;
+                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);  
+
                     await message.react('👍');
                     return;
                 } catch (error) {
@@ -261,12 +269,9 @@ export function setupRaidLogsHandlers(client) {
 
         // --- Handle !raidmaps without a number ---
         if (message.content.toLowerCase().trim() === '!raidmaps') {
-            // This will now be blocked by the early exit if in a restricted state in a raid ticket
-            // For non-raid ticket channels, it gives the generic message.
+
             if (isRaidTicketChannel) {
                  // If it reached here, it means it's a raid ticket, but blocked by restricted status
-                 // The early exit already handled the reply. This 'else' is for non-raid channels.
-                 // This block is effectively unreachable if 'isRaidTicketChannel' is true and 'raidInfo.status' is restricted.
             } else {
                 await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
@@ -397,8 +402,6 @@ export function setupRaidLogsHandlers(client) {
                     }
                 }
 
-                await interaction.deferReply({ ephemeral: true }); // Defer immediately for longer processing
-
                 try {
                     const guild = interaction.guild;
                     if (!guild) {
@@ -407,9 +410,9 @@ export function setupRaidLogsHandlers(client) {
                     }
 
                     // Create the new raid ticket channel
-                    // Name: [status-tag] - requester-displayname-raid
+                    // Name: requester-displayname-raid-status
                     const baseChannelName = `${interaction.member.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
-                    const initialChannelName = `[waiting] - ${baseChannelName}`; // Channel name will reflect waiting state
+                    const initialChannelName = `${baseChannelName}-waiting`; // Channel name will reflect waiting state
 
                     // Define permissions for the new channel
                     const permissionOverwrites = [
@@ -473,7 +476,7 @@ export function setupRaidLogsHandlers(client) {
                     });
                     console.log(`Raid ticket channel created and stored in DB: ${raidTicketChannel.id} for task ${task} by ${interaction.user.tag}`);
 
-                    await interaction.editReply({ content: `Your raid request has been submitted! Check out your new raid ticket: <#${raidTicketChannel.id}>`, ephemeral: true });
+                    await interaction.reply({ content: `Your raid request has been submitted! Check out your new raid ticket: <#${raidTicketChannel.id}>`, ephemeral: true });
 
                 } catch (error) {
                     console.error('Error handling modal submission and creating raid ticket channel:', error);
