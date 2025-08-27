@@ -99,7 +99,7 @@ export async function updateRaidStatus(client, channelId, newStatus, newColor) {
                 })
             )
             .setColor(newColor)
-            .setTimestamp(); // Update the timestamp to show the last status change
+            .setTimestamp(); 
         
         await message.edit({ embeds: [updatedEmbed] });
         console.log(`Updated status to "${newStatus}" for raid in ticket ${channelId}`);

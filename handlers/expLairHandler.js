@@ -210,7 +210,7 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         }
 
         // Update channel name to indicate final completion
-        await updateRaidStatus(client, channelId, '[done]', COLOR_SUCCESS);
+        await updateRaidStatus(client, channelId, 'Completed', COLOR_SUCCESS);
 
         const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
         if (!expLairChannel || expLairChannel.type !== ChannelType.GuildText) {
@@ -392,7 +392,11 @@ async function presentRaidCompletionForManagerReview(
 
     try {
         // Update the raid channel name and status
-        await updateRaidStatus(message.client, channelId, 'Awaiting Completion', COLOR_PENDING);
+        await updateRaidStatus(message.client, channelId, 'Completed', COLOR_SUCCESS);
+        
+        // Update the raid channel name to indicate pending review
+        const newChannelName = `Completed-Raid`;
+        await message.channel.setName(newChannelName, `Status change to ${newChannelName}`);   
 
         const managerMessage = await raidTicketChannel.send({
             content: `<@&${RAID_MANAGER_ROLE_ID}>`,
@@ -568,7 +572,7 @@ async function handleRaidCancellation(message, raidInfo) {
 
     try {
         // Update channel name to indicate cancellation
-        await updateRaidStatus(message.client, channelId, '[cancelled]', COLOR_CANCELLED);
+        await updateRaidStatus(message.client, channelId, 'cancelled', COLOR_CANCELLED);
 
         await message.reply('Raid ticket closed without helpers/screenshot. Channel will be deleted.');
         await deleteRaid(channelId); // Delete from DB
@@ -727,33 +731,45 @@ export function setupExpLairHandlers(client) {
                         return;
                     }
 
-                    await interaction.deferUpdate(); // Defer the button click
+
+                    await interaction.deferUpdate();
                     console.log(`Manager ${interaction.user.tag} overriding pending raid ${interaction.channel.id}.`);
 
-                    // Revert the channel name and status
-                    await updateRaidStatus(client, interaction.channel.id, 'Waiting', raidInfo.color); // Revert to generic active tag
 
-                    // Clear pending data and reset status to active
+                    await updateRaidStatus(client, interaction.channel.id, 'waiting', raidInfo.color);
+
+
                     await updateRaid(interaction.channel.id, {
-                        status: 'active',
-                        awaitingCompletion: false,
-                        awaitingCompletionRequesterId: null,
-                        pendingData: null
+                    status: 'waiting',
+                    awaitingCompletion: false,
+                    awaitingCompletionRequesterId: null,
+                    pendingData: null
                     });
 
-                    // Delete the manager message with buttons
+
                     if (raidInfo.pendingData?.managerConfirmationMessageId) {
-                        try {
-                            const messageToDelete = await interaction.channel.messages.fetch(raidInfo.pendingData.managerConfirmationMessageId);
-                            await messageToDelete.delete();
-                        } catch (err) {
-                            console.warn(`Could not delete manager confirmation message ${raidInfo.pendingData.managerConfirmationMessageId}:`, err.message);
+                    try {
+                        const messageToDelete = await interaction.channel.messages.fetch(raidInfo.pendingData.managerConfirmationMessageId);
+                        await messageToDelete.delete();
+                    } catch (err) {
+                        console.warn(`Could not delete manager confirmation message ${raidInfo.pendingData.managerConfirmationMessageId}:`, err.message);
                         }
                     }
 
+
+                    const requesterMember = await interaction.guild.members.fetch(raidInfo.requesterId);
+                    if (!requesterMember) {
+                    await interaction.channel.send('Could not find the original raid requester to update the channel name.');
+                    return;
+                    }
+                    const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
+                    const newChannelName = `${baseName}-waiting`;
+                    await interaction.channel.setName(newChannelName, `Status change to waiting`);
+
+
                     await interaction.followUp({
-                        content: 'Raid completion submission has been overridden. The raid is now active again, and the requester can resubmit completion details via the `Close Raid` button.',
-                        flags: MessageFlags.Ephemeral
+                    content: 'Raid completion submission has been overridden. The raid is now active again, and the requester can resubmit completion details via the `Close Raid` button.',
+                    flags: MessageFlags.Ephemeral
                     });
                     break;
 

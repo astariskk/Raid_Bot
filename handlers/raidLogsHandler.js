@@ -58,11 +58,6 @@ const COLOR_WAITING = 0x0099ff; // Blue for waiting
 const COLOR_FULL = 0xdd2e44;    // Red for full
 const COLOR_ONGOING = 0x78b159; // Lime Green for ongoing
 
-/**
- * Checks if a message author or interaction user has an admin role.
- * @param {import('discord.js').Message | import('discord.js').Interaction} source The message or interaction to check.
- * @returns {boolean} True if the user has an admin role, false otherwise.
- */
 function isAdmin(source) {
     const member = source.member;
     if (!member) {
@@ -78,12 +73,6 @@ function isAdmin(source) {
     );
 }
 
-/**
- * Checks if the interaction user is authorized to change the raid status (requester or admin).
- * @param {import('discord.js').Message} message The message that triggered the status change.
- * @param {object} raidInfo The raid information object.
- * @returns {Promise<boolean>} True if authorized, false otherwise (and sends an ephemeral reply).
- */
 async function isAuthorizedToChangeStatus(message, raidInfo) {
     if (message.author.id === raidInfo.requesterId || isAdmin(message)) {
         return true;
@@ -174,8 +163,7 @@ export function setupRaidLogsHandlers(client) {
 
         if (isRaidTicketChannel) {
             // --- NEW: Block commands if raid is in a special state ---
-            // 'completed' and 'cancelled' are included here because messages might arrive before channel deletion
-            const restrictedStatuses = ['pending_manager_review', 'awaiting_user_input', 'completed', 'cancelled'];
+            const restrictedStatuses = ['pending_manager_review', 'awaiting_user_input', 'completed', 'cancelled', 'awaiting_completion', 'Completed'];
             if (restrictedStatuses.includes(raidInfo.status)) {
                 // no message
                 return;
