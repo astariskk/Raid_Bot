@@ -39,7 +39,6 @@ import { sendLeaderboardBackup } from './backupHandler.js';
 const COLOR_SUCCESS = 0x57F287; // Green (for final completion)
 const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
-const COLOR_PENDING = 0xFFA500; // Orange (for manager review)
 
 
 function isAdmin(source) {
@@ -188,25 +187,14 @@ function calculateTaskPoints(tasks) {
     return Math.min(totalPoints, MAX_XP_PER_RAID);
 }
 
-async function finalizeRaid(client, channelId, raidInfo, completionData, completionInitiatorId, managerConfirmationMessageId = null) {
+async function finalizeRaid(client, channelId, raidInfo, completionData, completionInitiatorId) {
     const { pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachmentUrl } = completionData;
 
     try {
         const raidTicketChannel = await client.channels.fetch(channelId);
         if (!raidTicketChannel || raidTicketChannel.type !== ChannelType.GuildText) {
             console.error(`Raid ticket channel ${channelId} not found or is not a text channel for finalization.`);
-            // No need to reply here as the manager likely confirmed already.
             return;
-        }
-
-        // Delete the manager confirmation message if it exists
-        if (managerConfirmationMessageId) {
-            try {
-                const messageToDelete = await raidTicketChannel.messages.fetch(managerConfirmationMessageId);
-                await messageToDelete.delete();
-            } catch (err) {
-                console.warn(`Could not delete manager confirmation message ${managerConfirmationMessageId} in channel ${channelId}:`, err.message);
-            }
         }
 
         // Update channel name to indicate final completion
@@ -324,111 +312,9 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
             raidTicketChannel.send('There was an error during final raid processing. Please contact staff.');
         }
         // Attempt to reset to active state if something went wrong but channel still exists
-        await updateRaid(channelId, { status: 'active', awaitingCompletion: false, pendingData: null });
+        await updateRaid(channelId, { status: 'active', awaitingCompletion: false });
     }
 }
-
-async function presentRaidCompletionForManagerReview(
-    message,
-    raidInfo,
-    pointsAwarded,
-    helperSummaries,
-    unrecognizedTasks,
-    linesWithNoValidUsers,
-    mismatchedTasks,
-    attachment
-) {
-    const raidTicketChannel = message.channel;
-    const channelId = raidTicketChannel.id;
-
-    // Construct the embed for manager review
-    const managerEmbed = new EmbedBuilder()
-        .setColor(COLOR_INFO)
-        .setTitle('Raid Completion Pending Manager Review')
-        .setDescription(
-            `<@&${RAID_MANAGER_ROLE_ID}>: A raid completion has been submitted and requires your review.\n` +
-            `**Requested by:** <@${raidInfo.requesterId}>\n` +
-            `**Original Task(s):** ${raidInfo.task}`
-        )
-        .addFields(
-            { name: 'Proposed Points Awarded', value: Object.keys(pointsAwarded).length > 0 ? Object.keys(pointsAwarded).map(id => `<@${id}>: ${pointsAwarded[id]} EXP`).join('\n') : 'No points proposed.', inline: false },
-            { name: 'Helper Assignments Summary', value: helperSummaries.length > 0 ? helperSummaries.join('\n') : 'No specific assignments parsed.', inline: false }
-        )
-        .setTimestamp()
-        .setFooter({ text: 'Review this submission before finalizing.' });
-
-    if (attachment) {
-        managerEmbed.setImage(attachment.url);
-    }
-
-    let warningText = '';
-    if (unrecognizedTasks.size > 0) {
-        const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-        warningText += `\n- Unrecognized tasks: ${unrecognizedList}`;
-    }
-    if (linesWithNoValidUsers.size > 0) {
-        const invalidUserLinesList = Array.from(linesWithNoValidUsers).map(line => `\`${line}\``).join('\n');
-        warningText += `\n- Lines with no valid users: ${invalidUserLinesList}`;
-    }
-    if (mismatchedTasks.size > 0) {
-        const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
-        warningText += `\n- Tasks not part of original request: ${mismatchedList}`;
-    }
-    if (warningText) {
-        managerEmbed.addFields({ name: '⚠️ Warnings in Submission', value: warningText, inline: false });
-    }
-
-    const confirmButton = new ButtonBuilder()
-        .setCustomId('confirmPendingRaid')
-        .setLabel('✅ Confirm & Finalize')
-        .setStyle(ButtonStyle.Success);
-
-    const overrideButton = new ButtonBuilder()
-        .setCustomId('overridePendingRaid')
-        .setLabel('🔄 Override & Edit')
-        .setStyle(ButtonStyle.Secondary);
-
-    const actionRow = new ActionRowBuilder().addComponents(confirmButton, overrideButton);
-
-    try {
-        // Update the raid channel name and status
-        await updateRaidStatus(message.client, channelId, 'Completed', COLOR_SUCCESS);
-        
-        // Update the raid channel name to indicate pending review
-        const newChannelName = `Pending-Raid`;
-        await message.channel.setName(newChannelName, `Status change to ${newChannelName}`);   
-
-        const managerMessage = await raidTicketChannel.send({
-            content: `<@&${RAID_MANAGER_ROLE_ID}>`,
-            embeds: [managerEmbed],
-            components: [actionRow]
-        });
-
-        // Store the completion data and manager message ID in the raid state for later retrieval
-        await updateRaid(channelId, {
-            status: 'pending_manager_review', 
-            awaitingCompletion: false, 
-            awaitingCompletionRequesterId: null, 
-            pendingData: {
-                pointsAwarded: pointsAwarded,
-                helperSummaries: helperSummaries,
-                unrecognizedTasks: Array.from(unrecognizedTasks),
-                linesWithNoValidUsers: Array.from(linesWithNoValidUsers),
-                mismatchedTasks: Array.from(mismatchedTasks),
-                attachmentUrl: attachment ? attachment.url : null,
-                completionInitiatorId: message.author.id, // Store who initiated the completion
-                managerConfirmationMessageId: managerMessage.id // Store this message ID
-            }
-        });
-        console.log(`Raid ${channelId} now pending manager review. Data stored.`);
-    } catch (error) {
-        console.error('Error presenting raid completion for manager review:', error);
-        await message.reply('There was an error submitting the raid for manager review. Please try again.');
-        // Reset the raid to active if there was an error in the review process
-        await updateRaid(channelId, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null, pendingData: null });
-    }
-}
-
 
 async function handleRaidCompletion(message, raidInfo) {
     const { helperAssignments, globalTaggedUsers, globalMultiplier, unrecognizedTasks, linesWithNoValidUsers } = parseHelperAssignments(message.content);
@@ -540,7 +426,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
     // --- Final validation and warnings before completing the raid ---
     if (Object.keys(pointsAwarded).length === 0) {
-        await updateRaid(message.channel.id, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null, pendingData: null });
+        await updateRaid(message.channel.id, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null });
         await message.reply({
             content: 'No valid players were found or no points could be assigned based on your submission. Please use the `Close Raid` button to try again with correct formatting and valid users.',
             flags: MessageFlags.Ephemeral
@@ -553,16 +439,20 @@ async function handleRaidCompletion(message, raidInfo) {
         pointsAwarded[userId] = Math.min(pointsAwarded[userId], MAX_XP_PER_RAID);
     }
 
-    // --- NEW: Instead of finalizing, present for manager review ---
-    await presentRaidCompletionForManagerReview(
-        message,
+    // Finalize the raid directly
+    await finalizeRaid(
+        message.client,
+        message.channel.id,
         raidInfo,
-        pointsAwarded,
-        helperSummaries,
-        unrecognizedTasks,
-        linesWithNoValidUsers,
-        mismatchedTasks,
-        attachment
+        {
+            pointsAwarded,
+            helperSummaries,
+            unrecognizedTasks,
+            linesWithNoValidUsers,
+            mismatchedTasks,
+            attachmentUrl: attachment ? attachment.url : null
+        },
+        message.author.id
     );
 }
 
@@ -581,7 +471,7 @@ async function handleRaidCancellation(message, raidInfo) {
         console.error('Error processing raid cancellation:', error);
         await raidTicketChannel.send('There was an error processing the raid cancellation. Please contact staff.');
         // If deletion fails, ensure the raid status is reset
-        await updateRaid(channelId, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null, pendingData: null });
+        await updateRaid(channelId, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null });
     }
 }
 
@@ -632,7 +522,7 @@ export function setupExpLairHandlers(client) {
 
         if (!isRaidTicketChannel) {
             // Only reply ephemerally if the customId matches our buttons/modals
-            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn' || interaction.customId === 'confirmPendingRaid' || interaction.customId === 'overridePendingRaid')) {
+            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
                 await interaction.reply({ content: 'This button can only be used in a raid ticket channel.', flags: MessageFlags.Ephemeral });
             } else if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') {
                 await interaction.reply({ content: 'This action can only be performed in a raid ticket channel.', flags: MessageFlags.Ephemeral });
@@ -655,18 +545,10 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-                    if (raidInfo.status === 'pending_manager_review') {
-                        await interaction.reply({
-                            content: 'This raid is currently awaiting manager review. Please wait for staff to process it or use "Override & Edit" if you are a staff member.',
-                            flags: MessageFlags.Ephemeral
-                        });
-                        return;
-                    }
                     
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
                         awaitingCompletionRequesterId: interaction.user.id,
-                        pendingData: null // Clear any old pending data
                     });
                     console.log(`Channel ${interaction.channel.id} now awaiting completion details from ${interaction.user.tag}.`);
 
@@ -686,91 +568,8 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-                    if (raidInfo.status === 'pending_manager_review') {
-                        await interaction.reply({
-                            content: 'This raid is currently awaiting manager review. Tasks cannot be edited until the review is resolved. Staff can use "Override & Edit" to revert the state.',
-                            flags: MessageFlags.Ephemeral
-                        });
-                        return;
-                    }
                     const editTaskModal = getEditTaskModal(raidInfo.task);
                     await interaction.showModal(editTaskModal);
-                    break;
-
-                case 'confirmPendingRaid':
-                    if (!await isStaff(interaction)) {
-                        return;
-                    }
-                    if (raidInfo.status !== 'pending_manager_review' || !raidInfo.pendingData) {
-                        await interaction.reply({ content: 'This raid is not in a pending review state or has no pending data to confirm.', flags: MessageFlags.Ephemeral });
-                        return;
-                    }
-
-                    await interaction.deferUpdate(); // Defer the button click
-                    console.log(`Manager ${interaction.user.tag} confirming raid ${interaction.channel.id}.`);
-
-                    // Retrieve the stored completion data
-                    const completionData = {
-                        pointsAwarded: raidInfo.pendingData.pointsAwarded,
-                        helperSummaries: raidInfo.pendingData.helperSummaries,
-                        unrecognizedTasks: new Set(raidInfo.pendingData.unrecognizedTasks || []),
-                        linesWithNoValidUsers: new Set(raidInfo.pendingData.linesWithNoValidUsers || []),
-                        mismatchedTasks: new Set(raidInfo.pendingData.mismatchedTasks || []),
-                        attachmentUrl: raidInfo.pendingData.attachmentUrl
-                    };
-
-                    await finalizeRaid(client, interaction.channel.id, raidInfo, completionData, raidInfo.pendingData.completionInitiatorId, raidInfo.pendingData.managerConfirmationMessageId);
-                    break;
-
-                case 'overridePendingRaid':
-                    if (!await isStaff(interaction)) {
-                        return;
-                    }
-                    if (raidInfo.status !== 'pending_manager_review') {
-                        await interaction.reply({ content: 'This raid is not in a pending review state.', flags: MessageFlags.Ephemeral });
-                        return;
-                    }
-
-
-                    await interaction.deferUpdate();
-                    console.log(`Manager ${interaction.user.tag} overriding pending raid ${interaction.channel.id}.`);
-
-
-                    await updateRaidStatus(client, interaction.channel.id, 'waiting', raidInfo.color);
-
-
-                    await updateRaid(interaction.channel.id, {
-                    status: 'waiting',
-                    awaitingCompletion: false,
-                    awaitingCompletionRequesterId: null,
-                    pendingData: null
-                    });
-
-
-                    if (raidInfo.pendingData?.managerConfirmationMessageId) {
-                    try {
-                        const messageToDelete = await interaction.channel.messages.fetch(raidInfo.pendingData.managerConfirmationMessageId);
-                        await messageToDelete.delete();
-                    } catch (err) {
-                        console.warn(`Could not delete manager confirmation message ${raidInfo.pendingData.managerConfirmationMessageId}:`, err.message);
-                        }
-                    }
-
-
-                    const requesterMember = await interaction.guild.members.fetch(raidInfo.requesterId);
-                    if (!requesterMember) {
-                    await interaction.channel.send('Could not find the original raid requester to update the channel name.');
-                    return;
-                    }
-                    const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
-                    const newChannelName = `${baseName}-waiting`;
-                    await interaction.channel.setName(newChannelName, `Status change to waiting`);
-
-
-                    await interaction.followUp({
-                    content: 'Raid completion submission has been overridden. The raid is now active again, and the requester can resubmit completion details via the `Close Raid` button.',
-                    flags: MessageFlags.Ephemeral
-                    });
                     break;
 
                 default:

@@ -163,7 +163,7 @@ export function setupRaidLogsHandlers(client) {
 
         if (isRaidTicketChannel) {
             // --- NEW: Block commands if raid is in a special state ---
-            const restrictedStatuses = ['pending_manager_review', 'awaiting_user_input', 'completed', 'cancelled', 'awaiting_completion', 'Completed'];
+            const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled', 'awaiting_completion', 'Completed'];
             if (restrictedStatuses.includes(raidInfo.status)) {
                 // no message
                 return;
@@ -194,10 +194,10 @@ export function setupRaidLogsHandlers(client) {
                     if (!requesterMember) {
                         await message.channel.send('Could not find the original raid requester to update the channel name.');
                         return;
-                    }                    
+                    }                     
                     const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
                     const newChannelName = `${baseName}-${newStatusTag}`;
-                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);  
+                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);   
 
                     await message.react('👍');
                     return;
@@ -259,7 +259,7 @@ export function setupRaidLogsHandlers(client) {
         if (message.content.toLowerCase().trim() === '!raidmaps') {
 
             if (isRaidTicketChannel) {
-                 // If it reached here, it means it's a raid ticket, but blocked by restricted status
+                   // If it reached here, it means it's a raid ticket, but blocked by restricted status
             } else {
                 await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
@@ -294,8 +294,8 @@ export function setupRaidLogsHandlers(client) {
                 const embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle(`Raid Maps for Current Task(s): ${raidTasksString}`)
-                    .setDescription(`Here are the join commands for your current raid task(s) with the room number ${mapNumber}:\n\n${joinLinksWithPoints}`)
-                    .setFooter({ text: 'Use these commands to join the maps!' });
+                    .setDescription(`Here are the join commands:\n\n${joinLinksWithPoints}`)
+                    .setFooter(null);
 
                 try {
                     await message.channel.send({ embeds: [embedToSend] });
@@ -356,14 +356,19 @@ export function setupRaidLogsHandlers(client) {
 
         // --- NEW: Block button interactions if raid is in a special state ---
         if (isRaidTicketChannel) {
-            const restrictedStatuses = ['pending_manager_review', 'awaiting_user_input', 'completed', 'cancelled'];
+            const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled'];
             if (restrictedStatuses.includes(raidInfo.status)) {
-                 // Only reply ephemerally if the customId matches our buttons
+                   // Only reply ephemerally if the customId matches our buttons
                 if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
-                    
+                    await interaction.reply({
+                        content: `This raid is currently in a '${raidInfo.status}' state. You cannot interact with these buttons at this time.`,
+                        flags: MessageFlags.Ephemeral
+                    });
                 } else if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') {
-                    // This modal submission comes from editTask_btn, so it should also be blocked.
-
+                    await interaction.reply({
+                        content: `This raid is currently in a '${raidInfo.status}' state. Tasks cannot be edited at this time.`,
+                        flags: MessageFlags.Ephemeral
+                    });
                 }
                 return;
             }
