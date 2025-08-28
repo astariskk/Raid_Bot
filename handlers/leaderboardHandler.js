@@ -191,12 +191,12 @@ export function setupLeaderboardHandlers(client) {
                                         .setDisabled(true),
                                     new ButtonBuilder()
                                         .setCustomId(`lb_prev_disabled_${sessionTimestamp}`)
-                                        .setLabel('⬅️')
+                                        .setLabel('◀️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true),
                                     new ButtonBuilder()
                                         .setCustomId(`lb_next_disabled_${sessionTimestamp}`)
-                                        .setLabel('➡️')
+                                        .setLabel('▶️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true),
                                     new ButtonBuilder()
@@ -347,12 +347,12 @@ export function setupLeaderboardHandlers(client) {
                                         .setDisabled(true),
                                     new ButtonBuilder()
                                         .setCustomId(`lbcheck_prev_disabled_${sessionTimestamp}`)
-                                        .setLabel('⬅️')
+                                        .setLabel('◀️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true),
                                     new ButtonBuilder()
                                         .setCustomId(`lbcheck_next_disabled_${sessionTimestamp}`)
-                                        .setLabel('➡️')
+                                        .setLabel('▶️')
                                         .setStyle(ButtonStyle.Primary)
                                         .setDisabled(true),
                                     new ButtonBuilder()
@@ -562,8 +562,8 @@ export function setupLeaderboardHandlers(client) {
                 const disabledRow = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder().setCustomId('expired_start').setLabel('⏮️').setStyle(ButtonStyle.Secondary).setDisabled(true),
-                        new ButtonBuilder().setCustomId('expired_prev').setLabel('⬅️').setStyle(ButtonStyle.Secondary).setDisabled(true),
-                        new ButtonBuilder().setCustomId('expired_next').setLabel('➡️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_prev').setLabel('◀️').setStyle(ButtonStyle.Secondary).setDisabled(true),
+                        new ButtonBuilder().setCustomId('expired_next').setLabel('▶️').setStyle(ButtonStyle.Secondary).setDisabled(true),
                         new ButtonBuilder().setCustomId('expired_end').setLabel('⏭️').setStyle(ButtonStyle.Secondary).setDisabled(true)
                     );
                 await interaction.update({ components: [disabledRow] }).catch(e => console.error("Error updating expired pagination message:", e));
@@ -592,12 +592,12 @@ export function setupLeaderboardHandlers(client) {
                                     .setStyle(ButtonStyle.Primary)
                                     .setDisabled(true),
                                 new ButtonBuilder().setCustomId(`${prefix}_prev_disabled_${sessionTimestamp}`)
-                                    .setLabel('⬅️')
+                                    .setLabel('◀️')
                                     .setStyle(ButtonStyle.Primary)
                                     .setDisabled(true),
                                 new ButtonBuilder()
                                     .setCustomId(`${prefix}_next_disabled_${sessionTimestamp}`)
-                                    .setLabel('➡️')
+                                    .setLabel('▶️')
                                     .setStyle(ButtonStyle.Primary)
                                     .setDisabled(true),
                                 new ButtonBuilder().setCustomId(`${prefix}_end_disabled_${sessionTimestamp}`)

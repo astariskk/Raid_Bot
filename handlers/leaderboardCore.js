@@ -157,12 +157,12 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`lb_prev_${originalRequesterId}_${timestamp}`)
-                .setLabel('⬅️')
+                .setLabel('◀️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`lb_next_${originalRequesterId}_${timestamp}`)
-                .setLabel('➡️')
+                .setLabel('▶️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === totalPages),
             new ButtonBuilder()
@@ -239,12 +239,12 @@ export async function createLbCheckResponse(sessionData, client, guild) {
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`lbcheck_prev_${originalRequesterId}_${timestamp}`)
-                .setLabel('⬅️')
+                .setLabel('◀️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === 1),
             new ButtonBuilder()
                 .setCustomId(`lbcheck_next_${originalRequesterId}_${timestamp}`)
-                .setLabel('➡️')
+                .setLabel('▶️')
                 .setStyle(ButtonStyle.Primary)
                 .setDisabled(currentPage === totalPages),
             new ButtonBuilder()

@@ -100,22 +100,17 @@ const editTaskButton = new ButtonBuilder()
 const threadActionRow = new ActionRowBuilder() // Renamed to actionRow for channel
     .addComponents(closeTicketButton, editTaskButton);
 
-/**
- * Creates and returns the Modal for submitting new raid assistance requests.
- * This modal collects essential information from the user for a new raid.
- * @returns {ModalBuilder} The modal for raid requests.
- */
 export function getRaidRequestModal() {
     const modal = new ModalBuilder()
-        .setCustomId('raidRequestModal') // Unique ID for this modal.
-        .setTitle('Raid Assistance Request'); // Title of the modal.
+        .setCustomId('raidRequestModal') 
+        .setTitle('Raid Assistance Request'); 
 
     // Input field for the task(s).
     const taskInput = new TextInputBuilder()
         .setCustomId('taskInput')
         .setLabel("Task(s) (!raidtasks for options): ")
-        .setStyle(TextInputStyle.Short) // Short text input.
-        .setRequired(true) // Required field.
+        .setStyle(TextInputStyle.Short) 
+        .setRequired(true) 
         .setPlaceholder(`Enter task(s) like 'daily' or 'nulgath + drakath'`);
 
     // Input field for the map name.
@@ -138,8 +133,8 @@ export function getRaidRequestModal() {
     const descriptionInput = new TextInputBuilder()
         .setCustomId('descriptionInput')
         .setLabel("Description/Notes")
-        .setStyle(TextInputStyle.Paragraph) // Paragraph style for multi-line input.
-        .setRequired(false) // Optional field.
+        .setStyle(TextInputStyle.Paragraph) 
+        .setRequired(false) 
         .setPlaceholder('Any specific details or requirements?');
 
     // Action rows to contain each text input component.
@@ -156,13 +151,13 @@ export function getRaidRequestModal() {
 export function setupRaidLogsHandlers(client) {
     // --- Message Create Listener (for commands and status updates within channels) ---
     client.on("messageCreate", async (message) => {
-        if (message.author.bot) return; // Ignore messages from bots.
+        if (message.author.bot) return; 
 
         const raidInfo = await getRaidInfo(message.channel.id);
         const isRaidTicketChannel = raidInfo && message.channel.type === ChannelType.GuildText && message.channel.parentId === RAID_CATEGORY_ID;
 
         if (isRaidTicketChannel) {
-            // --- NEW: Block commands if raid is in a special state ---
+           
             const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled', 'awaiting_completion', 'Completed'];
             if (restrictedStatuses.includes(raidInfo.status)) {
                 // no message
@@ -170,17 +165,17 @@ export function setupRaidLogsHandlers(client) {
             }
 
             const content = message.content.toLowerCase().trim();
-            let newStatusTag = ''; // e.g., '[waiting]'
-            let newColor = 0x0099ff; // Default blue
+            let newStatusTag = ''; 
+            let newColor = 0x0099ff; 
 
             if (content === '!waiting') {
-                newStatusTag = 'waiting';
+                newStatusTag = 'Waiting';
                 newColor = COLOR_WAITING;
             } else if (content === '!full') {
-                newStatusTag = 'full';
+                newStatusTag = 'Full';
                 newColor = COLOR_FULL;
             } else if (content === '!ongoing') {
-                newStatusTag = 'ongoing';
+                newStatusTag = 'Ongoing';
                 newColor = COLOR_ONGOING;
             }
             
@@ -324,7 +319,7 @@ export function setupRaidLogsHandlers(client) {
 
             try {
                 await message.channel.send({
-                    content: 'Click the button below for a tool that makes joining maps easier.',
+                    content: 'Site for joining maps easier',
                     components: [raidSiteRow]
                 });
             } catch (error) {
