@@ -148,7 +148,7 @@ export function getRaidRequestModal() {
     return modal;
 }
 
-export function setupRaidLogsHandlers(client) {
+export function setupRaidTicketHandler(client) {
     // --- Message Create Listener (for commands and status updates within channels) ---
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return; 

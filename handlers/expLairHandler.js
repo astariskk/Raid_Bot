@@ -652,7 +652,6 @@ export function setupExpLairHandlers(client) {
                         return;
                     }
 
-
                     try {
                         // Retrieve the raid info one last time to ensure consistency, though it should be in `raidInfo` already
                         const raidToDeleteInfo = await getRaidInfo(interaction.channel.id);

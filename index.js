@@ -18,7 +18,7 @@ app.listen(port, () => {
 
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import { setupRaidLogsHandlers } from './handlers/raidLogsHandler.js';
+import { setupRaidTicketHandler } from './handlers/raidTicketHandler.js';
 import { setupExpLairHandlers } from './handlers/expLairHandler.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
 import { setupGeneralCommandsHandler } from './handlers/generalCommandsHandler.js';
@@ -52,7 +52,7 @@ client.on('ready', async () => { // Make ready event async
         setupSlashCommandsHandler(client);   // Call the new handler setup function
 
         // --- Initialize Other Handlers AFTER DB connection ---
-        setupRaidLogsHandlers(client);
+        setupRaidTicketHandler(client);
         setupExpLairHandlers(client);
         setupLeaderboardHandlers(client);
         setupGeneralCommandsHandler(client);

@@ -19,7 +19,7 @@ import {
     OTHERS_SEVEN_LIST,
     GENERIC_TASKS_LIST
 } from '../config/constants.js';
-import { getRaidRequestModal } from './raidLogsHandler.js';
+import { getRaidRequestModal } from './raidTicketHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
 
 // --- Cooldown management for GIF commands ---
@@ -158,7 +158,7 @@ export function getHowToUseEmbed(raidHelperRoleName) {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
         .setDescription(
-            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**.\n\n` +
+            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**. Press it again to remove the role\n\n` +
             `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Use \`📋 Raid Tasks\` to see accepted tasks and their EXP values. ` +
             `For tasks not on the list, you can use generic tasks:\n` +
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +

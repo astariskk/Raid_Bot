@@ -47,6 +47,10 @@ export async function createRaid(channelId, raidDetails) {
 
 export async function updateRaid(channelId, updates) {
     try {
+        if (updates.pendingData !== undefined) {
+            delete updates.pendingData;
+        }
+
         await raidStatesCollection.updateOne(
             { _id: channelId },
             { $set: updates }
@@ -61,7 +65,6 @@ export async function updateRaid(channelId, updates) {
 
 export async function deleteRaid(channelId) {
     try {
-        // REMOVED: No need to connect or initialize here.
         await raidStatesCollection.deleteOne({ _id: channelId });
         raidStateCache.delete(channelId);
         console.log(`Raid ${channelId} deleted from DB.`);
@@ -73,7 +76,7 @@ export async function deleteRaid(channelId) {
 
 
 export async function updateRaidStatus(client, channelId, newStatus, newColor) {
-    const raidInfo = await getRaidInfo(channelId); // Fetch from DB/cache
+    const raidInfo = await getRaidInfo(channelId); 
     if (!raidInfo || !raidInfo.messageId || !raidInfo.originalChannelId) {
         console.log(`Could not find raid info or messageId for ticket ${channelId} to update status.`);
         return;
@@ -138,7 +141,7 @@ export async function updateRaidLogEmbed(client, channelId, updates) {
     try {
         const channel = await client.channels.fetch(raidInfo.originalChannelId);
         const message = await channel.messages.fetch(raidInfo.messageId);
-        const originalEmbed = message.embeds[0];                 
+        const originalEmbed = message.embeds[0];                    
         if (!originalEmbed) {
             console.error(`Original embed not found for message ${raidInfo.messageId} when trying to update embed.`);
             return;
