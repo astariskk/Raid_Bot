@@ -1,4 +1,4 @@
-// handlers/raidLogsHandler.js
+// handlers/raidTicketHandler.js
 // This file contains handlers for creating raid requests (now as new channels/tickets),
 // managing raid status updates by renaming the channel,
 // displaying boss mechanics charts within raid tickets, and showing raid task EXP points.
@@ -11,7 +11,6 @@ import {
     TextInputBuilder,
     TextInputStyle,
     ActionRowBuilder,
-    TextChannel, 
     EmbedBuilder,
     PermissionFlagsBits,
     ChannelType,
@@ -23,12 +22,6 @@ import {
     RAID_CHANNEL_ID, // This will be the parent category for new ticket channels
     RAID_LOGS_CHANNEL_ID, // Still used for a public log/announcement if desired
     RAID_HELPER_ROLE_ID,
-    DAILIES_LIST,
-    WEEKLIES_LIST,
-    OTHERS_FOUR_LIST,
-    OTHERS_SEVEN_LIST,
-    TEMPLESHRINE_LIST,
-    ORIGINUL_LIST,
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
     GENERIC_TASKS_LIST,
@@ -55,7 +48,7 @@ import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
 
 // --- Constants for Embed Colors ---
 const COLOR_WAITING = 0x0099ff; // Blue for waiting
-const COLOR_FULL = 0xdd2e44;    // Red for full
+const COLOR_FULL = 0xdd2e44;    // Red for full
 const COLOR_ONGOING = 0x78b159; // Lime Green for ongoing
 
 function isAdmin(source) {
@@ -102,16 +95,16 @@ const threadActionRow = new ActionRowBuilder() // Renamed to actionRow for chann
 
 export function getRaidRequestModal() {
     const modal = new ModalBuilder()
-        .setCustomId('raidRequestModal') 
-        .setTitle('Raid Assistance Request'); 
+        .setCustomId('raidRequestModal')
+        .setTitle('Raid Assistance Request');
 
     // Input field for the task(s).
     const taskInput = new TextInputBuilder()
         .setCustomId('taskInput')
         .setLabel("Task(s) (!raidtasks for options): ")
-        .setStyle(TextInputStyle.Short) 
-        .setRequired(true) 
-        .setPlaceholder(`Enter task(s) like 'daily' or 'nulgath + drakath'`);
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder(`Enter task(s) like 'daily' or 'nulgath + drakath' or 'daily, kathool'`);
 
     // Input field for the map name.
     const mapNameInput = new TextInputBuilder()
@@ -133,8 +126,8 @@ export function getRaidRequestModal() {
     const descriptionInput = new TextInputBuilder()
         .setCustomId('descriptionInput')
         .setLabel("Description/Notes")
-        .setStyle(TextInputStyle.Paragraph) 
-        .setRequired(false) 
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
         .setPlaceholder('Any specific details or requirements?');
 
     // Action rows to contain each text input component.
@@ -151,13 +144,13 @@ export function getRaidRequestModal() {
 export function setupRaidTicketHandler(client) {
     // --- Message Create Listener (for commands and status updates within channels) ---
     client.on("messageCreate", async (message) => {
-        if (message.author.bot) return; 
+        if (message.author.bot) return;
 
         const raidInfo = await getRaidInfo(message.channel.id);
         const isRaidTicketChannel = raidInfo && message.channel.type === ChannelType.GuildText && message.channel.parentId === RAID_CATEGORY_ID;
 
         if (isRaidTicketChannel) {
-           
+
             const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled', 'awaiting_completion', 'Completed'];
             if (restrictedStatuses.includes(raidInfo.status)) {
                 // no message
@@ -165,8 +158,8 @@ export function setupRaidTicketHandler(client) {
             }
 
             const content = message.content.toLowerCase().trim();
-            let newStatusTag = ''; 
-            let newColor = 0x0099ff; 
+            let newStatusTag = '';
+            let newColor = 0x0099ff;
 
             if (content === '!waiting') {
                 newStatusTag = 'Waiting';
@@ -178,7 +171,7 @@ export function setupRaidTicketHandler(client) {
                 newStatusTag = 'Ongoing';
                 newColor = COLOR_ONGOING;
             }
-            
+
             if (newStatusTag) {
                 try {
                     // Update the channel name via updateRaidStatus (which includes DB update)
@@ -189,10 +182,10 @@ export function setupRaidTicketHandler(client) {
                     if (!requesterMember) {
                         await message.channel.send('Could not find the original raid requester to update the channel name.');
                         return;
-                    }                     
+                    }
                     const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
                     const newChannelName = `${baseName}-${newStatusTag}`;
-                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);   
+                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);
 
                     await message.react('👍');
                     return;
@@ -254,7 +247,7 @@ export function setupRaidTicketHandler(client) {
         if (message.content.toLowerCase().trim() === '!raidmaps') {
 
             if (isRaidTicketChannel) {
-                   // If it reached here, it means it's a raid ticket, but blocked by restricted status
+                       // If it reached here, it means it's a raid ticket, but blocked by restricted status
             } else {
                 await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
@@ -270,7 +263,8 @@ export function setupRaidTicketHandler(client) {
             if (isRaidTicketChannel && raidInfo) {
                 // This will now be blocked by the early exit if in a restricted state
                 const raidTasksString = raidInfo.task;
-                const rawRequestedTasks = raidTasksString.split(/\s*\+\s*/).map(t => t.trim());
+                // Updated to split by '+' or ','
+                const rawRequestedTasks = raidTasksString.split(/\s*[+,]\s*/).map(t => t.trim());
 
                 let expandedTasks = [];
                 for (const task of rawRequestedTasks) {
@@ -353,7 +347,7 @@ export function setupRaidTicketHandler(client) {
         if (isRaidTicketChannel) {
             const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled'];
             if (restrictedStatuses.includes(raidInfo.status)) {
-                   // Only reply ephemerally if the customId matches our buttons
+                    // Only reply ephemerally if the customId matches our buttons
                 if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
                     await interaction.reply({
                         content: `This raid is currently in a '${raidInfo.status}' state. You cannot interact with these buttons at this time.`,
@@ -378,11 +372,12 @@ export function setupRaidTicketHandler(client) {
                 const server = interaction.fields.getTextInputValue('serverInput');
                 const description = interaction.fields.getTextInputValue('descriptionInput');
 
-                const requestedTasks = task.split(/\s*\+\s*/).map(t => t.trim());
+                // Updated to split by '+' or ','
+                const requestedTasks = task.split(/\s*[+,]\s*/).map(t => t.trim());
                 for (const singleTask of requestedTasks) {
                     if (!ALLOWED_TASK_NAMES.includes(singleTask)) {
                         await interaction.reply({
-                            content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+'.`,
+                            content: `Invalid task "${singleTask}". Please use one of the allowed tasks below. If requesting multiple, separate with '+' or ','.`,
                             embeds: [getCombinedTasksAndPointsEmbed()],
                             ephemeral: true
                         });

@@ -8,8 +8,8 @@ import {
     EmbedBuilder,
     ChannelType,
     MessageFlags,
-    ButtonBuilder,   // For creating buttons
-    ButtonStyle,     // For button styles
+    ButtonBuilder,   // For creating buttons
+    ButtonStyle,     // For button styles
     ActionRowBuilder // For organizing buttons in rows
 } from 'discord.js';
 import {
@@ -78,6 +78,8 @@ async function isStaff(interaction) {
 }
 
 function extractUserIds(text) {
+    // This regex already correctly handles multiple mentions separated by commas or spaces,
+    // as it finds all occurrences of the mention pattern.
     return (text.match(/<@!?(\d+)>/g) || []).map(mention =>
         mention.replace(/<@!?(\d+)>/, '$1')
     );
@@ -131,8 +133,8 @@ function parseHelperAssignments(content) {
         }
         hasValidTags = true;
 
-        // Split the taskString by '+' to handle multiple tasks in one line
-        const individualTaskEntries = taskString.split('+').map(t => t.trim());
+        // Updated to split tasks by '+' or ','
+        const individualTaskEntries = taskString.split(/[+,]/).map(t => t.trim());
 
         userIds.forEach(userId => {
             individualTaskEntries.forEach(entry => {
@@ -181,7 +183,7 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         // --- NEW: Change channel name to indicate admin review state ---
         await raidTicketChannel.setName('completed-raid-review');
         console.log(`Channel ${channelId} renamed to 'completed-raid-review'.`);
-        
+
         // Update channel topic to indicate final completion status
         await updateRaidStatus(client, channelId, 'Completed', COLOR_SUCCESS);
 
@@ -403,7 +405,8 @@ async function handleRaidCompletion(message, raidInfo) {
     const assignedUsers = new Set(); // To track users already assigned specific tasks
 
     // Determine the original tasks requested for this raid, including expanded meta-tasks
-    const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split('+').map(t => t.trim());
+    // Updated to split by '+' or ','
+    const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split(/\s*[+,]\s*/).map(t => t.trim());
     const originalRaidEffectiveTasks = new Set(); // Individual tasks (e.g., speaker, dage)
     const originalRaidRequestedStrings = new Set(); // Original strings (e.g., daily, speaker)
 
@@ -592,8 +595,8 @@ export function setupExpLairHandlers(client) {
             console.warn(`Raid info not found in DB/cache for channel ${interaction.channel.id}. Cannot process interaction.`);
             // Specifically handle the delete button here if raidInfo is missing, as the channel might be orphaned.
             if (interaction.isButton() && interaction.customId === 'deleteFinalizedRaidChannel') {
-                 await interaction.reply({ content: 'Could not retrieve raid details. This raid might have already been deleted, or its database entry is missing. Attempting to delete channel if it still exists.', flags: MessageFlags.Ephemeral });
-                 if (interaction.channel) {
+                await interaction.reply({ content: 'Could not retrieve raid details. This raid might have already been deleted, or its database entry is missing. Attempting to delete channel if it still exists.', flags: MessageFlags.Ephemeral });
+                if (interaction.channel) {
                     try {
                         await interaction.channel.delete('Orphaned raid channel without DB entry, manually deleting.');
                     } catch (err) {
@@ -633,7 +636,7 @@ export function setupExpLairHandlers(client) {
                             + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
                             + `\n* Include a screenshot if possible.`
                             + `\n* You can type \`cancel\` to close the ticket without tagging helpers.`
-                            + `\n* For multiple tasks, use \`task1 + task2 = @user\``
+                            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1, task2 = @user\``
                             + `\n* For multiple runs of the same tasks, a multiplier can done \`task1xN = @user\` format.`,
                         flags: MessageFlags.Ephemeral
                     });
@@ -656,12 +659,12 @@ export function setupExpLairHandlers(client) {
                         // Retrieve the raid info one last time to ensure consistency, though it should be in `raidInfo` already
                         const raidToDeleteInfo = await getRaidInfo(interaction.channel.id);
                         if (raidToDeleteInfo) {
-                            await deleteRaid(interaction.channel.id); // Delete from DB 
-                            await interaction.channel.delete('Admin manually deleted completed raid channel after review.'); // Delete the Discord channel                                                       
+                            await deleteRaid(interaction.channel.id); // Delete from DB
+                            await interaction.channel.delete('Admin manually deleted completed raid channel after review.'); // Delete the Discord channel
                         } else {
                             // If raidInfo somehow vanished between fetching and clicking delete, just delete the channel.
-                             await interaction.channel.delete('Raid database entry missing, deleted channel anyway.');
-                             await interaction.editReply({ content: `Raid channel <#${interaction.channel.id}> was deleted, but its database entry was already missing.`, ephemeral: true });
+                            await interaction.channel.delete('Raid database entry missing, deleted channel anyway.');
+                            await interaction.editReply({ content: `Raid channel <#${interaction.channel.id}> was deleted, but its database entry was already missing.`, ephemeral: true });
                         }
                     } catch (error) {
                         console.error(`Error deleting finalized raid channel ${interaction.channel.id}:`, error);
@@ -682,7 +685,8 @@ export function setupExpLairHandlers(client) {
                         return;
                     }
                     const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
-                    const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
+                    // Updated to split tasks by '+' or ','
+                    const newTasksArray = editedTasksInput.split(/\s*[+,]\s*/).map(t => t.trim());
 
                     const newRaidTaskString = newTasksArray.join(' + ');
 
