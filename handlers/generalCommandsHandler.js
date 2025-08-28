@@ -128,9 +128,9 @@ function getCommandsEmbed() {
                 value: `
 \`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
 \`!raidsite\`: Sends a website for making joining maps easier.
-\`!waiting\`: Set the raid status to '🔵 Waiting (requester only)'.
-\`!ongoing\`: Set the raid status to '🟢 Ongoing (requester only)'.
-\`!full\`: Set the raid status to '🔴 Full (requester only)'.
+\`!waiting\`: Set the raid status to 'Waiting (requester only)'.
+\`!ongoing\`: Set the raid status to 'Ongoing (requester only)'.
+\`!full\`: Set the raid status to 'Full (requester only)'.
 \`!1man\`: Displays the 1-man taunt chart for ultraspeaker.
 \`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
 \`!3man\`: Displays the 3-man taunt chart for ultraspeaker.

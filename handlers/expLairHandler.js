@@ -8,6 +8,9 @@ import {
     EmbedBuilder,
     ChannelType,
     MessageFlags,
+    ButtonBuilder,   // For creating buttons
+    ButtonStyle,     // For button styles
+    ActionRowBuilder // For organizing buttons in rows
 } from 'discord.js';
 import {
     EXP_LAIR_CHANNEL_ID,
@@ -17,7 +20,8 @@ import {
     RAID_MANAGER_ROLE_ID,
     TASK_MAP_CATEGORIES,
     RAID_CATEGORY_ID,
-    ALLOWED_TASK_NAMES
+    ALLOWED_TASK_NAMES,
+    RAID_HELPER_ROLE_ID
 } from '../config/constants.js';
 import { updateLeaderboard } from './leaderboardCore.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
@@ -27,7 +31,7 @@ import {
     updateRaidLogEmbed,
     getRaidInfo,
     updateRaid,
-    deleteRaid 
+    deleteRaid
 } from '../activeRaidState.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js';
@@ -85,7 +89,7 @@ function parseHelperAssignments(content) {
     let globalMultiplier = 1;
     let hasValidTags = false;
     const unrecognizedTasks = new Set();
-    const linesWithNoValidUsers = new Set(); 
+    const linesWithNoValidUsers = new Set();
 
     const lines = content.split('\n');
     for (const line of lines) {
@@ -164,8 +168,6 @@ function parseHelperAssignments(content) {
     return { helperAssignments, globalTaggedUsers, globalMultiplier, hasValidTags, unrecognizedTasks, linesWithNoValidUsers };
 }
 
-// The original calculateTaskPoints function is removed, as it's replaced by the imported utility.
-
 async function finalizeRaid(client, channelId, raidInfo, completionData, completionInitiatorId) {
     const { pointsAwarded, helperSummaries, unrecognizedTasks, linesWithNoValidUsers, mismatchedTasks, attachmentUrl } = completionData;
 
@@ -176,123 +178,187 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
             return;
         }
 
-        // Update channel name to indicate final completion
+        // --- NEW: Change channel name to indicate admin review state ---
+        await raidTicketChannel.setName('completed-raid-review');
+        console.log(`Channel ${channelId} renamed to 'completed-raid-review'.`);
+        
+        // Update channel topic to indicate final completion status
         await updateRaidStatus(client, channelId, 'Completed', COLOR_SUCCESS);
 
         const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
+        let sentExpLairMessage = null; // Initialize to null, will store the message sent to EXP Lair
+
         if (!expLairChannel || expLairChannel.type !== ChannelType.GuildText) {
             console.error('EXP Lair channel not found or is not a text channel. Cannot post completion details.');
-            
-            // Send a warning to the completion initiator if possible
             const requester = await client.users.fetch(completionInitiatorId);
             if (requester) {
-                requester.send(`Raid ${raidTicketChannel.name} was completed, but I could not post the details to the EXP Lair channel. Please check bot permissions.`)
+                await requester.send(`Raid ${raidTicketChannel.name} was completed, but I could not post the details to the EXP Lair channel. Please check bot permissions.`)
                     .catch(e => console.error(`Failed to DM requester ${requester.id}:`, e));
             }
-            // Proceed to delete channel even if EXP Lair failed.
-            await deleteRaid(channelId);
-            await raidTicketChannel.delete('Raid completed and closed, but EXP Lair post failed.');
-            return;
-        }
-
-        // Fetch display names and mentions for all helpers.
-        const helperDisplayNames = [];
-        const helperMentions = []; // Store mentions for the embed
-        const allHelperIds = Object.keys(pointsAwarded);
-        for (const id of allHelperIds) {
-            try {
-                const member = await raidTicketChannel.guild.members.fetch(id);
-                helperDisplayNames.push(member.displayName);
-                helperMentions.push(`<@${id}>`); // Add mention for the embed
-            } catch (err) {
-                console.error(`Error fetching member ${id}:`, err);
-                helperDisplayNames.push(`User-${id}`); // Fallback
-                helperMentions.push(`User-${id}`); // Fallback for mention too
-            }
-        }
-        const helpersStringForEmbed = helperMentions.length > 0 ? helperMentions.join(', ') : 'None';
-
-        const requesterMember = await raidTicketChannel.guild.members.fetch(raidInfo.requesterId);
-
-        // Construct and send embed to EXP Lair Channel
-        const embed = new EmbedBuilder()
-            .setColor(COLOR_INFO)
-            .setTitle(`Raid Completion Report`)
-            .setDescription(
-                `**Raid requested by:** ${requesterMember}\n` +
-                `**Task(s):** ${raidInfo.task}\n` +
-                `**Helpers:** ${helpersStringForEmbed}` // Use mentions here
-            )
-            .setTimestamp()
-            .setFooter({ text: 'Raid Completion Details' });
-
-        if (attachmentUrl) {
-            embed.setImage(attachmentUrl);
-        }
-
-        const sentExpLairMessage = await expLairChannel.send({
-            content: `Raid completed for ${requesterMember.displayName}.`,
-            embeds: [embed]
-        });
-
-        // Create a thread in EXP Lair for detailed breakdown (this still functions as before)
-        const expLairThread = await sentExpLairMessage.startThread({
-            name: `COMPLETED Raid for ${requesterMember.displayName}`,
-            autoArchiveDuration: 60
-        });
-
-        let expLairThreadContent = `This thread contains the full details for the raid.\n\n**Task Initially Requested:** ${raidInfo.task}\n**Points Breakdown:**\n`;
-
-        if (Object.keys(pointsAwarded).length > 0) {
-            for (const userId in pointsAwarded) {
-                const member = await raidTicketChannel.guild.members.fetch(userId);
-                expLairThreadContent += `${member.displayName}: ${pointsAwarded[userId]} EXP\n`; // Use display name here
-            }
+            // Continue the process, but expLairMessageLink will be 'N/A'
         } else {
-            expLairThreadContent += `No standard EXP awarded based on submission.`;
+            // Fetch display names and mentions for all helpers.
+            const helperMentions = [];
+            const allHelperIds = Object.keys(pointsAwarded);
+            for (const id of allHelperIds) {
+                try {
+                    const member = await raidTicketChannel.guild.members.fetch(id);
+                    helperMentions.push(`<@${id}>`);
+                } catch (err) {
+                    console.error(`Error fetching member ${id}:`, err);
+                    helperMentions.push(`User-${id}`); // Fallback for mention
+                }
+            }
+            const helpersStringForEmbed = helperMentions.length > 0 ? helperMentions.join(', ') : 'None';
+
+            const requesterMember = await raidTicketChannel.guild.members.fetch(raidInfo.requesterId);
+
+            // Construct and send embed to EXP Lair Channel
+            const embed = new EmbedBuilder()
+                .setColor(COLOR_INFO)
+                .setTitle(`Raid Completion Report`)
+                .setDescription(
+                    `**Raid requested by:** ${requesterMember}\n` +
+                    `**Task(s):** ${raidInfo.task}\n` +
+                    `**Helpers:** ${helpersStringForEmbed}`
+                )
+                .setTimestamp()
+                .setFooter({ text: 'Raid Completion Details' });
+
+            if (attachmentUrl) {
+                embed.setImage(attachmentUrl);
+            }
+
+            try {
+                sentExpLairMessage = await expLairChannel.send({
+                    content: `Raid completed for ${requesterMember.displayName}.`,
+                    embeds: [embed]
+                });
+            } catch (e) {
+                console.error("Failed to send message to EXP Lair channel:", e);
+            }
+
+            let expLairThread = null;
+            if (sentExpLairMessage) {
+                // Create a thread in EXP Lair for detailed breakdown
+                try {
+                    expLairThread = await sentExpLairMessage.startThread({
+                        name: `COMPLETED Raid for ${requesterMember.displayName}`,
+                        autoArchiveDuration: 60
+                    });
+
+                    let expLairThreadContent = `This thread contains the full details for the raid.\n\n**Task Initially Requested:** ${raidInfo.task}\n**Points Breakdown:**\n`;
+
+                    if (Object.keys(pointsAwarded).length > 0) {
+                        for (const userId in pointsAwarded) {
+                            const member = await raidTicketChannel.guild.members.fetch(userId);
+                            expLairThreadContent += `${member.displayName}: ${pointsAwarded[userId]} EXP\n`;
+                        }
+                    } else {
+                        expLairThreadContent += `No standard EXP awarded based on submission.`;
+                    }
+
+                    expLairThreadContent += `\n**Helper Assignments Breakdown:** \n${helperSummaries.join('\n')}\n`;
+
+                    if (unrecognizedTasks.size > 0) {
+                        const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
+                        expLairThreadContent += (`\n**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\`.\n`);
+                    }
+
+                    if (linesWithNoValidUsers.size > 0) {
+                        const invalidUserLinesList = Array.from(linesWithNoValidUsers).map(line => `\`${line}\``).join('\n');
+                        expLairThreadContent += (`\n**Warning**: The following lines were ignored because no valid users were tagged (e.g., only roles were mentioned, or no one was tagged):\n${invalidUserLinesList}\n`);
+                    }
+
+                    if (mismatchedTasks.size > 0) {
+                        const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
+                        expLairThreadContent += (`\n**Warning**: These tasks weren't part of the original raid (**${raidInfo.task}**) and earned no points: ${mismatchedList}.`);
+                    }
+
+                    await expLairThread.send({ content: expLairThreadContent });
+                } catch (e) {
+                    console.error("Failed to create EXP Lair thread or send content:", e);
+                }
+            }
         }
 
-        expLairThreadContent += `\n**Helper Assignments Breakdown:** \n${helperSummaries.join('\n')}\n`;
-
-        if (unrecognizedTasks.size > 0) {
-            const unrecognizedList = Array.from(unrecognizedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`\n**Note**: The following tasks were not recognized and earned no points: ${unrecognizedList}. Use valid task names from \`!raidtasks\`.\n`);
-        }
-
-        if (linesWithNoValidUsers.size > 0) {
-            const invalidUserLinesList = Array.from(linesWithNoValidUsers).map(line => `\`${line}\``).join('\n');
-            expLairThreadContent += (`\n**Warning**: The following lines were ignored because no valid users were tagged (e.g., only roles were mentioned, or no one was tagged):\n${invalidUserLinesList}\n`);
-        }
-
-        if (mismatchedTasks.size > 0) {
-            const mismatchedList = Array.from(mismatchedTasks).map(t => `\`${t}\``).join(', ');
-            expLairThreadContent += (`\n**Warning**: These tasks weren't part of the original raid (**${raidInfo.task}**) and earned no points: ${mismatchedList}.`);
-        }
-
-        await expLairThread.send({ content: expLairThreadContent });
-
+        // Apply EXP to leaderboard
         for (const userId in pointsAwarded) {
             await updateLeaderboard(userId, pointsAwarded[userId]);
         }
-
         if (Object.keys(pointsAwarded).length > 0) {
             await sendLeaderboardBackup(client);
         }
 
-        // Send a final message to the ticket channel before deletion
-        await raidTicketChannel.send(`Raid completed, this ticket channel will now be deleted.`)
-            .catch(e => console.error(`Error sending final message to ${channelId}:`, e));
+        // --- Step 1: Change channel permissions to be viewable ONLY by admins ---
+        const guild = raidTicketChannel.guild;
+        const everyoneRole = guild.roles.everyone;
+        const moderatorRole = guild.roles.cache.get(MODERATOR_ROLE_ID);
+        const officerRole = guild.roles.cache.get(OFFICER_ROLE_ID);
+        const raidManagerRole = guild.roles.cache.get(RAID_MANAGER_ROLE_ID);
 
-        await deleteRaid(channelId); // Delete from DB
-        await raidTicketChannel.delete('Raid completed and closed.'); // Delete the Discord channel
+        // Deny @everyone and raid helpers from viewing the channel
+        await raidTicketChannel.permissionOverwrites.edit(everyoneRole, {ViewChannel: false,});
+        await raidTicketChannel.permissionOverwrites.edit(RAID_HELPER_ROLE_ID, {ViewChannel: false, });
+
+        // Grant ViewChannel for admin roles (if they exist)
+        if (moderatorRole) {
+            await raidTicketChannel.permissionOverwrites.edit(moderatorRole, { ViewChannel: true });
+        }
+        if (officerRole) {
+            await raidTicketChannel.permissionOverwrites.edit(officerRole, { ViewChannel: true });
+        }
+        if (raidManagerRole) {
+            await raidTicketChannel.permissionOverwrites.edit(raidManagerRole, { ViewChannel: true });
+        }
+
+        console.log(`Channel ${channelId} now restricted to admin roles.`);
+
+        // --- Step 2: Send message to the now admin-only ticket channel with EXP Lair link and delete button ---
+        const expLairMessageLink = sentExpLairMessage ? sentExpLairMessage.url : 'N/A (could not post to EXP Lair)';
+        const requesterMember = await raidTicketChannel.guild.members.fetch(raidInfo.requesterId);
+
+        const finalMessageEmbed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle('Raid Completed - Awaiting Admin Review')
+            .setDescription(
+                `This raid was completed by <@${completionInitiatorId}>!\n` +
+                `Points have been awarded and the leaderboard updated. This channel is now only visible to staff.\n\n` +
+                `**EXP Lair Post:** [**Click Here**](${expLairMessageLink})\n` +
+                `**Requester:** <@${raidInfo.requesterId}>\n` +
+                `**Original Task(s):** ${raidInfo.task}`
+            )
+            .setTimestamp()
+            .setFooter({ text: 'Channel will be deleted by staff after review.' });
+
+        const deleteButton = new ButtonBuilder()
+            .setCustomId('deleteFinalizedRaidChannel') // Custom ID for the new button
+            .setLabel('Delete Channel After Review')
+            .setStyle(ButtonStyle.Danger); // Red button for deletion
+
+        const actionRow = new ActionRowBuilder().addComponents(deleteButton);
+
+        await raidTicketChannel.send({
+            embeds: [finalMessageEmbed],
+            components: [actionRow],
+        });
+
+        // --- Step 3: Update raid status in DB to reflect new state ---
+        await updateRaid(channelId, {
+            status: 'admin_review', // New status for admin review
+            awaitingCompletionRequesterId: null, // Reset as completion is done
+            expLairMessageLink: expLairMessageLink, // Store the link for admin reference
+        });
+        console.log(`Raid ${channelId} moved to 'admin_review' status.`);
+
     } catch (error) {
         console.error('Error processing raid finalization:', error);
         const raidTicketChannel = await client.channels.fetch(channelId);
         if (raidTicketChannel) {
-            raidTicketChannel.send('There was an error during final raid processing. Please contact staff.');
+            await raidTicketChannel.send('There was an error during final raid processing. Please contact staff.');
         }
         // Attempt to reset to active state if something went wrong but channel still exists
-        await updateRaid(channelId, { status: 'active', awaitingCompletion: false });
+        await updateRaid(channelId, { status: 'active', awaitingCompletion: false, awaitingCompletionRequesterId: null });
     }
 }
 
@@ -381,7 +447,7 @@ async function handleRaidCompletion(message, raidInfo) {
         if (calcUnknownTasks.length > 0) {
             calcUnknownTasks.forEach(t => unrecognizedTasks.add(t));
         }
-        
+
         let totalPointsForUserAndTask = pointsPerUserForTask * multiplier;
 
         if (totalPointsForUserAndTask > 0) {
@@ -397,7 +463,7 @@ async function handleRaidCompletion(message, raidInfo) {
     // --- Process global 'all' assignments for users not already specifically assigned ---
     const unassignedGlobalTaggedUsers = Array.from(globalTaggedUsers).filter(id => !assignedUsers.has(id));
     const validGlobalTaggedUsers = await filterAndGetValidUsers(new Set(unassignedGlobalTaggedUsers)); // Validate users
-    
+
     if (Object.keys(validGlobalTaggedUsers).length > 0) {
         // Use the new utility function with the original raid task string to get base points for all tasks
         const { originalTotalCalculatedPoints: basePointsForAllTasks, unknownTasks: globalCalcUnknownTasks } = calculateTaskPointsWithMultiplier(raidInfo.task);
@@ -409,7 +475,7 @@ async function handleRaidCompletion(message, raidInfo) {
 
         const helperNames = Object.values(validGlobalTaggedUsers).join(', ');
         helperSummaries.push(`**All Tasks:** ${helperNames} (${totalPointsForGlobalHelpers} EXP each from tasks: ${raidInfo.task}${globalMultiplier > 1 ? ` x${globalMultiplier}` : ''})`);
-        
+
         Object.keys(validGlobalTaggedUsers).forEach(userId => {
             pointsAwarded[userId] = (pointsAwarded[userId] || 0) + totalPointsForGlobalHelpers;
         });
@@ -506,14 +572,13 @@ export function setupExpLairHandlers(client) {
             return;
         }
 
-        // Check if the interaction is in a raid ticket channel
+        // Always try to fetch raid info. If it's a delete button, the channel might be in 'admin_review' status.
         const raidInfo = await getRaidInfo(interaction.channel.id);
         const isRaidTicketChannel = raidInfo && interaction.channel.type === ChannelType.GuildText && interaction.channel.parentId === RAID_CATEGORY_ID;
 
-
         if (!isRaidTicketChannel) {
             // Only reply ephemerally if the customId matches our buttons/modals
-            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
+            if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn' || interaction.customId === 'deleteFinalizedRaidChannel')) {
                 await interaction.reply({ content: 'This button can only be used in a raid ticket channel.', flags: MessageFlags.Ephemeral });
             } else if (interaction.isModalSubmit() && interaction.customId === 'editTaskModal') {
                 await interaction.reply({ content: 'This action can only be performed in a raid ticket channel.', flags: MessageFlags.Ephemeral });
@@ -521,11 +586,23 @@ export function setupExpLairHandlers(client) {
             return;
         }
 
-        // If raidInfo was not found, it means this channel is not a recognized raid ticket.
+        // If raidInfo was not found, it means this channel is not a recognized raid ticket or was already deleted.
         // This check is important as channel might have been deleted but interaction still comes through.
         if (!raidInfo) {
             console.warn(`Raid info not found in DB/cache for channel ${interaction.channel.id}. Cannot process interaction.`);
-            await interaction.reply({ content: 'Could not retrieve raid details. This raid might have been completed or cancelled (channel deleted).', flags: MessageFlags.Ephemeral });
+            // Specifically handle the delete button here if raidInfo is missing, as the channel might be orphaned.
+            if (interaction.isButton() && interaction.customId === 'deleteFinalizedRaidChannel') {
+                 await interaction.reply({ content: 'Could not retrieve raid details. This raid might have already been deleted, or its database entry is missing. Attempting to delete channel if it still exists.', flags: MessageFlags.Ephemeral });
+                 if (interaction.channel) {
+                    try {
+                        await interaction.channel.delete('Orphaned raid channel without DB entry, manually deleting.');
+                    } catch (err) {
+                        console.error(`Failed to delete orphaned channel ${interaction.channel.id}:`, err);
+                    }
+                }
+            } else {
+                await interaction.reply({ content: 'Could not retrieve raid details. This raid might have been completed or cancelled (channel deleted).', flags: MessageFlags.Ephemeral });
+            }
             return;
         }
 
@@ -536,7 +613,14 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-                    
+
+                    // Ensure the channel is visible to everyone for the user to submit completion details
+                    const guild = interaction.channel.guild;
+                    const everyoneRole = guild.roles.everyone;
+                    await interaction.channel.permissionOverwrites.edit(everyoneRole, {
+                        ViewChannel: true, // Make it visible again
+                    });
+
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
                         awaitingCompletionRequesterId: interaction.user.id,
@@ -563,6 +647,29 @@ export function setupExpLairHandlers(client) {
                     await interaction.showModal(editTaskModal);
                     break;
 
+                case 'deleteFinalizedRaidChannel': // Handler for the admin delete button
+                    if (!await isStaff(interaction)) { // Only staff can delete this channel
+                        return;
+                    }
+
+
+                    try {
+                        // Retrieve the raid info one last time to ensure consistency, though it should be in `raidInfo` already
+                        const raidToDeleteInfo = await getRaidInfo(interaction.channel.id);
+                        if (raidToDeleteInfo) {
+                            await deleteRaid(interaction.channel.id); // Delete from DB 
+                            await interaction.channel.delete('Admin manually deleted completed raid channel after review.'); // Delete the Discord channel                                                       
+                        } else {
+                            // If raidInfo somehow vanished between fetching and clicking delete, just delete the channel.
+                             await interaction.channel.delete('Raid database entry missing, deleted channel anyway.');
+                             await interaction.editReply({ content: `Raid channel <#${interaction.channel.id}> was deleted, but its database entry was already missing.`, ephemeral: true });
+                        }
+                    } catch (error) {
+                        console.error(`Error deleting finalized raid channel ${interaction.channel.id}:`, error);
+                        await interaction.editReply({ content: 'There was an error deleting the raid channel. Please check bot permissions or try again.', ephemeral: true });
+                    }
+                    break;
+
                 default:
                     break;
             }
@@ -577,10 +684,6 @@ export function setupExpLairHandlers(client) {
                     }
                     const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
                     const newTasksArray = editedTasksInput.split(/\s*\+\s*/).map(t => t.trim());
-
-                    // The validation for ALLOWED_TASK_NAMES should be done here if it's still needed,
-                    // as calculateTaskPointsWithMultiplier only reports unknown tasks, it doesn't reject them.
-                    // For now, I'm removing it to keep the change focused, assuming the utility reports unknowns.
 
                     const newRaidTaskString = newTasksArray.join(' + ');
 
