@@ -18,7 +18,7 @@ import {
 } from 'discord.js';
 
 // Import constants related to channel IDs, role IDs, task lists, and points configuration
-import {
+import { 
     RAID_HELPER_ROLE_ID,
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,
@@ -178,11 +178,13 @@ export function setupRaidTicketHandler(client) {
                     // --- edit channel name to include new status ---
                     const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
                     if (!requesterMember) {
+                        console.log("REQUESTER FOUND NULL");
                         await message.channel.send('Could not find the original raid requester to update the channel name.');
                         return;
                     }
                     const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
                     const newChannelName = `${baseName}-${newStatusTag}`;
+                    console.log('REQUESTER FOUND: ', newChannelName);                    
                     await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);
 
                     await message.react('👍');
@@ -437,7 +439,12 @@ export function setupRaidTicketHandler(client) {
                     // Send the embed and buttons to the new ticket channel
                     const sentMessage = await raidTicketChannel.send({
                         embeds: [embedMessage],
-                        content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}\n\nTo update the status, type **!waiting**, **!ongoing** or **!full** in this channel.`,
+                        content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}`,
+                    });
+
+                    // send message to the newly created raid ticket
+                    await raidTicketChannel.send({
+                        content:`To update the status, type **!waiting**, **!ongoing** or **!full** in this channel.\nTo cancel, press the close raid and type **cancel**`,
                         components: [threadActionRow]
                     });
 
@@ -450,10 +457,10 @@ export function setupRaidTicketHandler(client) {
                         mapName: mapName,
                         server: server,
                         description: description,
-                        status: 'active', // Internal status, 'waiting' is just a display tag
-                        color: COLOR_WAITING, // Store initial color
-                        awaitingCompletion: false, // Legacy flag, should be handled by 'status'
-                        originalName: baseChannelName, // Store the base name without status prefix
+                        status: 'active', 
+                        color: COLOR_WAITING, 
+                        awaitingCompletion: false, 
+                        originalName: baseChannelName, 
                     });
                     console.log(`Raid ticket channel created and stored in DB: ${raidTicketChannel.id} for task ${task} by ${interaction.user.tag}`);
 
