@@ -19,8 +19,6 @@ import {
 
 // Import constants related to channel IDs, role IDs, task lists, and points configuration
 import {
-    RAID_CHANNEL_ID, // This will be the parent category for new ticket channels
-    RAID_LOGS_CHANNEL_ID, // Still used for a public log/announcement if desired
     RAID_HELPER_ROLE_ID,
     ALLOWED_TASK_NAMES,
     POINTS_CONFIG,

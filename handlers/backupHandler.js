@@ -1,7 +1,7 @@
 // handlers/backupHandler.js
 
 import { AttachmentBuilder } from 'discord.js';
-import { RAID_MANAGEMENT_CHANNEL_ID } from '../config/constants.js';
+import { LB_BACKUP_CHANNEL_ID } from '../config/constants.js';
 import { getCachedLeaderboard } from './leaderboardCore.js';
 // Import the new DB functions you will add to dbOps.js
 import { getLastBackupMessageId, setLastBackupMessageId } from '../utils/dbOps.js';
@@ -13,11 +13,11 @@ import { getLastBackupMessageId, setLastBackupMessageId } from '../utils/dbOps.j
  */
 export async function sendLeaderboardBackup(client) {
     try {
-        const raidManagementChannel = await client.channels.fetch(RAID_MANAGEMENT_CHANNEL_ID);
+        const raidManagementChannel = await client.channels.fetch(LB_BACKUP_CHANNEL_ID);
 
         // Ensure channel is valid before proceeding
         if (!raidManagementChannel || !raidManagementChannel.isTextBased()) {
-            console.warn(`RAID_MANAGEMENT_CHANNEL_ID (${RAID_MANAGEMENT_CHANNEL_ID}) is not a text channel or could not be fetched. Cannot send backup.`);
+            console.warn(`LB_BACKUP_CHANNEL_ID (${LB_BACKUP_CHANNEL_ID}) is not a text channel or could not be fetched. Cannot send backup.`);
             return;
         }
 
@@ -48,11 +48,9 @@ export async function sendLeaderboardBackup(client) {
             content: '📊 Daily Leaderboard Backup:',
             files: [attachment],
         });
-        console.log(`Leaderboard backup sent to channel ${RAID_MANAGEMENT_CHANNEL_ID}`);
 
         // 3. Save the new message ID to the database
         await setLastBackupMessageId(newBackupMessage.id);
-        console.log(`Saved new backup message ID: ${newBackupMessage.id}`);
 
     } catch (error) {
         console.error('Error sending leaderboard backup:', error);
