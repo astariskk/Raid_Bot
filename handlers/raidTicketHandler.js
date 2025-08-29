@@ -345,7 +345,7 @@ export function setupRaidTicketHandler(client) {
 
         // --- NEW: Block button interactions if raid is in a special state ---
         if (isRaidTicketChannel) {
-            const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled'];
+            const restrictedStatuses = ['completed', 'cancelled'];
             if (restrictedStatuses.includes(raidInfo.status)) {
                     // Only reply ephemerally if the customId matches our buttons
                 if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
