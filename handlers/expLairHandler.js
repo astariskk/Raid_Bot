@@ -554,7 +554,7 @@ export function setupExpLairHandlers(client) {
         if (raidInfo.status === 'awaiting_user_input') {
             if (message.author.id !== raidInfo.awaitingCompletionRequesterId) {
                 // Only the person who initiated 'closeRaidTicket' can submit completion/cancellation
-                await message.reply({ content: 'Only the raid requester can submit completion details or cancel the raid at this stage.', flags: MessageFlags.Ephemeral });
+                
                 return;
             }
 
@@ -618,12 +618,6 @@ export function setupExpLairHandlers(client) {
                     }
 
                     // Ensure the channel is visible to everyone for the user to submit completion details
-                    const guild = interaction.channel.guild;
-                    const everyoneRole = guild.roles.everyone;
-                    await interaction.channel.permissionOverwrites.edit(everyoneRole, {
-                        ViewChannel: true, // Make it visible again
-                    });
-
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
                         awaitingCompletionRequesterId: interaction.user.id,
