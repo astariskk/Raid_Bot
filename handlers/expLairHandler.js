@@ -679,6 +679,18 @@ export function setupExpLairHandlers(client) {
                         return;
                     }
                     const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
+
+                    // check if the input is valid or found in valid task list
+                    const inputTasks = editedTasksInput.split(/\s*[+,]\s*/).map(t => t.trim());
+                    const invalidTasks = inputTasks.filter(t => {
+                        return !(ALLOWED_TASK_NAMES.includes(t) || TASK_MAP_CATEGORIES.hasOwnProperty(t));
+                    });
+                    if (invalidTasks.length > 0) {
+                        await interaction.reply({ content: `The following tasks are not recognized: ${invalidTasks.map(t => `\`${t}\``).join(', ')}. Please use valid task names from \`!raidtasks\`.`, flags: MessageFlags.Ephemeral });
+                        return;
+                    }
+
+
                     // Updated to split tasks by '+' or ','
                     const newTasksArray = editedTasksInput.split(/\s*[+,]\s*/).map(t => t.trim());
 
