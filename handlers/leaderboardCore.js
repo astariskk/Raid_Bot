@@ -178,15 +178,6 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
     return { embeds: [embed], components: row.components.length > 0 ? [row] : [] };
 }
 
-
-/**
- * Creates the `!lbcheck` embed and pagination buttons for a given page.
- * This function is used to dynamically update the leaderboard check message as users paginate.
- * @param {Object} sessionData - The session data for `!lbcheck` (containing current page, total pages, user data, date info).
- * @param {import('discord.js').Client} client - The Discord client instance (for potential future use, currently not directly used here).
- * @param {import('discord.js').Guild} guild - The guild where the command was invoked (for display name resolution).
- * @returns {Promise<{embeds: EmbedBuilder[], components: ActionRowBuilder[]}>} An object containing the embed and pagination buttons.
- */
 export async function createLbCheckResponse(sessionData, client, guild) {
     const { currentPage, totalPages, usersData, dateInfo, originalRequesterId, timestamp } = sessionData;
     const USERS_PER_PAGE = 5; // Number of users to display per page.

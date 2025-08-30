@@ -181,8 +181,8 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         }
 
         // --- NEW: Change channel name to indicate admin review state ---
-        await raidTicketChannel.setName('completed-raid-review');
-        console.log(`Channel ${channelId} renamed to 'completed-raid-review'.`);
+        await raidTicketChannel.setName('Pending-raid-review');
+        console.log(`Channel ${channelId} renamed to 'Pending-raid-review'.`);
 
         // Update channel topic to indicate final completion status
         await updateRaidStatus(client, channelId, 'Completed', COLOR_SUCCESS);

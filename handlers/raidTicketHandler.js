@@ -175,18 +175,6 @@ export function setupRaidTicketHandler(client) {
                     // Update the channel name via updateRaidStatus (which includes DB update)
                     await updateRaidStatus(client, message.channel.id, newStatusTag, newColor);
 
-                    // --- edit channel name to include new status ---
-                    const requesterMember = await message.guild.members.fetch(raidInfo.requesterId);
-                    if (!requesterMember) {
-                        console.log("REQUESTER FOUND NULL");
-                        await message.channel.send('Could not find the original raid requester to update the channel name.');
-                        return;
-                    }
-                    const baseName = `${requesterMember.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
-                    const newChannelName = `${baseName}-${newStatusTag}`;
-                    console.log('REQUESTER FOUND: ', newChannelName);                    
-                    await message.channel.setName(newChannelName, `Status change to ${newStatusTag}`);
-
                     await message.react('👍');
                     return;
                 } catch (error) {
