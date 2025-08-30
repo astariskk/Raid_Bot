@@ -383,7 +383,7 @@ export function setupRaidTicketHandler(client) {
                     // Create the new raid ticket channel
                     // Name: requester-displayname-raid-status
                     const baseChannelName = `${interaction.member.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
-                    const initialChannelName = `${baseChannelName}-waiting`; // Channel name will reflect waiting state
+                    const initialChannelName = `${baseChannelName}`; // Channel name will reflect waiting state
 
                     // Define permissions for the new channel
                     const permissionOverwrites = [

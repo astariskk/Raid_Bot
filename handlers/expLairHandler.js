@@ -299,10 +299,10 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         const officerRole = guild.roles.cache.get(OFFICER_ROLE_ID);
         const raidManagerRole = guild.roles.cache.get(RAID_MANAGER_ROLE_ID);
 
-        // Deny @everyone and raid helpers from viewing the channel
+        // Deny @everyone including the requester from viewing the channel
         await raidTicketChannel.permissionOverwrites.edit(everyoneRole, {ViewChannel: false,});
         await raidTicketChannel.permissionOverwrites.edit(RAID_HELPER_ROLE_ID, {ViewChannel: false, });
-
+        await raidTicketChannel.permissionOverwrites.edit(raidInfo.requesterId, { ViewChannel: false });
         // Grant ViewChannel for admin roles (if they exist)
         if (moderatorRole) {
             await raidTicketChannel.permissionOverwrites.edit(moderatorRole, { ViewChannel: true });
