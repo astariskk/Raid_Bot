@@ -180,7 +180,10 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
             return;
         }
 
-        // --- NEW: Change channel name to indicate admin review state ---
+        // send message saying raid completed and points awarded
+        await raidTicketChannel.send('Ticket will now be closed');
+        
+        // --- Change channel name to indicate admin review state ---
         await raidTicketChannel.setName('Pending-raid-review');
         console.log(`Channel ${channelId} renamed to 'Pending-raid-review'.`);
 
