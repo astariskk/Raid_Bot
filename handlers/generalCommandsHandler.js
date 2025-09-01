@@ -113,14 +113,13 @@ function formatTasksForEmbed(taskList, pointsConfig) {
 function getCommandsEmbed() {
     return new EmbedBuilder()
         .setColor(0x3498DB) // blue
-        .setTitle('✨ Bot Commands List ✨')
         .setDescription('Here are the commands you can use with the Raid Helper Bot:')
         .addFields(
             {
                 name: '📊 General Raid & Status Commands',
                 value: `
 \`!raidtasks\`: Lists all available raid tasks **by category**.
-\`!calculatetask <task1> [xN] + <task2> [xN] + ...\`: Calculates total points for specified tasks.
+\`!calculatetask <task1> [xN] + <task2> [xN] + ...\`: Calculates total points for specified tasks.\n
 `
             },
             {
@@ -141,7 +140,7 @@ function getCommandsEmbed() {
             {
                 name: '💬 Commands for closing the Raid Request',
                 value: `
-\`cancel\`: Close the raid thread without awarding points.
+\`cancel\`: Close the raid ticket without awarding points.
 \`+\` and \`,\`: Use these to separate multiple tasks.
 \`=\` and \`:\` : Use these to separate tasks and tag helpers.
 \`all = @user1 @user2\`: Awards EXP for all tasks requested in the raid to the tagged player(s).
@@ -152,7 +151,7 @@ function getCommandsEmbed() {
             }
         )
         .setTimestamp()
-        .setFooter(null);
+        .setFooter({ text: 'Bot Commands' });
 }
 
 export function getHowToUseEmbed(raidHelperRoleName) {
@@ -166,7 +165,7 @@ export function getHowToUseEmbed(raidHelperRoleName) {
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
             `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
-            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
+            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`10000\` points every month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
