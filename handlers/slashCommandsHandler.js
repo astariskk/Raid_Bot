@@ -1,8 +1,14 @@
 // handlers/slashCommandsHandler.js
 import { REST, Routes, ApplicationCommandOptionType, MessageFlags, EmbedBuilder } from 'discord.js';
 import { updateLeaderboard } from './leaderboardCore.js';
-import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../config/constants.js';
+import { 
+    MODERATOR_ROLE_ID,
+     OFFICER_ROLE_ID,
+      RAID_MANAGER_ROLE_ID,
+      MAX_XP_PER_RAID,
+    } from '../config/constants.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
+import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js';
 
 // --- utility functions ---
 function isAdmin(interaction) {
@@ -85,6 +91,18 @@ const commands = [
             },
         ],
     }, 
+    {
+        name: 'calculatetask',
+        description: 'Calculate EXP for one or more tasks.',
+        options: [
+            {
+                name: 'tasks',
+                description: 'e.g. "kathool, voidnerfkitten x5 + voidxyfrag"',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+        ],
+    },
 ];
 
 export async function registerSlashCommands(client) {
@@ -201,6 +219,36 @@ export function setupSlashCommandsHandler(client) {
             }
             break;              
         }
+        case 'calculatetask': {
+            const tasksString = interaction.options.getString('tasks');
+
+            try {
+                const {
+                    totalCalculatedPoints,
+                    originalTotalCalculatedPoints,
+                    unknownTasks
+                } = calculateTaskPointsWithMultiplier(tasksString);
+
+                let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
+
+                if (unknownTasks.length > 0) {
+                    replyContent += `\n\n_Note: The following tasks were not recognized and were not included: ${unknownTasks.join(', ')}._`;
+                }
+
+                if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
+                    replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP (original total: ${originalTotalCalculatedPoints} EXP)._`;
+                }
+
+                await interaction.reply({ content: replyContent });
+            } catch (error) {
+                console.error('Error calculating task points:', error);
+                await interaction.reply({
+                    content: 'Failed to calculate task points. Please try again later.',
+                    flags: MessageFlags.Ephemeral,
+                });
+            }
+            break;
+        }        
             default:
                 console.log(`Unhandled slash command: ${interaction.commandName}`);
                 await interaction.reply({

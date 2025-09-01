@@ -152,7 +152,7 @@ function getCommandsEmbed() {
             }
         )
         .setTimestamp()
-        .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
+        .setFooter(null);
 }
 
 export function getHowToUseEmbed(raidHelperRoleName) {
