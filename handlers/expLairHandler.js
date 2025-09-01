@@ -301,6 +301,7 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         const moderatorRole = guild.roles.cache.get(MODERATOR_ROLE_ID);
         const officerRole = guild.roles.cache.get(OFFICER_ROLE_ID);
         const raidManagerRole = guild.roles.cache.get(RAID_MANAGER_ROLE_ID);
+        const requester = await guild.members.fetch(raidInfo.requesterId);        
 
         // Deny @everyone from viewing the channel
         await raidTicketChannel.permissionOverwrites.edit(everyoneRole, {ViewChannel: false,});
@@ -410,14 +411,13 @@ async function handleRaidCompletion(message, raidInfo) {
 
     const pointsAwarded = {};
     const helperSummaries = [];
-    const mismatchedTasks = new Set(); // Tasks mentioned that were not part of the original request
-    const assignedUsers = new Set(); // To track users already assigned specific tasks
+    const mismatchedTasks = new Set(); 
+    const assignedUsers = new Set();
 
     // Determine the original tasks requested for this raid, including expanded meta-tasks
-    // Updated to split by '+' or ','
     const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split(/\s*[+,]\s*/).map(t => t.trim());
-    const originalRaidEffectiveTasks = new Set(); // Individual tasks (e.g., speaker, dage)
-    const originalRaidRequestedStrings = new Set(); // Original strings (e.g., daily, speaker)
+    const originalRaidEffectiveTasks = new Set(); 
+    const originalRaidRequestedStrings = new Set(); 
 
     originalRequestedTasksRaw.forEach(task => {
         originalRaidRequestedStrings.add(task); // Store 'daily' or 'speaker'
@@ -625,12 +625,12 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-
-                    // Ensure the channel is visible to everyone for the user to submit completion details
+                    
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
                         awaitingCompletionRequesterId: interaction.user.id,
                     });
+
                     console.log(`Channel ${interaction.channel.id} now awaiting completion details from ${interaction.user.tag}.`);
 
                     await interaction.reply({

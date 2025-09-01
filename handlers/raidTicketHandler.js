@@ -437,9 +437,9 @@ export function setupRaidTicketHandler(client) {
                     });
 
                     // Store the raid's information in the database.
-                    await createRaid(raidTicketChannel.id, { // Use channelId as the primary ID
-                        messageId: sentMessage.id, // The ID of the initial embed message in the ticket channel
-                        originalChannelId: raidTicketChannel.id, // This ticket channel itself is the 'original'
+                    await createRaid(raidTicketChannel.id, { 
+                        messageId: sentMessage.id, 
+                        originalChannelId: raidTicketChannel.id, 
                         task: task,
                         requesterId: interaction.user.id,
                         mapName: mapName,
@@ -461,4 +461,4 @@ export function setupRaidTicketHandler(client) {
             }
         }
     });
-}
+}   

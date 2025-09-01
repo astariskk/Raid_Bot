@@ -1,9 +1,8 @@
 // leaderboardHandler.js - Primary handler for Discord commands and interactions
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js'; // Import EmbedBuilder
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID, RAID_CHANNEL_ID } from '../config/constants.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
 
-// Import core leaderboard functions and embed creators from the new leaderboardCore.js
 import {
     getCachedLeaderboard,
     getSortedLeaderboard,
@@ -16,11 +15,11 @@ import {
     sendPreviousLeaderboardAnnouncement
 } from './leaderboardCore.js';
 
-// --- Pending Reset Confirmations (Shared State) ---
+// --- Pending Reset Confirmations ---
 export const pendingResets = new Map();
 export const RESET_CONFIRMATION_TIMEOUT_MS = 30 * 1000; // 30 seconds for confirmation timeout.
 
-// --- Active Pagination Sessions (Shared State for !lbcheck and !leaderboard) ---
+// --- Active Pagination Sessions ---
 export const activePaginationSessions = new Map();
 export const PAGINATION_SESSION_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes for pagination sessions.
 
@@ -147,7 +146,7 @@ export function setupLeaderboardHandlers(client) {
         // --- Handle Leaderboard Command (`!leaderboard` / `!lb`) ---
         if ((message.content.toLowerCase() === '!leaderboard' || message.content.toLowerCase() === '!lb')) {
             if (!message.guild) {
-                return message.reply({ content: "This command can only be used in a server.", ephemeral: true });
+                return message.reply({ content: "This command can only be used in a server." });
             }
             try {
                 const leaderboard = await getCachedLeaderboard();
@@ -216,14 +215,14 @@ export function setupLeaderboardHandlers(client) {
 
             } catch (error) {
                 console.error('Error displaying leaderboard:', error);
-                await message.reply({ content: 'Failed to retrieve leaderboard. Please try again later.', ephemeral: true });
+                await message.reply({ content: 'Failed to retrieve leaderboard. Please try again later.'});
             }
         }
 
         // --- Handle Leaderboard Check Command (`!lbcheck`) ---
         if (message.content.toLowerCase().startsWith('!lbcheck')) {
             if (!message.guild) {
-                return message.reply({ content: "This command can only be used in a server.", ephemeral: true });
+                return message.reply({ content: "This command can only be used in a server."});
             }
 
             let targetUsers = [];
