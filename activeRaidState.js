@@ -5,113 +5,80 @@ import { ALLOWED_TASK_NAMES } from './config/constants.js';
 // CHANGED: Import the collection directly from dbOps
 import { raidStatesCollection } from './utils/dbOps.js'; 
 
-// Cache for active raid threads to reduce database reads.
+// Cache for active raid tickets to reduce database reads.
 const raidStateCache = new Map();
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes
 
-// REMOVED: All of the following code is no longer needed here.
-// const DB_NAME = 'raid_bot_db';
-// let raidStatesCollection;
-// async function initializeRaidStatesCollection() { ... }
-// initializeRaidStatesCollection().catch(console.error);
 
-/**
- * Fetches raid information for a given thread ID.
- * @param {string} threadId The ID of the thread.
- * @returns {Promise<object | null>} The raid info object, or null if not found.
- */
-export async function getRaidInfo(threadId) {
-    if (raidStateCache.has(threadId)) {
-        const cachedEntry = raidStateCache.get(threadId);
+export async function getRaidInfo(channelId) {
+    if (raidStateCache.has(channelId)) {
+        const cachedEntry = raidStateCache.get(channelId);
         if (Date.now() - cachedEntry.timestamp < CACHE_LIFETIME_MS) {
             return cachedEntry.data;
         } else {
-            raidStateCache.delete(threadId); // Cache expired
+            raidStateCache.delete(channelId); // Cache expired
         }
     }
 
     try {
-        // REMOVED: No need to connect or initialize here.
-        const raidInfo = await raidStatesCollection.findOne({ _id: threadId });
+        const raidInfo = await raidStatesCollection.findOne({ _id: channelId });
         if (raidInfo) {
-            raidStateCache.set(threadId, { data: raidInfo, timestamp: Date.now() });
+            raidStateCache.set(channelId, { data: raidInfo, timestamp: Date.now() });
         }
         return raidInfo;
     } catch (error) {
-        console.error(`Error fetching raid info for thread ${threadId}:`, error);
+        console.error(`Error fetching raid info for ticket ${channelId}:`, error);
         return null;
     }
 }
 
-/**
- * Creates a new raid entry in the database.
- * @param {string} threadId The ID of the Discord thread.
- * @param {object} raidDetails The details of the raid.
- * @returns {Promise<void>}
- */
-export async function createRaid(threadId, raidDetails) {
+export async function createRaid(channelId, raidDetails) {
     try {
         // REMOVED: No need to connect or initialize here.
-        const document = { _id: threadId, ...raidDetails };
+        const document = { _id: channelId, ...raidDetails };
         await raidStatesCollection.insertOne(document);
-        raidStateCache.set(threadId, { data: document, timestamp: Date.now() });
-        console.log(`Raid ${threadId} created in DB.`);
+        raidStateCache.set(channelId, { data: document, timestamp: Date.now() });
+        console.log(`Raid ${channelId} created in DB.`);
     } catch (error) {
-        console.error(`Error creating raid ${threadId} in DB:`, error);
+        console.error(`Error creating raid ${channelId} in DB:`, error);
         throw error;
     }
 }
 
-/**
- * Updates an existing raid entry in the database.
- * @param {string} threadId The ID of the Discord thread.
- * @param {object} updates An object containing the fields to update.
- * @returns {Promise<void>}
- */
-export async function updateRaid(threadId, updates) {
+export async function updateRaid(channelId, updates) {
     try {
-        // REMOVED: No need to connect or initialize here.
+        if (updates.pendingData !== undefined) {
+            delete updates.pendingData;
+        }
+
         await raidStatesCollection.updateOne(
-            { _id: threadId },
+            { _id: channelId },
             { $set: updates }
         );
-        raidStateCache.delete(threadId); // Invalidate cache
-        console.log(`Raid ${threadId} updated in DB.`);
+        raidStateCache.delete(channelId); // Invalidate cache
+        console.log(`Raid ${channelId} updated in DB.`);
     } catch (error) {
-        console.error(`Error updating raid ${threadId} in DB:`, error);
+        console.error(`Error updating raid ${channelId} in DB:`, error);
         throw error;
     }
 }
 
-/**
- * Deletes a raid entry from the database.
- * @param {string} threadId The ID of the Discord thread.
- * @returns {Promise<void>}
- */
-export async function deleteRaid(threadId) {
+export async function deleteRaid(channelId) {
     try {
-        // REMOVED: No need to connect or initialize here.
-        await raidStatesCollection.deleteOne({ _id: threadId });
-        raidStateCache.delete(threadId);
-        console.log(`Raid ${threadId} deleted from DB.`);
+        await raidStatesCollection.deleteOne({ _id: channelId });
+        raidStateCache.delete(channelId);
+        console.log(`Raid ${channelId} deleted from DB.`);
     } catch (error) {
-        console.error(`Error deleting raid ${threadId} from DB:`, error);
+        console.error(`Error deleting raid ${channelId} from DB:`, error);
         throw error;
     }
 }
 
-/**
- * Updates the status on the original raid request embed.
- * This function now fetches raidInfo from the DB via getRaidInfo.
- * @param {import('discord.js').Client} client The Discord client instance.
- * @param {string} threadId The ID of the thread where the status update was triggered.
- * @param {string} newStatus The new status string (e.g., 'Ongoing', 'Full', 'Done ✅').
- * @param {number} newColor The new color for the embed.
- */
-export async function updateRaidStatus(client, threadId, newStatus, newColor) {
-    const raidInfo = await getRaidInfo(threadId); // Fetch from DB/cache
+
+export async function updateRaidStatus(client, channelId, newStatus, newColor) {
+    const raidInfo = await getRaidInfo(channelId); 
     if (!raidInfo || !raidInfo.messageId || !raidInfo.originalChannelId) {
-        console.log(`Could not find raid info or messageId for thread ${threadId} to update status.`);
+        console.log(`Could not find raid info or messageId for ticket ${channelId} to update status.`);
         return;
     }
 
@@ -135,13 +102,14 @@ export async function updateRaidStatus(client, threadId, newStatus, newColor) {
                 })
             )
             .setColor(newColor)
-            .setTimestamp(); // Update the timestamp to show the last status change
-
+            .setTimestamp(); 
+        
         await message.edit({ embeds: [updatedEmbed] });
-        console.log(`Updated status to "${newStatus}" for raid in thread ${threadId}`);
+        console.log(`Updated status to "${newStatus}" for raid in ticket ${channelId}`);
+        
 
     } catch (error) {
-        console.error(`Failed to update raid status for thread ${threadId}:`, error);
+        console.error(`Failed to update raid status for ticket ${channelId}:`, error);
     }
 }
 
@@ -163,18 +131,17 @@ export function getEditTaskModal(currentTasks = '') {
     return modal;
 }
 
-export async function updateRaidLogEmbed(client, threadId, updates) {
-    const raidInfo = await getRaidInfo(threadId); // Fetch from DB/cache
+export async function updateRaidLogEmbed(client, channelId, updates) {
+    const raidInfo = await getRaidInfo(channelId); // Fetch from DB/cache
     if (!raidInfo || !raidInfo.messageId || !raidInfo.originalChannelId) {
-        console.log(`Could not find raid info or messageId for thread ${threadId} to update embed.`);
+        console.log(`Could not find raid info or messageId for ticket ${channelId} to update embed.`);
         return;
     }
 
     try {
         const channel = await client.channels.fetch(raidInfo.originalChannelId);
         const message = await channel.messages.fetch(raidInfo.messageId);
-        const originalEmbed = message.embeds[0];
-
+        const originalEmbed = message.embeds[0];                    
         if (!originalEmbed) {
             console.error(`Original embed not found for message ${raidInfo.messageId} when trying to update embed.`);
             return;
@@ -221,13 +188,13 @@ export async function updateRaidLogEmbed(client, threadId, updates) {
 
             updatedEmbed.setFields(combinedFields);
         }
-
+        
         updatedEmbed.setTimestamp(); // Update timestamp to show last modification
 
         await message.edit({ embeds: [updatedEmbed] });
-        console.log(`Updated embed for raid in thread ${threadId}`);
+        console.log(`Updated embed for raid in channel ${channelId}`);
 
     } catch (error) {
-        console.error(`Failed to update embed for thread ${threadId}:`, error);
+        console.error(`Failed to update embed for channel ${channelId}:`, error);
     }
 }

@@ -10,15 +10,10 @@ let dailyPointsCollection;
 let metadataCollection;
 export let raidStatesCollection; // ADDED: Export the new collection
 
-/**
- * Connects to the MongoDB database.
- * @returns {Promise<void>}
- */
 export async function connectDB() {
     const MONGODB_URI = process.env.MONGODB_URI;
 
     if (dbClient && dbClient.topology.isConnected()) {
-        // console.log('Already connected to MongoDB.'); // This log can be noisy, consider removing
         return;
     }
 
@@ -38,16 +33,19 @@ export async function connectDB() {
         leaderboardCollection = db.collection('leaderboard_data');
         dailyPointsCollection = db.collection('daily_points');
         metadataCollection = db.collection('metadata');
-        raidStatesCollection = db.collection('raid_states'); // ADDED: Initialize the collection
+        
+        // ADDED: Initialize the raid states collection
+        raidStatesCollection = db.collection('raid_states');
 
         // --- Create all indexes here ---
         await leaderboardCollection.createIndex({ totalExp: -1 }).catch(console.error);
         await dailyPointsCollection.createIndex({ date: 1, userId: 1 }, { unique: true }).catch(console.error);
         await metadataCollection.createIndex({ _id: 1 }).catch(console.error);
-        await raidStatesCollection.createIndex({ _id: 1 }).catch(console.error); // ADDED: Create index for the new collection
         
-        console.log("All database collections initialized."); // ADDED: Confirmation log
-
+        // ADDED: Create index for the new collection
+        await raidStatesCollection.createIndex({ _id: 1 }).catch(console.error); 
+        
+        console.log("All database collections initialized.");
     } catch (error) {
         console.error('Failed to connect to MongoDB:', error);
         throw error;

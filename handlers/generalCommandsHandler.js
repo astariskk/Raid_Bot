@@ -19,7 +19,7 @@ import {
     OTHERS_SEVEN_LIST,
     GENERIC_TASKS_LIST
 } from '../config/constants.js';
-import { getRaidRequestModal } from './raidLogsHandler.js';
+import { getRaidRequestModal } from './raidTicketHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
 
 // --- Cooldown management for GIF commands ---
@@ -124,13 +124,13 @@ function getCommandsEmbed() {
 `
             },
             {
-                name: '⚔️ Commands Inside Raid Threads',
+                name: '⚔️ Commands Inside Raid Tickets',
                 value: `
 \`!raidmaps [number]\`: Displays the map's specified in the raid to make joining maps easier.
 \`!raidsite\`: Sends a website for making joining maps easier.
-\`!waiting\`: Set the raid status to '🔵 Waiting (requester only)'.
-\`!ongoing\`: Set the raid status to '🟢 Ongoing (requester only)'.
-\`!full\`: Set the raid status to '🔴 Full (requester only)'.
+\`!waiting\`: Set the raid status to 'Waiting (requester only)'.
+\`!ongoing\`: Set the raid status to 'Ongoing (requester only)'.
+\`!full\`: Set the raid status to 'Full (requester only)'.
 \`!1man\`: Displays the 1-man taunt chart for ultraspeaker.
 \`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
 \`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
@@ -142,6 +142,7 @@ function getCommandsEmbed() {
                 name: '💬 Commands for closing the Raid Request',
                 value: `
 \`cancel\`: Close the raid thread without awarding points.
+\`+\` and \`,\`: Use these to separate multiple tasks.
 \`=\` and \`:\` : Use these to separate tasks and tag helpers.
 \`all = @user1 @user2\`: Awards EXP for all tasks requested in the raid to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
@@ -151,20 +152,20 @@ function getCommandsEmbed() {
             }
         )
         .setTimestamp()
-        .setFooter({ text: 'Raid Helper Bot | Your ultimate raid companion!' });
+        .setFooter(null);
 }
 
 export function getHowToUseEmbed(raidHelperRoleName) {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
         .setDescription(
-            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**.\n\n` +
+            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**. You can press it again to remove the role\n\n` +
             `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Use \`📋 Raid Tasks\` to see accepted tasks and their EXP values. ` +
             `For tasks not on the list, you can use generic tasks:\n` +
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
-            `**3. Raid Coordination:** A dedicated thread will be created for your raid. Within this thread, you can use thread-only commands, update your raid's status or edit your request.\n\n` +
+            `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
             `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your thread. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`10000\` points every month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`

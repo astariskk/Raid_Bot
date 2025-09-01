@@ -11,7 +11,8 @@ import {
 
 
 export function calculateTaskPointsWithMultiplier(tasksString) {
-    const rawTaskEntries = tasksString.split('+').map(task => task.trim()).filter(task => task.length > 0);
+    // Updated to split tasks by '+' or ','
+    const rawTaskEntries = tasksString.split(/[+,]/).map(task => task.trim()).filter(task => task.length > 0);
 
     let originalTotalCalculatedPoints = 0;
     const unknownTasks = [];
