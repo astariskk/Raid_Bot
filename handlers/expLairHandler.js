@@ -181,7 +181,7 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         }
 
         // send message saying raid completed and points awarded
-        await raidTicketChannel.send('Ticket will now be closed');
+        await raidTicketChannel.send('This raid ticket is now closed');
         
         // --- Change channel name to indicate admin review state ---
         await raidTicketChannel.setName('Pending-raid-review');

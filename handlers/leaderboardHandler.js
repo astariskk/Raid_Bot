@@ -64,8 +64,8 @@ function getDateRangeFromArgs(content, message) {
         endDate = getUtcMidnight(now);
         description = 'Today';
     } else if (parts[0] === 'yesterday') {
-        const yesterday = new Date(now); // Start with current date
-        yesterday.setDate(now.getDate() - 1); // Go back one calendar day
+        const yesterday = new Date(now); 
+        yesterday.setDate(now.getDate() - 1); 
         startDate = getUtcMidnight(yesterday);
         endDate = getUtcMidnight(yesterday);
         description = 'Yesterday';
@@ -93,6 +93,7 @@ function getDateRangeFromArgs(content, message) {
         endDate = getUtcMidnight(specificDay);
         description = `On Day ${day} of this month`;
     } else if (/^\d{4}-\d{2}-\d{2}$/.test(parts[0])) {
+
         // For YYYY-MM-DD input, parse it directly and then convert to UTC midnight
         const dateParts = parts[0].split('-');
         const year = parseInt(dateParts[0], 10);
@@ -111,14 +112,13 @@ function getDateRangeFromArgs(content, message) {
         return { error: 'Invalid usage. Use `!lbcheck [today|yesterday|<day>|from <start> to <end>|YYYY-MM-DD] [@user(s)]`' };
     }
 
-    // The getDailyPointsForRange function in dbOps.js uses .toISOString().split('T')[0]
     const formatToISO = (d) => d.toISOString().split('T')[0];
 
     return {
         startDateISO: formatToISO(startDate),
         endDateISO: formatToISO(endDate),
         description: description,
-        rawStartDate: startDate, // These are now UTC Date objects at midnight
+        rawStartDate: startDate, 
         rawEndDate: endDate
     };
 }
@@ -127,7 +127,7 @@ const createXpEmbed = (action, amount, userIds) => {
     const isPositive = action === 'add';
     const xpString = isPositive ? `added ${amount} EXP to` : `removed ${amount} EXP from`;
     const title = isPositive ? 'EXP Added' : 'EXP Removed';
-    const color = isPositive ? 0x0099ff : 0xFF0000; // Blue for add, Red for remove
+    const color = isPositive ? 0x0099ff : 0xFF0000; // blue for add, red for remove
 
     const userMentions = userIds.map(id => `<@${id}>`).join(', ');
 

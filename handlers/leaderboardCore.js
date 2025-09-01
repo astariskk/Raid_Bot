@@ -12,11 +12,6 @@ const CACHE_LIFETIME_MS = 5 * 60 * 1000;
 let leaderboardCache = null;
 let lastCacheTime = 0;
 
-/**
- * Fetches the current leaderboard data, utilizing a cache.
- * If the cache is stale or non-existent, it reads from the database and updates the cache.
- * @returns {Promise<Object>} The raw leaderboard data object.
- */
 export async function getCachedLeaderboard() {
     const now = Date.now();
     // Check if cache exists and is still fresh.
@@ -29,14 +24,6 @@ export async function getCachedLeaderboard() {
     return leaderboardCache;
 }
 
-/**
- * Sorts leaderboard data and returns entries.
- * Filters out internal keys (those starting with '_') and optionally filters out 0 EXP.
- * @param {Object} leaderboard The raw leaderboard data.
- * @param {number} [limit=Infinity] The maximum number of top players to return. Defaults to all.
- * @param {boolean} [filterZeroExp=true] Whether to filter out players with 0 total EXP. Defaults to true.
- * @returns {Array<{userId: string, totalExp: number}>} An array of user objects sorted by totalExp.
- */
 export function getSortedLeaderboard(leaderboard, limit = Infinity, filterZeroExp = true) {
     // Filter out internal keys like _lastResetDate and _dailyPoints.
     let userEntries = Object.entries(leaderboard).filter(([key]) => !key.startsWith('_'));
@@ -53,16 +40,10 @@ export function getSortedLeaderboard(leaderboard, limit = Infinity, filterZeroEx
         .slice(0, limit);
 }
 
-/**
- * Resets the leaderboard data, either fully or monthly.
- * A full reset clears all user points. A monthly reset sets all user points to 0
- * but keeps the user entries, and clears daily points.
- * @param {boolean} fullReset - If true, performs a full reset; otherwise, performs a monthly reset.
- */
 export async function resetLeaderboard(fullReset = false) {
     const newLeaderboardState = {
         _lastResetDate: new Date().toISOString(),
-        _dailyPoints: {} // This will be cleared in the database as well
+        _dailyPoints: {} 
     };
 
     // If not a full reset, we need to preserve existing user IDs with 0 points
@@ -75,8 +56,8 @@ export async function resetLeaderboard(fullReset = false) {
         }
     }
 
-    await writeLeaderboardToDB(newLeaderboardState); // Write the new state to DB
-    leaderboardCache = null; // Invalidate cache after reset.
+    await writeLeaderboardToDB(newLeaderboardState); 
+    leaderboardCache = null; 
 
     if (fullReset) {
         console.log('Full leaderboard reset initiated (all user entries removed).');
@@ -85,27 +66,11 @@ export async function resetLeaderboard(fullReset = false) {
     }
 }
 
-/**
- * Updates a user's total points and records daily points in MongoDB.
- * This function will be called from leaderboardHandler.js commands.
- * @param {string} userId - The ID of the user.
- * @param {number} pointsToAdd - The points to add (can be negative for subtraction).
- * @returns {Promise<void>}
- */
 export async function updateLeaderboard(userId, pointsToAdd) {
     await updateExpInDB(userId, pointsToAdd);
     leaderboardCache = null; // Invalidate cache so next read fetches fresh data
 }
 
-
-/**
- * Creates and returns a Discord EmbedBuilder instance for the paginated main leaderboard.
- * It resolves user IDs to display names for better readability.
- * @param {Object} sessionData - The session data for the leaderboard (containing current page, total pages, user data).
- * @param {import('discord.js').Client} client - The Discord client instance.
- * @param {import('discord.js').Guild} guild - The guild where the command was invoked.
- * @returns {Promise<{embeds: EmbedBuilder[], components: ActionRowBuilder[]}>} An object containing the embed and pagination buttons.
- */
 export async function createPaginatedLeaderboardEmbed(sessionData, client, guild) {
     const { currentPage, totalPages, usersData, resetInfo, originalRequesterId, timestamp } = sessionData;
     const USERS_PER_PAGE = 10; // Number of users to display per page for the main leaderboard.
@@ -333,8 +298,8 @@ export function setupMonthlyResetTask(client) {
     // Run the check once immediately when the bot starts
     performMonthlyCheck();
 
-    // Then, set up the recurring check every 12 hours
-    setInterval(performMonthlyCheck, 12 * 60 * 60 * 1000);
+    // Then, set up the recurring check every 6 hours
+    setInterval(performMonthlyCheck, 6 * 60 * 60 * 1000);
 }
 export {
     getDailyPointsForRange,
