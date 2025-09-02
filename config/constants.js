@@ -69,7 +69,8 @@ export const POINTS_CONFIG = {
     'tsright': 1000,
 
     // --- weekly tasks ---
-    'mechabinky': 5000,     
+    'mechabinky': 5000,  
+    'speaker': 4000,   
     'gramiel': 3000,     
     'darkon': 3000,     
     'drago': 1000,
