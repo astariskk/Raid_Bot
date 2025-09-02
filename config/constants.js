@@ -70,20 +70,19 @@ export const POINTS_CONFIG = {
 
     // --- weekly tasks ---
     'mechabinky': 5000,     
-    'speaker': 4000,
     'gramiel': 3000,     
     'darkon': 3000,     
-    'drago': 2000,
+    'drago': 1000,
     'dage': 2000,
     'nulgath': 2000,
     'drakath': 2000,
 
     // -- 7 man rooms
+    'astralshrine': 3000,    
     'kathool': 2000,
-    'voidnerfkitten' : 2000,
+    'voidnerfkitten' : 1000,
     'lavarockshore': 1000,
     'apexazalith': 1000,    
-    'astralshrine': 2000,
     'voidflibbi': 1000,
     'voidnightbane': 1000,
     'voidxyfrag': 1000,
