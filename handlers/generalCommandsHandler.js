@@ -73,12 +73,6 @@ export const gifCommands = {
             color: 0xaa8f7d
         }
     ],
-    "pixshart": {
-        title: null,
-        image: 'https://files.catbox.moe/7nyvv7.gif',
-        footer: null,
-        color: 0x1a1a1e
-    },
 };
 
 // --- Custom TEXT GIF Commands (no embeds) ---
@@ -92,13 +86,9 @@ export const textGifCommands = {
     'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',                                            // kae 792031861425569822
     'xytwerk': 'https://files.catbox.moe/4xeq5l.gif',                                                                           
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
-    'fapmis': '<@365314970633633793> [**Let Me Goon To Gravelyn**](https://tenor.com/view/ambatukam-gif-11383329966600817188)', // Famis 365314970633633793
     'kuroshart': '<@719443918621638660> [**I LOVE GOLDEN **](https://tenor.com/view/hippopotamus-hippo-poop-rapid-pooping-gif-16021276)', // Kuro 719443918621638660
-    'famisgrr': `<@365314970633633793> [**J LET ME GOON OR I'LL BITE**](https://files.catbox.moe/ubq0xp.gif)`,                  // Famis 365314970633633793
     'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                  // Kuro 719443918621638660
-    'mardive': `<@1030038861851664404> [**I BELIEVE I CAN DIVE**](https://files.catbox.moe/9mhz7c.gif)`,                        // Amarah 1030038861851664404
     'marscam': `<@1030038861851664404> [**THEY REDEEMED THE CARD!**](https://files.catbox.moe/krdf41.gif)`,                     // Amarah 1030038861851664404
-    'kurorizz': `<@719443918621638660> [**KURO CHAAAN?? HAAAAAI**](https://files.catbox.moe/7k02zj.gif) :nail_care: :lipstick:`,// Kuro 719443918621638660
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
     'paopaofart': `**I** [**SET FIRE TO THE RAIN**](https://files.catbox.moe/rgdncf.gif)`,
     'royaltyshart': `<@201893726535024640> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                         // Royalty 201893726535024640
