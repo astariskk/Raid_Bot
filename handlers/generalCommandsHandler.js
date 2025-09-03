@@ -93,6 +93,9 @@ export const textGifCommands = {
     'paopaofart': `**I** [**SET FIRE TO THE RAIN**](https://files.catbox.moe/rgdncf.gif)`,
     'royaltyshart': `<@201893726535024640> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                         // Royalty 201893726535024640
     'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
+    'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793  
+    'kurogyatt' : `<@719443918621638660> [**YOURE MY SODA GYATT**](https://files.catbox.moe/ljfw1h.gif)`,                       // Kuro 719443918621638660
+    'kurodance' : `<@719443918621638660> 🗣️[**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,              // Kuro 719443918621638660
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {
