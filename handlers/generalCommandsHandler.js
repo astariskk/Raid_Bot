@@ -35,34 +35,28 @@ const BANNED_USERS_FOR_COMMANDS = {
 // --- Custom GIF Commands (for embeds) ---
 export const gifCommands = {
     'the most beautiful thing you will ever see': {
-        title: 'The Most Beautiful Thing you will Ever See',
+        title: "The Most Beautiful Thing You Will Ever See",
         image: 'https://files.catbox.moe/5tsmuk.gif',
-        footer: 'Feast your eyes on this',
-        color: 0xFF0000
+        footer: null,
+        color: 0x1a1a1e 
     },
     'i need more bullets': {
         title: "Asta La Vista, Baby",
         image: 'https://files.catbox.moe/dnzecs.gif',
         footer: 'He needs more bullets',
-        color: 0x006400
+        color: 0x1a1a1e 
     },
     'sybau xychrome': {
-        title: "Get Twerked On",
+        title: null,
         image: 'https://files.catbox.moe/neo4gz.gif',
-        footer: 'Sybauuuu',
+        footer: null,
         color: 0x1a1a1e
-    },
-    "let's get freaky": {
-        title: "im about to get freaky",
-        image: 'https://files.catbox.moe/0n1mp7.gif',
-        footer: 'spurt spurt',
-        color: 0x48757d
     },
     "the scariest thing you will ever see": {
         title: "BOO!",
         image: 'https://files.catbox.moe/3l3wtr.png',
         footer: 'Time to stop procrastinating and get a job',
-        color: 0x1a1a1e
+        color: 0x1a1a1e                    //gray color
     },
     // UPDATED to be an array of two links, each with their own embed properties
     "shaboingboing": [
@@ -75,29 +69,39 @@ export const gifCommands = {
         {
             title: "wait, there's another HAWK TUAH!?",
             image: 'https://files.catbox.moe/21jx2k.gif',
-            footer: 'A surprise, to be sure, but a welcome one.',
+            footer: 'The throat goat',
             color: 0xaa8f7d
         }
     ],
-    "we live we love we lie": {
-        title: "We Live, We Love, We Lie",
-        image: 'https://files.catbox.moe/d5h906.gif',
-        footer: 'Smurf cat do be speaking faxx',
-        color: 0x3498DB
+    "pixshart": {
+        title: null,
+        image: 'https://files.catbox.moe/7nyvv7.gif',
+        footer: null,
+        color: 0x1a1a1e
     },
 };
 
 // --- Custom TEXT GIF Commands (no embeds) ---
 export const textGifCommands = {
-    'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', // Ace 467703633618796544
-    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',   // xy 965985831649169438
-    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)', // Amarah 1030038861851664404
-    'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)', // Amarah 1030038861851664404
-    'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)', // Chaos 385804720612048899
-    'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)', // xp 618790940290842625
-    'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',   // kae
-    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif', // xy
-    'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)', 
+    'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)',                            // Ace 467703633618796544
+    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',                               // xy 965985831649169438
+    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)',       // Amarah 1030038861851664404
+    'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)',                           // Amarah 1030038861851664404
+    'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)',    // Chaos 385804720612048899
+    'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)',                     // xp 618790940290842625
+    'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',                                            // kae 792031861425569822
+    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif',                                                                           
+    'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
+    'fapmis': '<@365314970633633793> [**Let Me Goon To Gravelyn**](https://tenor.com/view/ambatukam-gif-11383329966600817188)', // Famis 365314970633633793
+    'kuroshart': '<@719443918621638660> [**I LOVE GOLDEN **](https://tenor.com/view/hippopotamus-hippo-poop-rapid-pooping-gif-16021276)', // Kuro 719443918621638660
+    'famisgrr': `<@365314970633633793> [**J LET ME GOON OR I'LL BITE**](https://files.catbox.moe/ubq0xp.gif)`,                  // Famis 365314970633633793
+    'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                  // Kuro 719443918621638660
+    'mardive': `<@1030038861851664404> [**I BELIEVE I CAN DIVE**](https://files.catbox.moe/9mhz7c.gif)`,                        // Amarah 1030038861851664404
+    'marscam': `<@1030038861851664404> [**THEY REDEEMED THE CARD!**](https://files.catbox.moe/krdf41.gif)`,                     // Amarah 1030038861851664404
+    'kurorizz': `<@719443918621638660> [**KURO CHAAAN?? HAAAAAI**](https://files.catbox.moe/7k02zj.gif) :nail_care: :lipstick:`,// Kuro 719443918621638660
+    'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
+    'paopaofart': `**I** [**SET FIRE TO THE RAIN**](https://files.catbox.moe/rgdncf.gif)`,
+    'royaltyshart': `<@201893726535024640> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                         // Royalty 201893726535024640
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {
