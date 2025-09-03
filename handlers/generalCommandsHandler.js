@@ -92,6 +92,7 @@ export const textGifCommands = {
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
     'paopaofart': `**I** [**SET FIRE TO THE RAIN**](https://files.catbox.moe/rgdncf.gif)`,
     'royaltyshart': `<@201893726535024640> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                         // Royalty 201893726535024640
+    'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {
