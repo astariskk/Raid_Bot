@@ -58,7 +58,7 @@ export const gifCommands = {
         footer: 'Time to stop procrastinating and get a job',
         color: 0x1a1a1e                    //gray color
     },
-    // UPDATED to be an array of two links, each with their own embed properties
+    // 50/50 of getting one of the gifs
     "shaboingboing": [
         {
             title: "You gotta give him that Hawk Tuah",
@@ -90,7 +90,6 @@ export const textGifCommands = {
     'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                  // Kuro 719443918621638660
     'marscam': `<@1030038861851664404> [**THEY REDEEMED THE CARD!**](https://files.catbox.moe/krdf41.gif)`,                     // Amarah 1030038861851664404
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
-    'paopaofart': `**I** [**SET FIRE TO THE RAIN**](https://files.catbox.moe/rgdncf.gif)`,
     'royaltyshart': `<@201893726535024640> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                         // Royalty 201893726535024640
     'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793  
