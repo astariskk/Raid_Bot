@@ -90,10 +90,14 @@ export const textGifCommands = {
     'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                  // Kuro 719443918621638660
     'marscam': `<@1030038861851664404> [**THEY REDEEMED THE CARD!**](https://files.catbox.moe/krdf41.gif)`,                     // Amarah 1030038861851664404
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
-    'royaltyshart': `<@201893726535024640> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                         // Royalty 201893726535024640
+    'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             // Kuro 201893726535024640
     'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793  
     'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,              // Kuro 719443918621638660
+    'keijiwave' : '<@227002059784716288> [**The boy from up**](https://files.catbox.moe/661usf.gif)',                            // keiji 227002059784716288
+    'keijifreak' :'<@227002059784716288> 🗣️🗣️ [**IM FEELING FREAKY ICL OMDS**](https://files.catbox.moe/mkm2am.gif)',                             // keiji 227002059784716288
+    'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',        // keiji 227002059784716288
+    'sodapop' : 'https://files.catbox.moe/tq7clt.gif',
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {
