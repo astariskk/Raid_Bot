@@ -95,8 +95,7 @@ export const textGifCommands = {
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793  
     'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,              // Kuro 719443918621638660
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          // keiji 227002059784716288
-    'keijifreak' :'<@227002059784716288> 🗣️🗣️ [**IM FEELING FREAKY ICL OMDS**](https://files.catbox.moe/mkm2am.gif)',          // keiji 227002059784716288
-    'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',       // keiji 227002059784716288
+    'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',      // keiji 227002059784716288
     'sodapop' : 'https://files.catbox.moe/tq7clt.gif',
 }
 
