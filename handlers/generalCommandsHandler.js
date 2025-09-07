@@ -97,6 +97,7 @@ export const textGifCommands = {
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          // keiji 227002059784716288
     'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',      // keiji 227002059784716288
     'sodapop' : 'https://files.catbox.moe/tq7clt.gif',
+    'sybauwordles' :'<@252026199667245056> [**I know you like it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {

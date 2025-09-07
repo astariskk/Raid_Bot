@@ -251,7 +251,7 @@ export function setupRaidTicketHandler(client) {
             if (isRaidTicketChannel && raidInfo) {
                 // This will now be blocked by the early exit if in a restricted state
                 const raidTasksString = raidInfo.task;
-                // Updated to split by '+' or ','
+                // Split by '+' or ','
                 const rawRequestedTasks = raidTasksString.split(/\s*[+,]\s*/).map(t => t.trim());
 
                 let expandedTasks = [];
@@ -360,7 +360,7 @@ export function setupRaidTicketHandler(client) {
                 const server = interaction.fields.getTextInputValue('serverInput');
                 const description = interaction.fields.getTextInputValue('descriptionInput');
 
-                // Updated to split by '+' or ','
+                // Split by '+' or ','
                 const requestedTasks = task.split(/\s*[+,]\s*/).map(t => t.trim());
                 for (const singleTask of requestedTasks) {
                     if (!ALLOWED_TASK_NAMES.includes(singleTask)) {

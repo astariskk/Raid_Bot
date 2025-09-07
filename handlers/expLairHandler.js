@@ -99,7 +99,7 @@ function parseHelperAssignments(content) {
         if (!trimmedLine) continue;
 
         // Handle "all xN = @user1 @user2" or "all xN : @user1 @user2" assignments
-        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*[=:]\s*(.*)/i);
+        const allMatch = trimmedLine.match(/^all(\s*x(\d+))?\s*[=:-]\s*(.*)/i);
         if (allMatch) {
             globalMultiplier = allMatch[2] ? parseInt(allMatch[2], 10) : 1;
             if (isNaN(globalMultiplier) || globalMultiplier < 1) {
@@ -113,8 +113,8 @@ function parseHelperAssignments(content) {
             continue;
         }
 
-        // Handle assignments and seperators '=' and ':'
-        const parts = trimmedLine.split(/=|:/);
+        // Handle assignments and seperators '=' , ':' and '-'
+        const parts = trimmedLine.split(/[:=-]/);
         if (parts.length < 2) {
             if (trimmedLine.length > 0) {
                 unrecognizedTasks.add(trimmedLine);
@@ -133,7 +133,7 @@ function parseHelperAssignments(content) {
         }
         hasValidTags = true;
 
-        // Updated to split tasks by '+' or ','
+        // split tasks by '+' or ','
         const individualTaskEntries = taskString.split(/[+,]/).map(t => t.trim());
 
         userIds.forEach(userId => {
