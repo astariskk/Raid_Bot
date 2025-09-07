@@ -1,7 +1,7 @@
 // leaderboardCore.js - Core logic for leaderboard data, embeds, and monthly task
 
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { RAID_MANAGEMENT_CHANNEL_ID } from '../config/constants.js';
+import { LEADERBOARD_CHANNEL_ID } from '../config/constants.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
 
 // Import database operations instead of file operations
@@ -216,9 +216,9 @@ export async function createLbCheckResponse(sessionData, client, guild) {
 export async function sendPreviousLeaderboardAnnouncement(client, isManualTrigger = false) {
     try {
         const now = new Date();
-        const managementChannel = await client.channels.fetch(RAID_MANAGEMENT_CHANNEL_ID);
+        const managementChannel = await client.channels.fetch(LEADERBOARD_CHANNEL_ID);
         if (!managementChannel || !managementChannel.isTextBased()) {
-            console.warn(`RAID_MANAGEMENT_CHANNEL_ID (${RAID_MANAGEMENT_CHANNEL_ID}) is not a text channel or could not be fetched.`);
+            console.warn(`LEADERBOARD_CHANNEL_ID (${LEADERBOARD_CHANNEL_ID}) is not a text channel or could not be fetched.`);
             return;
         }
 

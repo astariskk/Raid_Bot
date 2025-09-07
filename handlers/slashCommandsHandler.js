@@ -34,7 +34,7 @@ const createXpEmbed = (action, amount, userIds) => {
     return new EmbedBuilder()
         .setColor(color)
         .setTitle(title)
-        .setDescription(`${xpString} to: \n${userMentions}`);
+        .setDescription(`${xpString} \n${userMentions}`);
 };
 
 // --- defining slash commands ---

@@ -133,7 +133,7 @@ const createXpEmbed = (action, amount, userIds) => {
     return new EmbedBuilder()
         .setColor(color)
         .setTitle(title)
-        .setDescription(`${xpString} to: \n${userMentions}`);
+        .setDescription(`${xpString} \n${userMentions}`);
 };
 
 export function setupLeaderboardHandlers(client) {
@@ -516,25 +516,25 @@ export function setupLeaderboardHandlers(client) {
                 if (!checkAdmin()) {
                     return
                 }
-                return message.reply({ content: 'No pending leaderboard reset to cancel.', ephemeral: true });
+                return message.reply({ content: 'No pending leaderboard reset to cancel.'});
             }
 
             if (!checkAdmin()) {
                 pendingResets.delete(message.author.id);
-                return message.reply({ content: 'You do not have permission to use this command.', ephemeral: true });
+                return message.reply({ content: 'You do not have permission to use this command.'});
             }
 
             if (pending.timeoutId) {
                 clearTimeout(pending.timeoutId);
             }
             pendingResets.delete(message.author.id);
-            await message.reply({ content: 'Leaderboard reset cancelled.', ephemeral: true });
+            await message.reply({ content: 'Leaderboard reset cancelled.'});
             return;
         }
 
         if (message.content.toLowerCase() ==='!sendprevlb') {
         await sendPreviousLeaderboardAnnouncement(client, true);
-        await interaction.reply({ content: 'Sent previous month\'s leaderboard announcement to the management channel!', ephemeral: true });
+        await message.reply({ content: 'Sent previous month\'s leaderboard'});
 }
     });
 

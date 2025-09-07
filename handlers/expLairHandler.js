@@ -13,15 +13,21 @@ import {
     ActionRowBuilder // For organizing buttons in rows
 } from 'discord.js';
 import {
+    // channe id's
     EXP_LAIR_CHANNEL_ID,
-    MAX_XP_PER_RAID,
+    RAID_CATEGORY_ID,    
+
+    // role id's 
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
     RAID_MANAGER_ROLE_ID,
+    RAID_HELPER_ROLE_ID,    
+
+    // other constants
+    MAX_XP_PER_RAID,       
     TASK_MAP_CATEGORIES,
-    RAID_CATEGORY_ID,
     ALLOWED_TASK_NAMES,
-    RAID_HELPER_ROLE_ID
+    GENERIC_TASKS_LIST,
 } from '../config/constants.js';
 import { updateLeaderboard } from './leaderboardCore.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
@@ -229,9 +235,19 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
                 )
                 .setTimestamp()
                 .setFooter({ text: 'Raid Completion Details' });
-
             if (attachmentUrl) {
                 embed.setImage(attachmentUrl);
+            }
+
+            // check if generic task was included, add description field if so
+            const taskList = raidInfo.task.split(/\s*[+,]\s*/).map(t => t.trim());
+            const hasGenericTask = taskList.some(task => GENERIC_TASKS_LIST.includes(task));
+            if (hasGenericTask && raidInfo.description) {
+                embed.addFields({
+                    name: 'Description',
+                    value: raidInfo.description,
+                    inline: false
+                });
             }
 
             try {
@@ -544,7 +560,6 @@ async function handleRaidCancellation(message, raidInfo) {
     }
 }
 
-
 export function setupExpLairHandlers(client) {
     client.on("messageCreate", async (message) => {
         if (message.author.bot) return;
@@ -599,7 +614,6 @@ export function setupExpLairHandlers(client) {
         }
 
         // If raidInfo was not found, it means this channel is not a recognized raid ticket or was already deleted.
-        // This check is important as channel might have been deleted but interaction still comes through.
         if (!raidInfo) {
             console.warn(`Raid info not found in DB/cache for channel ${interaction.channel.id}. Cannot process interaction.`);
             // Specifically handle the delete button here if raidInfo is missing, as the channel might be orphaned.
