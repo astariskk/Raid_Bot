@@ -99,6 +99,8 @@ export const textGifCommands = {
     'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',      // keiji 227002059784716288
     'sodapop' : 'https://files.catbox.moe/tq7clt.gif',
     'sybauwordles' :'<@252026199667245056> [**I know you like it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
+    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                                    // pix 192921939818315777
+
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {
@@ -143,7 +145,7 @@ function getCommandsEmbed() {
                 value: `
 \`cancel\`: Close the raid ticket without awarding points.
 \`+\` and \`,\`: Use these to separate multiple tasks.
-\`=\` and \`:\` : Use these to separate tasks and tag helpers.
+\`=\` \`-\` and \`:\` : Use these to separate tasks and tag helpers.
 \`all = @user1 @user2\`: Awards EXP for all tasks requested in the raid to the tagged player(s).
 \`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
 \`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
