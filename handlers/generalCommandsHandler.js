@@ -92,7 +92,8 @@ export const textGifCommands = {
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
     'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             // Kuro 201893726535024640
     'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
-    'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793  
+    'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793
+    'fapmisgoon' : `<@365314970633633793> [**IM GONNA GOON TILL I PASS OUT**](https://files.catbox.moe/bffw6o.gif)`,            // famis 365314970633633793  
     'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,              // Kuro 719443918621638660
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          // keiji 227002059784716288
     'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',      // keiji 227002059784716288
