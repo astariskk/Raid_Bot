@@ -649,12 +649,12 @@ export function setupExpLairHandlers(client) {
 
                     await interaction.reply({
                         content:
-                            'Mention those who helped e.g. \n`daily = @user1 @user2` \nor \n`speaker + dagex2 : @user1 @user2`'
-                            + `\n* You can use \`All\` to refer to every requested task (e.g., \`all x2 = @user1 @user2\` for multiple runs)`
-                            + `\n* Include a screenshot if possible.`
+                            'Mention those who helped e.g. \n`all = @user1 @user2` \n`speaker, dagex2 : @user1 @user2`'
+                            + `\n* You can use \`All\` to refer to every requested task`
+                            + `\n* You can  Include a screenshot in the same message.`
                             + `\n* You can type \`cancel\` to close the ticket without tagging helpers.`
-                            + `\n* For multiple tasks, use \`task1 + task2 = @user\` or \`task1, task2 = @user\``
-                            + `\n* For multiple runs of the same tasks, a multiplier can done \`task1xN = @user\` format.`,
+                            + `\n* For multiple tasks, separate them with \`+\` or \`,\``
+                            + `\n* For multiple runs, a multiplier can be added \`task1 xN = @user\` in this format.`,
                         flags: MessageFlags.Ephemeral
                     });
                     break;

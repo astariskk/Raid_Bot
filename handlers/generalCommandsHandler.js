@@ -83,13 +83,14 @@ export const textGifCommands = {
     'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)',                           // Amarah 1030038861851664404
     'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)',    // Chaos 385804720612048899
     'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)',                     // xp 618790940290842625
-    'kaerat': ' <@792031861425569822> [**.**](https://files.catbox.moe/1leclp.gif)',                                            // kae 792031861425569822
+    'kaerat': "<@792031861425569822> [**It's THE RAT**](https://files.catbox.moe/1leclp.gif)",                                            // kae 792031861425569822
     'xytwerk': 'https://files.catbox.moe/4xeq5l.gif',                                                                           
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
     'kuroshart': '<@719443918621638660> [**I LOVE GOLDEN **](https://tenor.com/view/hippopotamus-hippo-poop-rapid-pooping-gif-16021276)', // Kuro 719443918621638660
     'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                  // Kuro 719443918621638660
     'marscam': `<@1030038861851664404> [**THEY REDEEMED THE CARD!**](https://files.catbox.moe/krdf41.gif)`,                     // Amarah 1030038861851664404
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
+    'kuimilk' : '<@713920796913041459> [**I LOVE THIS THICK WHITE STUFF DRINK**](https://files.catbox.moe/gkvm27.gif)',                        // Kui 713920796913041459  
     'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             // Kuro 201893726535024640
     'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793

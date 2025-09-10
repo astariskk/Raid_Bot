@@ -192,7 +192,7 @@ export function setupRaidTicketHandler(client) {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('1-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/svrjfx.jpg')
+                    .setImage('https://files.catbox.moe/u3huep.png')
                     .setFooter({ text: 'Speaker chart for 1-man taunts' });
             } else if (content === '!2man') {
                 embedToSend = new EmbedBuilder()
