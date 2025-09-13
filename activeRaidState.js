@@ -34,7 +34,7 @@ export async function getRaidInfo(channelId) {
 
 export async function createRaid(channelId, raidDetails) {
     try {
-        // REMOVED: No need to connect or initialize here.
+        
         const document = { _id: channelId, ...raidDetails };
         await raidStatesCollection.insertOne(document);
         raidStateCache.set(channelId, { data: document, timestamp: Date.now() });

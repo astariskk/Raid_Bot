@@ -309,7 +309,6 @@ export function getInitialButtonsRow() {
         .addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
 }
 
-
 export function setupGeneralCommandsHandler(client) {
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
@@ -338,7 +337,7 @@ export function setupGeneralCommandsHandler(client) {
 
         // --- Handle the !raidinfo command (formerly !raidcommands) ---
         if (commandContent === '!raidinfo' && message.channel.id === RAID_CHANNEL_ID) {
-            let raidHelperRoleName = 'Raid Helper'; // Default name
+            let raidHelperRoleName = 'Raid Helper'; 
             if (message.guild) {
                 try {
                     const role = await message.guild.roles.fetch(RAID_HELPER_ROLE_ID);
@@ -370,14 +369,13 @@ export function setupGeneralCommandsHandler(client) {
                 console.error('Error sending !raidrules embed:', error);
                 await message.channel.send('Failed to display raid rules. Please try again later.');
             }
-            return; // Exit after handling !raidrules
+            return; 
         }
 
         // --- Handle the !calculatetask command ---
         if (commandContent.startsWith('!calculatetask')) {
             const args = message.content.slice('!calculatetask'.length).trim();
 
-            // Use the new helper function
             const {
                 totalCalculatedPoints,
                 originalTotalCalculatedPoints,
@@ -430,7 +428,7 @@ export function setupGeneralCommandsHandler(client) {
         // --- handle the moderator commands ---
         if (commandContent === '!modcommands' && message.channel.id === RAID_MANAGEMENT_CHANNEL_ID) {
             const leaderboardCommandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB) // A different color for distinction, e.g., green
+                .setColor(0x3498DB) 
                 .setTitle('🛡️ Moderator Commands List 🏆')
                 .setDescription('this is shown using `!modcommands`. \nHere are the commands for moderation:')
                 .addFields(
@@ -459,7 +457,7 @@ export function setupGeneralCommandsHandler(client) {
         // --- Handle !secretcommands to list all GIF commands ---
         if (commandContent === '!secretcommands') {
             let secretGifCommandsList = '';
-            // Add commands from gifCommands (embeds)
+
             for (const cmd in gifCommands) {
                 secretGifCommandsList += `* \`${cmd}\`\n`;
             }
@@ -469,7 +467,7 @@ export function setupGeneralCommandsHandler(client) {
             }
 
             const secretCommandsEmbed = new EmbedBuilder()
-                .setColor(0x3498DB) // Pink color for secret commands
+                .setColor(0x3498DB) 
                 .setTitle('🤫 Secret Gif Commands List 🤫')
                 .setDescription('**Note:** These commands are for fun and may not be suitable for all audiences. Use them at your own discretion:')
                 .addFields(
@@ -489,13 +487,11 @@ export function setupGeneralCommandsHandler(client) {
         }
 
         // --- Consolidated Custom GIF Commands Handling ---
-        // Check for regular gif commands (with embeds)
         if (gifCommands[commandContent]) {
             if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
                 const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
                 const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
 
-                // Delete any existing warning message before sending a new one
                 await deleteCooldownWarning(userId);
 
                 const warningMessage = await message.reply({ content: cooldownMessageContent });
@@ -505,7 +501,7 @@ export function setupGeneralCommandsHandler(client) {
                 setTimeout(async () => {
                     await deleteCooldownWarning(userId);
                 }, GIF_COOLDOWN_DURATION);
-                return; // Exit if still on cooldown
+                return; 
             }
 
             // If not on cooldown, proceed to send the GIF
@@ -543,7 +539,6 @@ export function setupGeneralCommandsHandler(client) {
                 const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
                 const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
 
-                // Delete any existing warning message before sending a new one
                 await deleteCooldownWarning(userId);
 
                 const warningMessage = await message.reply({ content: cooldownMessageContent });
@@ -577,7 +572,6 @@ export function setupGeneralCommandsHandler(client) {
 
         switch (interaction.customId) {
             case 'getHelpRole_btn':
-                // --- Logic to assign/remove RAID_HELPER_ROLE_ID to/from the user ---
                 const guild = interaction.guild;
                 const member = interaction.member;
 

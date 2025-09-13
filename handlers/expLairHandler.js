@@ -187,7 +187,10 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         }
 
         // send message saying raid completed and points awarded
-        await raidTicketChannel.send('This raid ticket is now closed');
+        await raidTicketChannel.send('This raid ticket will now be closed');
+
+        // delay for 5 seconds before proceeding
+        await new Promise(resolve => setTimeout(resolve, 5000));
         
         // --- Change channel name to indicate admin review state ---
         await raidTicketChannel.setName('Pending-raid-review');
@@ -550,8 +553,12 @@ async function handleRaidCancellation(message, raidInfo) {
         await updateRaidStatus(message.client, channelId, 'cancelled', COLOR_CANCELLED);
 
         await message.reply('Raid ticket closed without helpers/screenshot. Channel will be deleted.');
+
+        // delay for 5 seconds before proceeding
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
         await deleteRaid(channelId); // Delete from DB
-        await raidTicketChannel.delete('Raid cancelled and closed.'); // Delete the Discord channel
+        await raidTicketChannel.delete('Raid cancelled and closed.'); 
     } catch (error) {
         console.error('Error processing raid cancellation:', error);
         await raidTicketChannel.send('There was an error processing the raid cancellation. Please contact staff.');
