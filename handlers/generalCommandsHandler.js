@@ -34,30 +34,7 @@ const BANNED_USERS_FOR_COMMANDS = {
 
 // --- Custom GIF Commands (for embeds) ---
 export const gifCommands = {
-    'the most beautiful thing you will ever see': {
-        title: "The Most Beautiful Thing You Will Ever See",
-        image: 'https://files.catbox.moe/5tsmuk.gif',
-        footer: null,
-        color: 0x1a1a1e 
-    },
-    'i need more bullets': {
-        title: "Asta La Vista, Baby",
-        image: 'https://files.catbox.moe/dnzecs.gif',
-        footer: 'He needs more bullets',
-        color: 0x1a1a1e 
-    },
-    'sybau xychrome': {
-        title: null,
-        image: 'https://files.catbox.moe/neo4gz.gif',
-        footer: null,
-        color: 0x1a1a1e
-    },
-    "the scariest thing you will ever see": {
-        title: "BOO!",
-        image: 'https://files.catbox.moe/3l3wtr.png',
-        footer: 'Time to stop procrastinating and get a job',
-        color: 0x1a1a1e                    //gray color
-    },
+
     // 50/50 of getting one of the gifs
     "shaboingboing": [
         {
@@ -77,29 +54,43 @@ export const gifCommands = {
 
 // --- Custom TEXT GIF Commands (no embeds) ---
 export const textGifCommands = {
+    // --- other tags ---
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)',                            // Ace 467703633618796544
-    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',                               // xy 965985831649169438
-    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)',       // Amarah 1030038861851664404
-    'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)',                           // Amarah 1030038861851664404
-    'tiflick': '<@385804720612048899> [**CAN YOU BLOW MY WHISTLE BABY WHISTLE BABY**](https://files.catbox.moe/14qran.gif)',    // Chaos 385804720612048899
-    'xpcopter': '<@618790940290842625> [**How About This Bad Boy?**](https://files.catbox.moe/k41zjv.gif)',                     // xp 618790940290842625
-    'kaerat': "<@792031861425569822> [**It's THE RAT**](https://files.catbox.moe/1leclp.gif)",                                            // kae 792031861425569822
-    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif',                                                                           
-    'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
-    'kuroshart': '<@719443918621638660> [**I LOVE GOLDEN **](https://tenor.com/view/hippopotamus-hippo-poop-rapid-pooping-gif-16021276)', // Kuro 719443918621638660
-    'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                  // Kuro 719443918621638660
-    'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                // Kui 713920796913041459
-    'kuimilk' : '<@713920796913041459> [**I LOVE THIS THICK WHITE STUFF DRINK**](https://files.catbox.moe/gkvm27.gif)',                        // Kui 713920796913041459  
-    'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             // Kuro 201893726535024640
-    'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               // xy 965985831649169438
-    'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               // famis 365314970633633793
-    'fapmisgoon' : `<@365314970633633793> [**IM GONNA GOON TILL I PASS OUT**](https://files.catbox.moe/bffw6o.gif)`,            // famis 365314970633633793  
-    'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,              // Kuro 719443918621638660
-    'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          // keiji 227002059784716288
-    'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',      // keiji 227002059784716288
-    'sodapop' : 'https://files.catbox.moe/tq7clt.gif',
+    'kaerat': "<@792031861425569822> [**It's THE RAT**](https://files.catbox.moe/1leclp.gif)",                                  // kae 792031861425569822
     'sybauwordles' :'<@252026199667245056> [**I know you like it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
     'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                                    // pix 192921939818315777
+
+    // --- xy --- 965985831649169438
+    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',                               
+    'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               
+    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif',         
+
+    // --- amarah --- 1030038861851664404
+    'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)',       
+    'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)',                           
+
+    // --- kuro --- 719443918621638660
+    'kuroshart': '<@719443918621638660> [**I LOVE GOLDEN **](https://tenor.com/view/hippopotamus-hippo-poop-rapid-pooping-gif-16021276)', 
+    'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                   
+    'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             
+    'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,                       
+
+    // -- kui --- 713920796913041459
+    'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`,                
+    'kuimilk' : '<@713920796913041459> [**I LOVE THIS THICK WHITE STUFF DRINK**](https://files.catbox.moe/gkvm27.gif)',         
+    'kuirage' : '<@713920796913041459> [**YOU CANT FINGER ME LIKE THAT**](https://files.catbox.moe/hqqolp.gif)',                
+
+    // --- famis --- 365314970633633793
+    'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               
+    'fapmisgoon' : `<@365314970633633793> [**IM GONNA GOON TILL I PASS OUT**](https://files.catbox.moe/bffw6o.gif)`,            
+
+    // --- keiji --- 227002059784716288
+    'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          
+    'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',         
+    // 
+        // --- others ---                                                                  
+    'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
+    'sodapop' : 'https://files.catbox.moe/tq7clt.gif',                               
 
 }
 
