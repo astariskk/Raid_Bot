@@ -99,10 +99,10 @@ export function getRaidRequestModal() {
     // Input field for the task(s).
     const taskInput = new TextInputBuilder()
         .setCustomId('taskInput')
-        .setLabel("Task(s) (!raidtasks for options): ")
+        .setLabel("Task(s): ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setPlaceholder(`Enter task(s) like 'daily' or 'nulgath + drakath' or 'daily, kathool'`);
+        .setPlaceholder(`e.g., 'daily, dage' or 'originul, astralshrine'`);
 
     // Input field for the map name.
     const mapNameInput = new TextInputBuilder()
@@ -270,7 +270,7 @@ export function setupRaidTicketHandler(client) {
 
                 const embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle(`Raid Maps for Current Task(s): ${raidTasksString}`)
+                    .setTitle(`Raid Maps for this raid:`)
                     .setDescription(`Here are the join commands:\n\n${joinLinksWithPoints}`)
                     .setFooter(null);
 
@@ -435,6 +435,9 @@ export function setupRaidTicketHandler(client) {
                         content:`To update the status, type **!waiting**, **!ongoing** or **!full** in this channel.\nTo cancel, press the close raid and type **cancel**`,
                         components: [threadActionRow]
                     });
+
+                    // pin the embed message
+                    await sentMessage.pin();                    
 
                     // Store the raid's information in the database.
                     await createRaid(raidTicketChannel.id, { 

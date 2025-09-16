@@ -57,8 +57,7 @@ client.on('ready', async () => { // Make ready event async
         setupLeaderboardHandlers(client);
         setupGeneralCommandsHandler(client);
         setupBackupHandlers(client);
-        console.log('All handlers initialized.');
-        console.log('Ready to process commands and interactions.');
+        console.log('All handlers done, Bot is fully ready');
 
     } catch (error) {
         console.error('Failed to start bot due to database connection error:', error);
@@ -100,7 +99,6 @@ process.on('uncaughtException', (error) => {
 
 
 // --- Login ---
-console.log('--> About to call client.login(). Token exists:', !!process.env.DISCORD_TOKEN); // Check if token is loaded
 
 client.login(process.env.DISCORD_TOKEN).catch(error => {
     console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
@@ -109,4 +107,3 @@ client.login(process.env.DISCORD_TOKEN).catch(error => {
     console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
 });
 
-console.log('--> Code execution continued after client.login() call.'); // This should appear immediately
