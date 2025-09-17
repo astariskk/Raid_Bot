@@ -14,7 +14,7 @@ export const MODERATOR_ROLE_ID = '1373356500252098670'; // Moderator 13733565002
 export const OFFICER_ROLE_ID = '1373011008888639568'; // Officer 1373011008888639568
 export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; //  Raid Manager 1388819716008706129
 export const RAID_CHAMPION_ROLE_ID = '1378322255980920952'; // Raid Champion 1378322255980920952
-export const RECORD_HOLDER_ROLE_ID =  '1375432757076955258'; // Record Holder 1375432757076955258
+export const RECORD_HOLDER_ROLE_ID =  '1274384274333630565'; // Record Holder 1375432757076955258
 
 
 /* --- my server constants ---
@@ -52,16 +52,19 @@ export const RAID_MANAGER_ROLE_ID = '1388819716008706129'; //  Raid Manager 1388
 export const RAID_CHAMPION_ROLE_ID = '1378322255980920952'; // Raid Champion 1378322255980920952
 export const RECORD_HOLDER_ROLE_ID =  '1274384274333630565'; // Record Holder 1375432757076955258
 */
+
 export const LEADERBOARD_FILE = 'data/leaderboard.json'; 
 
 export const POINTS_CONFIG = {
     // --- daily tasks ---
-    'kala': 1000,
-    'iara': 1000,
     'ezrajal': 1000,
     'warden': 1000,
     'engineer': 1000,
     'tyndarius': 1000,     
+
+    // --- other four ---
+    'kala': 1000,
+    'iara': 1000,
 
     // --- temple shrine tasks ---
     'tsleft': 1000,
@@ -69,7 +72,6 @@ export const POINTS_CONFIG = {
     'tsright': 1000,
 
     // --- weekly tasks ---
-    'mechabinky': 5000,  
     'speaker': 4000,   
     'gramiel': 3000,     
     'darkon': 3000,     
@@ -78,12 +80,15 @@ export const POINTS_CONFIG = {
     'nulgath': 2000,
     'drakath': 2000,
 
-    // -- 7 man rooms
+    // -- other seven ---
+    'mechabinky': 5000,  
     'astralshrine': 3000,    
     'kathool': 2000,
     'voidnerfkitten' : 1000,
     'lavarockshore': 1000,
     'apexazalith': 1000,    
+
+    // -- originul
     'voidflibbi': 1000,
     'voidnightbane': 1000,
     'voidxyfrag': 1000,
@@ -118,7 +123,41 @@ export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, poi
 
 export const MAX_XP_PER_RAID = 30000;   // 30 000 EXP per raid
 
-// --- Task Categories for !taskmaps command ---
+export const TASK_ALIASES = {
+    // --- weeklies ---
+    'ultradage': 'dage',
+    'dave': 'dage',
+    'ultraspeaker': 'speaker',
+    'championdrakath': 'drakath',
+    'drak': 'drakath',
+    'ultranulgath': 'nulgath',   
+    'nully' : 'nulgath',
+    'ultradarkon': 'darkon',
+    'ultradrago': 'drago',
+    'ultragramiel' : 'gramiel',
+    'gram' : 'gramiel',
+
+    // --- dailies ---
+    'ultrawarden': 'warden',
+    'ultraezrajal': 'ezrajal',
+    'ultraengineer': 'engineer',
+    'ultratyndarius': 'tyndarius',
+
+    // --- others four ---
+    'ultrakala': 'kala',
+    'ultraiara': 'iara',
+
+    // --- originul ---
+    'flibbi': 'voidflibbi',
+    'nightbane': 'voidnightbane',
+    'xyfrag': 'voidxyfrag',
+
+    // --- other seven ---
+    'grimchallenge': 'mechabinky',
+    'kathooldepths': 'kathool',
+    'nerfkitten': 'voidnerfkitten',
+};
+
 export const TASK_MAP_CATEGORIES = {
     'dailies': DAILIES_LIST,
     'daily': DAILIES_LIST, // Alias for 'dailies'
@@ -131,7 +170,6 @@ export const TASK_MAP_CATEGORIES = {
     'generic': GENERIC_TASKS_LIST,
 };
 
-// --- Mapping for tasks ---
 export const TASK_TO_MAP_PREFIX_MAPPING = {
     'ezrajal': 'ultraezrajal',
     'warden': 'ultrawarden',

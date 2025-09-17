@@ -1,33 +1,29 @@
-// handlers/expLairHandler.js
-// This file is responsible for handling the completion and cancellation of raid tickets (channels),
-// calculating and awarding EXP points to raid helpers, updating the leaderboard,
-// and allowing the raid requester to edit raid tasks.
-
 // Import necessary Discord.js components for UI elements and message types.
 import {
     EmbedBuilder,
     ChannelType,
     MessageFlags,
-    ButtonBuilder,   // For creating buttons
-    ButtonStyle,     // For button styles
+    ButtonBuilder, // For creating buttons
+    ButtonStyle, // For button styles
     ActionRowBuilder // For organizing buttons in rows
 } from 'discord.js';
 import {
     // channe id's
     EXP_LAIR_CHANNEL_ID,
-    RAID_CATEGORY_ID,    
+    RAID_CATEGORY_ID, 
 
     // role id's 
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
     RAID_MANAGER_ROLE_ID,
-    RAID_HELPER_ROLE_ID,    
+    RAID_HELPER_ROLE_ID, 
 
     // other constants
-    MAX_XP_PER_RAID,       
+    MAX_XP_PER_RAID, 
     TASK_MAP_CATEGORIES,
     ALLOWED_TASK_NAMES,
     GENERIC_TASKS_LIST,
+    TASK_ALIASES 
 } from '../config/constants.js';
 import { updateLeaderboard } from './leaderboardCore.js';
 import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
@@ -43,7 +39,7 @@ import { sendLeaderboardBackup } from './backupHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js';
 
 // --- Constants for Embed Colors ---
-const COLOR_SUCCESS = 0x57F287; // Green (for final completion)
+const COLOR_SUCCESS = 0x57F287; // Green 
 const COLOR_CANCELLED = 0xFF4500; // Red
 const COLOR_INFO = 0x0099ff; // Blue
 
@@ -160,6 +156,11 @@ function parseHelperAssignments(content) {
                     return;
                 }
 
+                // Check if the lowercase task name is an alias and get its canonical name.
+                if (TASK_ALIASES.hasOwnProperty(taskName)) {
+                    taskName = TASK_ALIASES[taskName];
+                }
+
                 // Allow meta-tasks like 'daily' and 'weekly'
                 if (ALLOWED_TASK_NAMES.includes(taskName) || TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
                     if (!helperAssignments[taskName]) {
@@ -191,7 +192,7 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
 
         // delay for 5 seconds before proceeding
         await new Promise(resolve => setTimeout(resolve, 5000));
-        
+
         // --- Change channel name to indicate admin review state ---
         await raidTicketChannel.setName('Pending-raid-review');
         console.log(`Channel ${channelId} renamed to 'Pending-raid-review'.`);
@@ -320,17 +321,17 @@ async function finalizeRaid(client, channelId, raidInfo, completionData, complet
         const moderatorRole = guild.roles.cache.get(MODERATOR_ROLE_ID);
         const officerRole = guild.roles.cache.get(OFFICER_ROLE_ID);
         const raidManagerRole = guild.roles.cache.get(RAID_MANAGER_ROLE_ID);
-        const requester = await guild.members.fetch(raidInfo.requesterId);        
+        const requester = await guild.members.fetch(raidInfo.requesterId); 
 
         // Deny @everyone from viewing the channel
-        await raidTicketChannel.permissionOverwrites.edit(everyoneRole, {ViewChannel: false,});
-        await raidTicketChannel.permissionOverwrites.edit(RAID_HELPER_ROLE_ID, {ViewChannel: false, });
+        await raidTicketChannel.permissionOverwrites.edit(everyoneRole, { ViewChannel: false, });
+        await raidTicketChannel.permissionOverwrites.edit(RAID_HELPER_ROLE_ID, { ViewChannel: false, });
 
         // Check if requester is an Admin before denying their access
         if (!isAdmin({ member: requester })) {
             await raidTicketChannel.permissionOverwrites.edit(requester, { ViewChannel: false });
         }
-        // if they are admin, do nothing – their role perms handle access     
+        // if they are admin, do nothing – their role perms handle access 
 
         // Grant ViewChannel for admin roles (if they exist)
         if (moderatorRole) {
@@ -430,13 +431,13 @@ async function handleRaidCompletion(message, raidInfo) {
 
     const pointsAwarded = {};
     const helperSummaries = [];
-    const mismatchedTasks = new Set(); 
+    const mismatchedTasks = new Set();
     const assignedUsers = new Set();
 
     // Determine the original tasks requested for this raid, including expanded meta-tasks
     const originalRequestedTasksRaw = raidInfo.task.toLowerCase().split(/\s*[+,]\s*/).map(t => t.trim());
-    const originalRaidEffectiveTasks = new Set(); 
-    const originalRaidRequestedStrings = new Set(); 
+    const originalRaidEffectiveTasks = new Set();
+    const originalRaidRequestedStrings = new Set();
 
     originalRequestedTasksRaw.forEach(task => {
         originalRaidRequestedStrings.add(task); // Store 'daily' or 'speaker'
@@ -558,7 +559,7 @@ async function handleRaidCancellation(message, raidInfo) {
         await new Promise(resolve => setTimeout(resolve, 5000));
 
         await deleteRaid(channelId); // Delete from DB
-        await raidTicketChannel.delete('Raid cancelled and closed.'); 
+        await raidTicketChannel.delete('Raid cancelled and closed.');
     } catch (error) {
         console.error('Error processing raid cancellation:', error);
         await raidTicketChannel.send('There was an error processing the raid cancellation. Please contact staff.');
@@ -585,7 +586,7 @@ export function setupExpLairHandlers(client) {
         if (raidInfo.status === 'awaiting_user_input') {
             if (message.author.id !== raidInfo.awaitingCompletionRequesterId) {
                 // Only the person who initiated 'closeRaidTicket' can submit completion/cancellation
-                
+
                 return;
             }
 
@@ -646,7 +647,7 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-                    
+
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
                         awaitingCompletionRequesterId: interaction.user.id,
@@ -658,7 +659,7 @@ export function setupExpLairHandlers(client) {
                         content:
                             'Mention those who helped e.g. \n`all = @user1 @user2` \n`speaker, dagex2 : @user1 @user2`'
                             + `\n* You can use \`All\` to refer to every requested task`
-                            + `\n* You can  Include a screenshot in the same message.`
+                            + `\n* You can  Include a screenshot in the same message.`
                             + `\n* You can type \`cancel\` to close the ticket without tagging helpers.`
                             + `\n* For multiple tasks, separate them with \`+\` or \`,\``
                             + `\n* For multiple runs, a multiplier can be added \`task1 xN = @user\` in this format.`,
@@ -688,11 +689,11 @@ export function setupExpLairHandlers(client) {
                         } else {
                             // If raidInfo somehow vanished between fetching and clicking delete, just delete the channel.
                             await interaction.channel.delete('Raid database entry missing, deleted channel anyway.');
-                            await interaction.editReply({ content: `Raid channel <#${interaction.channel.id}> was deleted, but its database entry was already missing.`, ephemeral: true });
+                            await interaction.editReply({ content: `Raid channel <#${interaction.channel.id}> was deleted, but its database entry was already missing.`, flags: MessageFlags.Ephemeral });
                         }
                     } catch (error) {
                         console.error(`Error deleting finalized raid channel ${interaction.channel.id}:`, error);
-                        await interaction.editReply({ content: 'There was an error deleting the raid channel. Please check bot permissions or try again.', ephemeral: true });
+                        await interaction.editReply({ content: 'There was an error deleting the raid channel. Please check bot permissions or try again.', flags: MessageFlags.Ephemeral });
                     }
                     break;
 
@@ -704,42 +705,43 @@ export function setupExpLairHandlers(client) {
         if (interaction.isModalSubmit()) {
             switch (interaction.customId) {
                 case 'editTaskModal':
-                    // This modal submission is tied to editTask_btn, so the initial restricted state check already applies.
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
+
                     const editedTasksInput = interaction.fields.getTextInputValue('editedTaskInput').toLowerCase();
 
-                    // check if the input is valid or found in valid task list
-                    const inputTasks = editedTasksInput.split(/\s*[+,]\s*/).map(t => t.trim());
-                    const invalidTasks = inputTasks.filter(t => {
-                        return !(ALLOWED_TASK_NAMES.includes(t) || TASK_MAP_CATEGORIES.hasOwnProperty(t));
-                    });
-                    if (invalidTasks.length > 0) {
-                        await interaction.reply({ content: `The following tasks are not recognized: ${invalidTasks.map(t => `\`${t}\``).join(', ')}. Please use valid task names from \`!raidtasks\`.`, flags: MessageFlags.Ephemeral });
-                        return;
+                    // Split by '+' or ',' and resolve aliases
+                    const editedTasks = editedTasksInput
+                        .split(/\s*[+,]\s*/)
+                        .map(t => TASK_ALIASES[t.trim().toLowerCase()] || t.trim().toLowerCase());
+
+                    // Validate each edited task against the allowed list
+                    for (const singleTask of editedTasks) {
+                        if (!ALLOWED_TASK_NAMES.includes(singleTask)) {
+                            await interaction.editReply({
+                                content: `Invalid task "${singleTask}". Please use a valid task or alias.`,
+                                flags: MessageFlags.Ephemeral
+                            });
+                            return;
+                        }
                     }
 
+                    const resolvedTaskString = editedTasks.join(', ');
 
-                    // Updated to split tasks by '+' or ','
-                    const newTasksArray = editedTasksInput.split(/\s*[+,]\s*/).map(t => t.trim());
+                    await updateRaid(interaction.channel.id, { task: resolvedTaskString });
 
-                    const newRaidTaskString = newTasksArray.join(' + ');
-
-                    await updateRaid(interaction.channel.id, { task: newRaidTaskString });
-
-                    // We need to update the initial embed in the ticket channel with the new tasks
                     await updateRaidLogEmbed(
                         client,
-                        interaction.channel.id, // Pass the ticket channel ID
+                        interaction.channel.id, 
                         {
                             fields: [
-                                { name: 'Task(s)', value: newRaidTaskString, inline: false }
+                                { name: 'Task(s)', value: resolvedTaskString, inline: false }
                             ]
                         }
                     );
 
-                    await interaction.reply({ content: `Successfully updated raid tasks to "${newRaidTaskString}"!`, flags: MessageFlags.Ephemeral });
+                    await interaction.reply({ content: `Successfully updated raid tasks to "${resolvedTaskString}"!`, flags: MessageFlags.Ephemeral });
                     break;
 
                 default:
