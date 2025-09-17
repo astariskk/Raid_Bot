@@ -3,10 +3,12 @@ import { REST, Routes, ApplicationCommandOptionType, MessageFlags, EmbedBuilder 
 import { updateLeaderboard } from './leaderboardCore.js';
 import { 
     MODERATOR_ROLE_ID,
-     OFFICER_ROLE_ID,
-      RAID_MANAGER_ROLE_ID,
-      MAX_XP_PER_RAID,
+    OFFICER_ROLE_ID,
+    RAID_MANAGER_ROLE_ID,
+    MAX_XP_PER_RAID,
+    RAID_HELPER_ROLE_ID,
     } from '../config/constants.js';
+import { getRaidRequestModal } from './raidTicketHandler.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js';
 
@@ -42,18 +44,6 @@ const commands = [
     {
         name: 'ping',
         description: 'Checks if the bot is running!',
-    },
-    {
-        name: 'echo',
-        description: 'Repeats your message back to you.',
-        options: [
-            {
-                name: 'message',
-                description: 'The message to echo.',
-                type: ApplicationCommandOptionType.String,
-                required: true,
-            },
-        ],
     },
     {
         name: 'addxp',
@@ -103,6 +93,10 @@ const commands = [
             },
         ],
     },
+    {
+        name: 'raidrequest',
+        description: 'Request a raid by opening a ticket.',
+    }
 ];
 
 export async function registerSlashCommands(client) {
@@ -116,7 +110,7 @@ export async function registerSlashCommands(client) {
 
 export function setupSlashCommandsHandler(client) {
     client.on('interactionCreate', async interaction => {
-        // Only handle chat input commands
+
         if (!interaction.isChatInputCommand()) return;
 
         console.log(`[Interaction] Received command: /${interaction.commandName} (ID: ${interaction.id})`);
@@ -137,125 +131,126 @@ export function setupSlashCommandsHandler(client) {
                     }
                 }
                 break;
+            case 'addxp': {
+                if (!isAdmin(interaction)) {
+                    return interaction.reply({
+                        content: 'You do not have permission to use this command.',
+                        flags: MessageFlags.Ephemeral
+                    });
+                }
 
-            case 'echo':
+                const amount = interaction.options.getInteger('amount');
+
                 try {
-                    const messageToEcho = interaction.options.getString('message');
-                    await interaction.reply({ content: messageToEcho });
-                    console.log(`[Interaction] Successfully replied to /${interaction.commandName} (ID: ${interaction.id})`);
-                } catch (error) {
-                    console.error('Error replying to echo command:', error);
-                    if (!interaction.replied) {
-                        await interaction.reply({ // Changed from editReply to reply (if it was ever editReply)
-                            content: 'There was an error trying to echo your message.',
-                            flags: MessageFlags.Ephemeral
-                        }).catch(e => console.error('Failed to send fallback reply:', e));
+                    const usersString = interaction.options.getString('users');
+                    const userIds = [...usersString.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
+
+                    for (const id of userIds) {
+                    await updateLeaderboard(id, amount);
                     }
+
+                    const xpEmbed = createXpEmbed('add', amount, userIds);
+
+                    await interaction.reply({ embeds: [xpEmbed] });
+
+                    await sendLeaderboardBackup(client);
+                } catch (error) {
+                    console.error('Error adding XP:', error);
+                    await interaction.reply({
+                        content: 'Failed to add XP. Please try again later.',
+                        flags: MessageFlags.Ephemeral
+                    });
                 }
                 break;
-        case 'addxp': {
-            if (!isAdmin(interaction)) {
-                return interaction.reply({
-                    content: 'You do not have permission to use this command.',
-                    flags: MessageFlags.Ephemeral
-                });
             }
 
-            const amount = interaction.options.getInteger('amount');
-
-            try {
-                const usersString = interaction.options.getString('users');
-                const userIds = [...usersString.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
-
-                for (const id of userIds) {
-                await updateLeaderboard(id, amount);
+            case 'removexp': {
+                if (!isAdmin(interaction)) {
+                    return interaction.reply({
+                        content: 'You do not have permission to use this command.',
+                        flags: MessageFlags.Ephemeral
+                    });
                 }
 
-                const xpEmbed = createXpEmbed('add', amount, userIds);
 
-                await interaction.reply({ embeds: [xpEmbed] });
+                const amount = interaction.options.getInteger('amount');
 
-                await sendLeaderboardBackup(client);
-            } catch (error) {
-                console.error('Error adding XP:', error);
-                await interaction.reply({
-                    content: 'Failed to add XP. Please try again later.',
-                    flags: MessageFlags.Ephemeral
-                });
-            }
-            break;
-        }
+                try {
+                    const usersString = interaction.options.getString('users');
+                    const userIds = [...usersString.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
 
-        case 'removexp': {
-            if (!isAdmin(interaction)) {
-                return interaction.reply({
-                    content: 'You do not have permission to use this command.',
-                    flags: MessageFlags.Ephemeral
-                });
-            }
+                    for (const id of userIds) {
+                    await updateLeaderboard(id, -amount);
+                    }
 
+                    const xpEmbed = createXpEmbed('remove', amount, userIds);
 
-            const amount = interaction.options.getInteger('amount');
+                    await interaction.reply({ embeds: [xpEmbed] });
 
-            try {
-                const usersString = interaction.options.getString('users');
-                const userIds = [...usersString.matchAll(/<@!?(\d+)>/g)].map(m => m[1]);
-
-                for (const id of userIds) {
-                await updateLeaderboard(id, -amount);
+                    await sendLeaderboardBackup(client);
+                } catch (error) {
+                    console.error('Error removing XP:', error);
+                    await interaction.reply({
+                        content: 'Failed to remove XP. Please try again later.',
+                        flags: MessageFlags.Ephemeral
+                    });
                 }
-
-                const xpEmbed = createXpEmbed('remove', amount, userIds);
-
-                await interaction.reply({ embeds: [xpEmbed] });
-
-                await sendLeaderboardBackup(client);
-            } catch (error) {
-                console.error('Error removing XP:', error);
-                await interaction.reply({
-                    content: 'Failed to remove XP. Please try again later.',
-                    flags: MessageFlags.Ephemeral
-                });
+                break;              
             }
-            break;              
-        }
-        case 'calculatetask': {
-            const tasksString = interaction.options.getString('tasks');
+            case 'calculatetask': {
+                const tasksString = interaction.options.getString('tasks');
 
-            try {
-                const {
-                    totalCalculatedPoints,
-                    originalTotalCalculatedPoints,
-                    unknownTasks
-                } = calculateTaskPointsWithMultiplier(tasksString);
+                try {
+                    const {
+                        totalCalculatedPoints,
+                        originalTotalCalculatedPoints,
+                        unknownTasks
+                    } = calculateTaskPointsWithMultiplier(tasksString);
 
-                let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
+                    let replyContent = `Calculated Points: **${totalCalculatedPoints}** EXP`;
 
-                if (unknownTasks.length > 0) {
-                    replyContent += `\n\n_Note: The following tasks were not recognized and were not included: ${unknownTasks.join(', ')}._`;
+                    if (unknownTasks.length > 0) {
+                        replyContent += `\n\n_Note: The following tasks were not recognized and were not included: ${unknownTasks.join(', ')}._`;
+                    }
+
+                    if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
+                        replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP (original total: ${originalTotalCalculatedPoints} EXP)._`;
+                    }
+
+                    await interaction.reply({ content: replyContent });
+                } catch (error) {
+                    console.error('Error calculating task points:', error);
+                    await interaction.reply({
+                        content: 'Failed to calculate task points. Please try again later.',
+                        flags: MessageFlags.Ephemeral,
+                    });
                 }
-
-                if (originalTotalCalculatedPoints > MAX_XP_PER_RAID) {
-                    replyContent += `\n_This calculation was capped at ${MAX_XP_PER_RAID} EXP (original total: ${originalTotalCalculatedPoints} EXP)._`;
-                }
-
-                await interaction.reply({ content: replyContent });
-            } catch (error) {
-                console.error('Error calculating task points:', error);
-                await interaction.reply({
-                    content: 'Failed to calculate task points. Please try again later.',
-                    flags: MessageFlags.Ephemeral,
-                });
-            }
-            break;
-        }        
-            default:
-                console.log(`Unhandled slash command: ${interaction.commandName}`);
-                await interaction.reply({
-                    content: 'Unknown command.',
-                    flags: MessageFlags.Ephemeral
-                }).catch(e => console.error('Error replying to unknown command:', e));
                 break;
+            }
+            case 'raidrequest':
+                try {
+                    if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
+                        return interaction.reply({
+                            content: 'You do not have raid role to use this command.',
+                            flags: MessageFlags.Ephemeral
+                        });
+                    }
+                    const modal = getRaidRequestModal();
+                    await interaction.showModal(modal);
+
+                } catch (error) {
+                    console.error('Error showing raid request modal:', error);
+                }
+                
+            break;
+
+                default:
+                    console.log(`Unhandled slash command: ${interaction.commandName}`);
+                    await interaction.reply({
+                        content: 'Unknown command.',
+                        flags: MessageFlags.Ephemeral
+                    }).catch(e => console.error('Error replying to unknown command:', e));
+                    break;
         }
     });
 }

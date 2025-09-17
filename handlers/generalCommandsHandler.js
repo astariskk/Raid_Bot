@@ -70,7 +70,6 @@ export const textGifCommands = {
     'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)',                           
 
     // --- kuro --- 719443918621638660
-    'kuroshart': '<@719443918621638660> [**I LOVE GOLDEN **](https://tenor.com/view/hippopotamus-hippo-poop-rapid-pooping-gif-16021276)', 
     'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                   
     'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             
     'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,                       
