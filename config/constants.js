@@ -128,10 +128,13 @@ export const TASK_ALIASES = {
     'ultradage': 'dage',
     'dave': 'dage',
     'ultraspeaker': 'speaker',
+    'malgor' : 'speaker',
+    'malgae' : 'speaker',
     'championdrakath': 'drakath',
     'drak': 'drakath',
     'ultranulgath': 'nulgath',   
     'nully' : 'nulgath',
+    'nugget' : 'nulgath',
     'ultradarkon': 'darkon',
     'ultradrago': 'drago',
     'ultragramiel' : 'gramiel',
@@ -143,9 +146,18 @@ export const TASK_ALIASES = {
     'ultraengineer': 'engineer',
     'ultratyndarius': 'tyndarius',
 
+    // --- templeshrine ---
+    'tleft': 'tsleft',
+    'tmid': 'tsmid',
+    'tright': 'tsright',
+    'templeshrineleft': 'tsleft',
+    'templeshrinemid': 'tsmid',
+    'templeshrineright': 'tsright',
+
     // --- others four ---
     'ultrakala': 'kala',
     'ultraiara': 'iara',
+    'ariel' : 'iara',
 
     // --- originul ---
     'flibbi': 'voidflibbi',
