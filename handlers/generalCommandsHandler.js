@@ -83,7 +83,7 @@ export const textGifCommands = {
     // --- famis --- 365314970633633793
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               
     'fapmisgoon' : `<@365314970633633793> [**IM GONNA GOON TILL I PASS OUT**](https://files.catbox.moe/bffw6o.gif)`,
-    'goonmis' : '<@365314970633633793> [**JS LME GOON RQ**](https://files.catbox.moe/94g1s4.gif)',            
+    'goonmis' : '<@365314970633633793> [**SHE CAN SUCK MORE THAN JUST MY BLOOD**](https://files.catbox.moe/3o3stq.gif)',            
 
     // --- keiji --- 227002059784716288
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          
