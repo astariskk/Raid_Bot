@@ -423,7 +423,7 @@ export function setupRaidTicketHandler(client) {
                             { name: 'Description', value: description || 'No description provided.' },
                         )
                         .setTimestamp()
-                        .setFooter({ text: 'Raid Request System' });
+                        .setFooter({ text: 'Last updated: ' });
 
                     // Send the embed and buttons to the new ticket channel
                     const sentMessage = await raidTicketChannel.send({

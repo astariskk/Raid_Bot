@@ -136,6 +136,7 @@ export const TASK_ALIASES = {
     'nully' : 'nulgath',
     'nugget' : 'nulgath',
     'ultradarkon': 'darkon',
+    'dark' : 'darkon',
     'ultradrago': 'drago',
     'ultragramiel' : 'gramiel',
     'gram' : 'gramiel',

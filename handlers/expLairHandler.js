@@ -452,10 +452,10 @@ async function handleRaidCompletion(message, raidInfo) {
     // --- Process specific task assignments first ---
     for (const taskName in helperAssignments) {
         const { users, multiplier } = helperAssignments[taskName];
-        const validUsers = await filterAndGetValidUsers(users); // Validate users for this task
+        const validUsers = await filterAndGetValidUsers(users); // Validate users
         const usersForTask = Object.keys(validUsers);
 
-        if (usersForTask.length === 0) continue; // No valid users for this specific task assignment
+        if (usersForTask.length === 0) continue; 
 
         let isValidAssignedTask = false;
         // Check if the assigned task matches an original requested string OR an effective task from a meta-category

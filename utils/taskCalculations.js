@@ -6,7 +6,8 @@ import {
     POINTS_CONFIG,
     MAX_XP_PER_RAID,
     TASK_MAP_CATEGORIES,
-    ALLOWED_TASK_NAMES // Added for robust validation, though TASK_MAP_CATEGORIES covers most
+    ALLOWED_TASK_NAMES,
+    TASK_ALIASES,
 } from '../config/constants.js';
 
 
@@ -43,6 +44,10 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
         // Handle direct task names (e.g., 'speaker', 'kathool')
         else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
             effectiveTasks.add(taskName);
+        }
+        // Handle aliases (e.g., 'drakath' -> 'drak')
+        else if (TASK_ALIASES.hasOwnProperty(taskName)) {
+            effectiveTasks.add(TASK_ALIASES[taskName]);
         }
         // If neither a meta category nor a direct task, mark as unknown
         else {

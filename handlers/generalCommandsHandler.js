@@ -17,7 +17,8 @@ import {
     ORIGINUL_LIST,
     OTHERS_FOUR_LIST,
     OTHERS_SEVEN_LIST,
-    GENERIC_TASKS_LIST
+    GENERIC_TASKS_LIST,
+    TASK_ALIASES,
 } from '../config/constants.js';
 import { getRaidRequestModal } from './raidTicketHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
@@ -58,7 +59,6 @@ export const textGifCommands = {
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)',                            // Ace 467703633618796544
     'kaerat': "<@792031861425569822> [**It's THE RAT**](https://files.catbox.moe/1leclp.gif)",                                  // kae 792031861425569822
     'sybauwordles' :'<@252026199667245056> [**I know you like it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
-    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                                    // pix 192921939818315777
     'ninjaboing' : '<@502473085857824779> [**I LIKE TO MOVE IT MOVE IT**](https://files.catbox.moe/6lusbi.gif)',                   // ninja 502473085857824779
 
     // --- xy --- 965985831649169438
@@ -88,8 +88,12 @@ export const textGifCommands = {
     // --- keiji --- 227002059784716288
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          
     'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',         
-    // 
-        // --- others ---                                                                  
+    
+    // --- pix --- 192921939818315777
+    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                                    
+    'pixfreak' : '<@192921939818315777> [**OH MY GOD YES THATS THE SPOT**](https://files.catbox.moe/8wai0i.gif)',
+
+    // --- others ---                                                                  
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
     'sodapop' : 'https://files.catbox.moe/tq7clt.gif',                               
 
