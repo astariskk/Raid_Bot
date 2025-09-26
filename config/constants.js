@@ -144,6 +144,7 @@ export const TASK_ALIASES = {
     // --- dailies ---
     'ultrawarden': 'warden',
     'ultraezrajal': 'ezrajal',
+    'ezra' : 'ezrajal',
     'ultraengineer': 'engineer',
     'ultratyndarius': 'tyndarius',
 
