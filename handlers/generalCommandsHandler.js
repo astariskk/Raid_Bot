@@ -96,8 +96,6 @@ export const textGifCommands = {
     // --- others ---                                                                  
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
     'sodapop' : 'https://files.catbox.moe/tq7clt.gif',           
-    'kuropixyaoi' : `<@192921939818315777> <@719443918621638660> [**YOU KNOW NIGHT AFTER NIGHT, I'll BE LOVING YOU RIGHT, SEVEN DAYS A WEEK**](https://media.discordapp.net/attachments/1380472720461926480/1421117425969004574/tenor.gif?ex=68d7de3d&is=68d68cbd&hm=5074c14f5024a8f6cdc1512762640384b23787aeece11ed7e990126a437c39f7&=)`                   
-
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {
