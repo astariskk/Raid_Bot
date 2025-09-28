@@ -58,7 +58,7 @@ export const textGifCommands = {
     // --- other tags ---
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)',                            // Ace 467703633618796544
     'kaerat': "<@792031861425569822> [**IT'S THE RAT**](https://files.catbox.moe/1leclp.gif)",                                  // kae 792031861425569822
-    'sybauwordles' :'<@252026199667245056> [**I know you like it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
+    'sybauwordles' :'<@252026199667245056> [**Bark for me like you mean it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
     'ninjaboing' : '<@502473085857824779> [**I LIKE TO MOVE IT MOVE IT**](https://files.catbox.moe/6lusbi.gif)',                   // ninja 502473085857824779
 
     // --- xy --- 965985831649169438
@@ -89,7 +89,8 @@ export const textGifCommands = {
     // --- keiji --- 227002059784716288
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          
     'keijifart' : '<@227002059784716288> 🗣️🗣️ [**I FART SO HARD, AND GOT SO FAR**](https://files.catbox.moe/99wg0n.gif)',         
-    
+    'keijidance' : `<@227002059784716288> [**IM 'BOUT TO GET UP ON THAT AHH RIGHT NYEOW**](https://files.catbox.moe/1gitfq.gif)`,
+
     // --- pix --- 192921939818315777
     'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                                    
     'pixfreak' : '<@192921939818315777> [**OH MY GOD YES THATS THE SPOT**](https://files.catbox.moe/8wai0i.gif)',
