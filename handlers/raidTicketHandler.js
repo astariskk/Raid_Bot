@@ -188,32 +188,38 @@ export function setupRaidTicketHandler(client) {
                     .setColor(0x0099FF)
                     .setTitle('1-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/u3huep.png')
-                    .setFooter({ text: 'Speaker chart for 1-man taunts' });
+                    .setFooter({ text: null });
             } else if (content === '!2man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('2-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/hvccl7.png')
-                    .setFooter({ text: 'Speaker chart for 2-man taunts by Veritus' });
+                    .setFooter({ text: null });
                 messageContent = "It's movie time <@114514543899705351>"; //ping Veritus
             } else if (content === '!3man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('3-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/5x4grv.jpg')
-                    .setFooter({ text: 'Speaker chart for 3-man taunts' });
+                    .setFooter({ text: null });
             } else if (content === '!4man') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
                     .setTitle('4-Man Speaker Chart')
                     .setImage('https://files.catbox.moe/yi71zh.jpg')
-                    .setFooter({ text: 'Speaker chart for 4-man taunts' });
-            } else if (content === '!gramielchart') {
+                    .setFooter({ text: null });
+            } else if (content === '!lpchart') {
                 embedToSend = new EmbedBuilder()
                     .setColor(0x0099FF)
-                    .setTitle('Gramiel Chart')
+                    .setTitle('2-Man LP Speakerchart')
+                    .setImage('https://files.catbox.moe/xfb923.png')
+                    .setFooter({ text: null });
+            } else if (content === '!gramielchart' || content === '!gramiel') {
+                embedToSend = new EmbedBuilder()
+                    .setColor(0x0099FF)
+                    .setTitle('Gramiel Chart by Lilicht')
                     .setImage('https://files.catbox.moe/esowjk.png')
-                    .setFooter({ text: 'Gramiel chart made by Lilicht' });
+                    .setFooter({ text: null });
             }
 
             if (embedToSend) {

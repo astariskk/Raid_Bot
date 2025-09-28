@@ -57,7 +57,7 @@ export const gifCommands = {
 export const textGifCommands = {
     // --- other tags ---
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)',                            // Ace 467703633618796544
-    'kaerat': "<@792031861425569822> [**It's THE RAT**](https://files.catbox.moe/1leclp.gif)",                                  // kae 792031861425569822
+    'kaerat': "<@792031861425569822> [**IT'S THE RAT**](https://files.catbox.moe/1leclp.gif)",                                  // kae 792031861425569822
     'sybauwordles' :'<@252026199667245056> [**I know you like it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)',  // wordle 252026199667245056
     'ninjaboing' : '<@502473085857824779> [**I LIKE TO MOVE IT MOVE IT**](https://files.catbox.moe/6lusbi.gif)',                   // ninja 502473085857824779
 
@@ -83,7 +83,8 @@ export const textGifCommands = {
     // --- famis --- 365314970633633793
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`,                               
     'fapmisgoon' : `<@365314970633633793> [**IM GONNA GOON TILL I PASS OUT**](https://files.catbox.moe/bffw6o.gif)`,
-    'goonmis' : '<@365314970633633793> [**SHE CAN SUCK MORE THAN JUST MY BLOOD**](https://files.catbox.moe/3o3stq.gif)',            
+    'goonmis' : '<@365314970633633793> [**SHE CAN SUCK MORE THAN JUST MY BLOOD**](https://files.catbox.moe/3o3stq.gif)', 
+    'famridaa' : '<@365314970633633793> [**GOON RIDAAA**](https://files.catbox.moe/ae1svi.gif)',          
 
     // --- keiji --- 227002059784716288
     'keijiwave' : '<@227002059784716288> [**The boy from up!**](https://files.catbox.moe/661usf.gif)',                          
@@ -132,7 +133,8 @@ function getCommandsEmbed() {
 \`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
 \`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
 \`!4man\`: Displays the 4-man taunt chart for ultraspeaker.
-\`!gramielchart\`: Displays the chart for ultragramiel.
+\`!lpchart\`: Displays the chart for
+\`!gramielchart\` or \`!gramiel\`: Displays the chart for ultragramiel.
 `
             },
             {
