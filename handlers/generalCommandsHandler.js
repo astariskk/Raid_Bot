@@ -71,8 +71,7 @@ export const textGifCommands = {
     'marplane': '<@1030038861851664404> [**KABOOM BITCHESSS**](https://files.catbox.moe/owtx3d.gif)',                           
 
     // --- kuro --- 719443918621638660
-    'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                   
-    'kuroshit': `<@719443918621638660> [**AMBATUSHAAAAART**](https://files.catbox.moe/e4616q.gif)`,                             
+    'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`,                                                             
     'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`,                       
 
     // -- kui --- 713920796913041459
@@ -92,8 +91,7 @@ export const textGifCommands = {
     'keijidance' : `<@227002059784716288> [**IM 'BOUT TO GET UP ON THAT AHH RIGHT NYEOW**](https://files.catbox.moe/1gitfq.gif)`,
 
     // --- pix --- 192921939818315777
-    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                                    
-    'pixfreak' : '<@192921939818315777> [**OH MY GOD YES THATS THE SPOT**](https://files.catbox.moe/8wai0i.gif)',
+    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                        
 
     // --- others ---                                                                  
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
