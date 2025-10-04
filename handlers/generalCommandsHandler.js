@@ -62,9 +62,7 @@ export const textGifCommands = {
     'ninjaboing' : '<@502473085857824779> [**I LIKE TO MOVE IT MOVE IT**](https://files.catbox.moe/6lusbi.gif)',                   // ninja 502473085857824779
 
     // --- xy --- 965985831649169438
-    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',                               
-    'best class' : `<@965985831649169438> [**Xychrome's Favorite Class!**](https://files.catbox.moe/hwszkw.png)`,               
-    'xytwerk': 'https://files.catbox.moe/4xeq5l.gif',         
+    'xyfart': '<@965985831649169438> [**BABAGAN MENYANG**](https://files.catbox.moe/kyqp98.gif)',                                        
 
     // --- amarah --- 1030038861851664404
     'marbike': '<@1030038861851664404> [**RIDE TO THE HARAM LAND WHERE I BELONG**](https://files.catbox.moe/ayl6ui.gif)',       
@@ -91,11 +89,14 @@ export const textGifCommands = {
     'keijidance' : `<@227002059784716288> [**IM 'BOUT TO GET UP ON THAT AHH RIGHT NYEOW**](https://files.catbox.moe/1gitfq.gif)`,
 
     // --- pix --- 192921939818315777
-    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                        
+    'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',                 
+    
+    // --- royalty --- 201893726535024640
+    'royaltyswag' : `<@201893726535024640> [**SWIGGITY SWOOTY IM COMIN' FO DAT BOOTY**](https://files.catbox.moe/4q6j3m.gif)`,
 
     // --- others ---                                                                  
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
-    'sodapop' : 'https://files.catbox.moe/tq7clt.gif',           
+ 
 }
 
 function formatTasksForEmbed(taskList, pointsConfig) {

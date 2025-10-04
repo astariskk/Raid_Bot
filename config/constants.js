@@ -170,6 +170,11 @@ export const TASK_ALIASES = {
     'grimchallenge': 'mechabinky',
     'kathooldepths': 'kathool',
     'nerfkitten': 'voidnerfkitten',
+
+    // -- generic tasks ---
+    'easy': 'simple',
+    'medium': 'moderate',
+    'difficult': 'hard',
 };
 
 export const TASK_MAP_CATEGORIES = {
