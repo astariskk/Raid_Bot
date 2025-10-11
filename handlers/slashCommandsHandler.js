@@ -96,7 +96,19 @@ const commands = [
     {
         name: 'raidrequest',
         description: 'Request a raid by opening a ticket.',
-    }
+    },
+    {
+        name: 'taskalias',
+        description: 'Show aliases for one or more tasks.',
+        options: [
+            {
+                name: 'tasks',
+                description: 'Comma-separated task names (e.g. "speaker, dage, darkon")',
+                type: ApplicationCommandOptionType.String,
+                required: true,
+            },
+        ],
+    },   
 ];
 
 export async function registerSlashCommands(client) {
@@ -243,14 +255,65 @@ export function setupSlashCommandsHandler(client) {
                 }
                 
             break;
+            case 'taskalias': {
+                const { TASK_ALIASES } = await import('../config/constants.js');
+                const tasksInput = interaction.options.getString('tasks').toLowerCase();
 
-                default:
-                    console.log(`Unhandled slash command: ${interaction.commandName}`);
-                    await interaction.reply({
-                        content: 'Unknown command.',
+                // Split by comma, clean spacing
+                const taskNames = tasksInput
+                    .split(',')
+                    .map(t => t.trim())
+                    .filter(t => t.length > 0);
+
+                if (!taskNames.length) {
+                    return interaction.reply({
+                        content: 'Please provide at least one task.',
                         flags: MessageFlags.Ephemeral
-                    }).catch(e => console.error('Error replying to unknown command:', e));
-                    break;
+                    });
+                }
+
+                let descriptionText = '';
+
+                for (const inputTask of taskNames) {
+                    // Determine the base task
+                    const baseTask = TASK_ALIASES[inputTask] || inputTask;
+
+                    // Find matching aliases
+                    const matchingAliases = Object.entries(TASK_ALIASES)
+                        .filter(([alias, mappedTask]) => mappedTask === baseTask)
+                        .map(([alias]) => alias);
+
+                    // If nothing found for this task
+                    if (!matchingAliases.length && !TASK_ALIASES[inputTask]) {
+                        descriptionText += `**${inputTask}**\nNo aliases found.\n\n`;
+                    } else {
+                        const aliasList = matchingAliases.length
+                            ? matchingAliases.map(a => `\`${a}\``).join(', ')
+                            : '(none)';
+
+                        descriptionText += `**${baseTask}**\n * ${aliasList}\n`;
+                    }
+                }
+
+                const embed = new EmbedBuilder()
+                    .setColor(0x0099ff)
+                    .setTitle('Task Aliases')
+                    .setDescription(descriptionText);
+                
+                await interaction.reply({
+                    embeds: [embed],
+                });
+                break;
+            }
+
+
+            default:
+                console.log(`Unhandled slash command: ${interaction.commandName}`);
+                await interaction.reply({
+                    content: 'Unknown command.',
+                    flags: MessageFlags.Ephemeral
+                }).catch(e => console.error('Error replying to unknown command:', e));
+                break;
         }
     });
 }

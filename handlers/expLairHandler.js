@@ -26,7 +26,7 @@ import {
     TASK_ALIASES 
 } from '../config/constants.js';
 import { updateLeaderboard } from './leaderboardCore.js';
-import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
+import { getCombinedTasksAndPointsEmbed } from './generalCommandsEmbeds.js';
 import {
     updateRaidStatus,
     getEditTaskModal,

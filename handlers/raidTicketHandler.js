@@ -1,4 +1,3 @@
-// handlers/raidTicketHandler.js
 import {
     ButtonBuilder,
     ButtonStyle,
@@ -36,13 +35,72 @@ import {
     createRaid,
     updateRaid, 
 } from '../activeRaidState.js';
-import { getCombinedTasksAndPointsEmbed } from './generalCommandsHandler.js';
+import { getCombinedTasksAndPointsEmbed } from './generalCommandsEmbeds.js';
 
 
 // --- Constants for Embed Colors ---
 const COLOR_WAITING = 0x0099ff; // Blue for waiting
 const COLOR_FULL = 0xdd2e44; 	// Red for full
 const COLOR_ONGOING = 0x78b159; // Lime Green for ongoing
+
+// --- New: Map of all chart commands for easy lookup and maintenance ---
+const RAID_CHARTS = {
+    '!1man': {
+        title: '1-Man Speaker Chart',
+        image: 'https://files.catbox.moe/u3huep.png',
+        color: COLOR_WAITING
+    },
+    '!2man': {
+        title: '2-Man Speaker Chart',
+        image: 'https://files.catbox.moe/hvccl7.png',
+        color: COLOR_WAITING
+    },
+    '!3man': {
+        title: '3-Man Speaker Chart',
+        image: 'https://files.catbox.moe/5x4grv.jpg',
+        color: COLOR_WAITING
+    },
+    '!4man': {
+        title: '4-Man Speaker Chart',
+        image: 'https://files.catbox.moe/yi71zh.jpg',
+        color: COLOR_WAITING
+    },
+    '!lpchart': {
+        title: '2-Man LP Speakerchart',
+        image: 'https://files.catbox.moe/xfb923.png',
+        color: COLOR_WAITING
+    },
+    '!gramielchart': {
+        title: 'Gramiel Chart by Lilicht',
+        image: 'https://files.catbox.moe/esowjk.png',
+        color: COLOR_WAITING
+    },
+    '!gramiel': {
+        title: 'Gramiel Chart by Lilicht',
+        image: 'https://files.catbox.moe/esowjk.png',
+        color: COLOR_WAITING
+    },
+};
+
+/**
+ * Creates an embed for a specific raid chart command.
+ * @param {string} command - The command string (e.g., '!2man').
+ * @returns {EmbedBuilder | null}
+ */
+function getChartEmbed(command) {
+    const chartData = RAID_CHARTS[command];
+    if (!chartData) {
+        return null;
+    }
+
+    const embed = new EmbedBuilder()
+        .setColor(chartData.color)
+        .setTitle(chartData.title)
+        .setImage(chartData.image)
+        .setFooter({ text: null }); 
+
+    return embed;
+}
 
 function isAdmin(source) {
     const member = source.member;
@@ -141,16 +199,18 @@ export function setupRaidTicketHandler(client) {
 
         const raidInfo = await getRaidInfo(message.channel.id);
         const isRaidTicketChannel = raidInfo && message.channel.type === ChannelType.GuildText && message.channel.parentId === RAID_CATEGORY_ID;
+        const content = message.content.toLowerCase().trim();
 
+        // =========================================================================================
+        // 1. RAID TICKET SPECIFIC COMMANDS (Status updates)
+        // =========================================================================================
         if (isRaidTicketChannel) {
 
             const restrictedStatuses = ['awaiting_user_input', 'completed', 'cancelled', 'awaiting_completion', 'Completed'];
             if (restrictedStatuses.includes(raidInfo.status)) {
-                // no message
                 return;
             }
 
-            const content = message.content.toLowerCase().trim();
             let newStatusTag = '';
             let newColor = 0x0099ff;
 
@@ -166,80 +226,62 @@ export function setupRaidTicketHandler(client) {
             }
 
             if (newStatusTag) {
+                // Ensure only the requester or admin can change status
+                if (!await isAuthorizedToChangeStatus(message, raidInfo)) {
+                    return;
+                }
+
                 try {
                     // Update the channel name via updateRaidStatus (which includes DB update)
                     await updateRaidStatus(client, message.channel.id, newStatusTag, newColor);
-
                     await message.react('👍');
-                    return;
+                    return; // Consume the message
                 } catch (error) {
                     console.error(`Error updating status for channel ${message.channel.id}:`, error);
                     await message.channel.send('Failed to update raid status. Ensure the new name is valid and try again later.');
-                }
-            }
-
-            // --- Logic for boss mechanic charts within any raid ticket channel ---
-            let embedToSend;
-            let messageContent = null;
-
-            // Check for specific chart commands and create the corresponding embed.
-            if (content === '!1man') {
-                embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle('1-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/u3huep.png')
-                    .setFooter({ text: null });
-            } else if (content === '!2man') {
-                embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle('2-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/hvccl7.png')
-                    .setFooter({ text: null });
-                messageContent = "It's movie time <@114514543899705351>"; //ping Veritus
-            } else if (content === '!3man') {
-                embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle('3-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/5x4grv.jpg')
-                    .setFooter({ text: null });
-            } else if (content === '!4man') {
-                embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle('4-Man Speaker Chart')
-                    .setImage('https://files.catbox.moe/yi71zh.jpg')
-                    .setFooter({ text: null });
-            } else if (content === '!lpchart') {
-                embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle('2-Man LP Speakerchart')
-                    .setImage('https://files.catbox.moe/xfb923.png')
-                    .setFooter({ text: null });
-            } else if (content === '!gramielchart' || content === '!gramiel') {
-                embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle('Gramiel Chart by Lilicht')
-                    .setImage('https://files.catbox.moe/esowjk.png')
-                    .setFooter({ text: null });
-            }
-
-            if (embedToSend) {
-                try {
-                    await message.channel.send({ content: messageContent, embeds: [embedToSend] });
-                } catch (error) {
-                    console.error(`Error sending ${content} chart:`, error);
-                    await message.channel.send('Failed to send the chart. Please check the link or try again later.');
+                    return; // Consume the message
                 }
             }
         }
+        
+        // =========================================================================================
+        // 2. CHART COMMANDS (Now moved outside the main ticket block)
+        // =========================================================================================
+        
+        const chartEmbed = getChartEmbed(content);
+        if (chartEmbed) {
+            let messageContent = null;
+            
+            // Special condition: only ping Veritus if it's the !2man command AND it's in a raid ticket channel
+            if (content === '!2man' && isRaidTicketChannel) {
+                // The ping ID remains the same
+                messageContent = "It's movie time <@114514543899705351>"; 
+            }
+
+            try {
+                await message.channel.send({ 
+                    content: messageContent, // Will be null for other charts or !2man outside a ticket
+                    embeds: [chartEmbed] 
+                });
+                return; // Consume the message
+            } catch (error) {
+                console.error(`Error sending ${content} chart:`, error);
+                await message.channel.send('Failed to send the chart. Please check the link or try again later.');
+                return; // Consume the message
+            }
+        }
+
+
+        // =========================================================================================
+        // 3. OTHER GENERAL COMMANDS (!raidmaps, !raidsite, !raidtasks)
+        // =========================================================================================
 
         // --- Handle !raidmaps without a number ---
-        if (message.content.toLowerCase().trim() === '!raidmaps') {
-
-            if (isRaidTicketChannel) {
-                        // If it reached here, it means it's a raid ticket, but blocked by restricted status
-            } else {
+        if (content === '!raidmaps') {
+            if (!isRaidTicketChannel) {
                 await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
+            // If it is a raid ticket, it must be blocked by the early exit restricted status check.
             return;
         }
 
@@ -250,13 +292,14 @@ export function setupRaidTicketHandler(client) {
             const mapNumber = raidMapsMatch[1];
 
             if (isRaidTicketChannel && raidInfo) {
-                // This will now be blocked by the early exit if in a restricted state
+                // This is fine because the restricted status check above will prevent it if necessary.
                 const raidTasksString = raidInfo.task;
                 // Split by '+' or ','
                 const rawRequestedTasks = raidTasksString.split(/\s*[+,]\s*/).map(t => t.trim());
 
                 let expandedTasks = [];
                 for (const task of rawRequestedTasks) {
+                    // Check if the task is a category alias (e.g., 'daily')
                     if (TASK_MAP_CATEGORIES[task]) {
                         expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);
                     } else {
@@ -265,7 +308,8 @@ export function setupRaidTicketHandler(client) {
                 }
 
                 const joinLinksWithPoints = expandedTasks.map(task => {
-                    const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
+                    // Use the task itself as the prefix if no specific mapping exists
+                    const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task; 
                     return `* /join ${mapPrefix}-${mapNumber}`;
                 }).join('\n');
 
@@ -291,8 +335,7 @@ export function setupRaidTicketHandler(client) {
         }
 
         // --- Handle the !raidsite command ---
-        if (message.content.toLowerCase() === '!raidsite') {
-            // This will now be blocked by the early exit if in a restricted state in a raid ticket
+        if (content === '!raidsite') {
             const raidSiteButton = new ButtonBuilder()
                 .setLabel('Go to Raid Map Tool')
                 .setStyle(ButtonStyle.Link)
@@ -309,17 +352,18 @@ export function setupRaidTicketHandler(client) {
                 console.error('Error sending !raidsite embed:', error);
                 await message.channel.send('Failed to display raid site. Please try again later.');
             }
+            return;
         }
 
         // --- Command to list all available raid tasks with their points ---
-        if (message.content.toLowerCase() === '!raidtasks') {
-            // This will now be blocked by the early exit if in a restricted state in a raid ticket
+        if (content === '!raidtasks') {
             try {
                 await message.channel.send({ embeds: [getCombinedTasksAndPointsEmbed()] });
             } catch (error) {
                 console.error('Error sending !raidtasks message:', error);
                 await message.channel.send('Failed to display raid tasks. Please try again later.');
             }
+            return;
         }
     });
 
@@ -332,11 +376,11 @@ export function setupRaidTicketHandler(client) {
         const raidInfo = await getRaidInfo(interaction.channel.id);
         const isRaidTicketChannel = raidInfo && interaction.channel.type === ChannelType.GuildText && interaction.channel.parentId === RAID_CATEGORY_ID;
 
-        // --- NEW: Block button interactions if raid is in a special state ---
+        // --- Block button interactions if raid is in a special state ---
         if (isRaidTicketChannel) {
             const restrictedStatuses = ['completed', 'cancelled'];
             if (restrictedStatuses.includes(raidInfo.status)) {
-                    // Only reply ephemerally if the customId matches our buttons
+                // Only reply ephemerally if the customId matches our buttons or modal
                 if (interaction.isButton() && (interaction.customId === 'closeRaidTicket' || interaction.customId === 'editTask_btn')) {
                     await interaction.reply({
                         content: `This raid is currently in a '${raidInfo.status}' state. You cannot interact with these buttons at this time.`,
@@ -383,7 +427,7 @@ export function setupRaidTicketHandler(client) {
                 try {
                     const guild = interaction.guild;
                     if (!guild) {
-                        await interaction.reply({ content: 'Error: This command can only be used in a server.' });
+                        await interaction.reply({ content: 'Error: This command can only be used in a server.', flags: MessageFlags.Ephemeral });
                         return;
                     }
 
