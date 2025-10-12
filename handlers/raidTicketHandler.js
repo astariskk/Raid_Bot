@@ -117,17 +117,6 @@ function isAdmin(source) {
     );
 }
 
-async function isAuthorizedToChangeStatus(message, raidInfo) {
-    if (message.author.id === raidInfo.requesterId || isAdmin(message)) {
-        return true;
-    }
-    await message.reply({
-        content: 'Only the user who initiated this raid or a staff member can change its status.',
-        flags: MessageFlags.Ephemeral
-    });
-    return false;
-}
-
 
 // Button to close a raid ticket/channel.
 const closeTicketButton = new ButtonBuilder()
@@ -226,10 +215,6 @@ export function setupRaidTicketHandler(client) {
             }
 
             if (newStatusTag) {
-                // Ensure only the requester or admin can change status
-                if (!await isAuthorizedToChangeStatus(message, raidInfo)) {
-                    return;
-                }
 
                 try {
                     // Update the channel name via updateRaidStatus (which includes DB update)
