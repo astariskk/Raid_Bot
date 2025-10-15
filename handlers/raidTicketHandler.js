@@ -70,6 +70,11 @@ const RAID_CHARTS = {
         image: 'https://files.catbox.moe/xfb923.png',
         color: COLOR_WAITING
     },
+    '!famischart': {
+        title: 'Famis Goon',
+        image: 'https://files.catbox.moe/bo3vri.png',
+        color: COLOR_WAITING
+    },
     '!gramielchart': {
         title: 'Gramiel Chart by Lilicht',
         image: 'https://files.catbox.moe/esowjk.png',
