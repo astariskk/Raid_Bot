@@ -55,7 +55,7 @@ const RAID_CHARTS = {
         image: 'https://files.catbox.moe/hvccl7.png',
         color: COLOR_WAITING
     },
-    '!2manEasy': {
+    '!2maneasy': {
         title: '2-Man Easier Version',
         image: 'https://files.catbox.moe/txgrr6.png',
         color: COLOR_WAITING
