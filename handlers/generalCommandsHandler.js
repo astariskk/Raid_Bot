@@ -26,7 +26,7 @@ import {
     createCustomGifEmbed,
     getCombinedTasksAndPointsEmbed,
     getCommandsEmbed,
-} from './generalCommandsEmbeds.js';
+} from '../Embeds/generalCommandsEmbeds.js';
 
 
 // --- Cooldown management for GIF commands ---

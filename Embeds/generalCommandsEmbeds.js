@@ -14,6 +14,7 @@ import {
     OTHERS_FOUR_LIST,
     OTHERS_SEVEN_LIST,
     GENERIC_TASKS_LIST,
+    LEGION_LIST,
 } from '../config/constants.js';
 
 function formatTasksForEmbed(taskList, pointsConfig) {
@@ -185,6 +186,13 @@ export function getCombinedTasksAndPointsEmbed() {
     const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
     addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);
 
+    // --- Legion Raids (3 column) ---
+    const legionPerColumn = Math.ceil(LEGION_LIST.length / 3);
+    const legionCol1 = LEGION_LIST.slice(0, legionPerColumn);
+    const legionCol2 = LEGION_LIST.slice(legionPerColumn, legionPerColumn * 2);
+    const legionCol3 = LEGION_LIST.slice(legionPerColumn * 2);
+    addThreeColumnFields('💀 Legion Raids', legionCol1, legionCol2, legionCol3);
+
     // --- Generic Tasks (single field) ---
     embed.addFields(
         { name: '💡 Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
@@ -224,7 +232,7 @@ export function getChartsEmbed() {
         .setTitle('📊 Available Charts')
         .setDescription(null)
         .addFields(
-            { name: 'Ultraspeaker Taunt Charts', value: '`!1man`, `!2man`, `!2maneasy`, `!3man`, ,`!3tap`, `!4man`, `!lpchart`, `!famischart`',  },
+            { name: 'Ultraspeaker Taunt Charts', value: '`!1man`, `!2man`, `!3man`, `!4man`, `!lpchart`, `!famischart`',  },
             { name: 'Ultragramiel Chart', value: '`!gramielchart` or `!gramiel`' },
         )
         .setTimestamp()

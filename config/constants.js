@@ -97,6 +97,11 @@ export const POINTS_CONFIG = {
     'simple': 1000,
     'moderate': 5000,
     'hard': 10000,
+
+    // --- Legion ---
+    'deimos': 500,
+    'beast' : 500,
+    'lichlord': 500,
 };
 
 // --- Separate Task Lists for validation and display ---
@@ -107,6 +112,7 @@ export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag'];
 export const OTHERS_FOUR_LIST = ['kala', 'iara']; 
 export const OTHERS_SEVEN_LIST = ['mechabinky', 'kathool', 'astralshrine', 'voidnerfkitten', 'lavarockshore', 'apexazalith'];
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
+export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
 // ALL_ALLOWED_TASK_NAMES should include all valid inputs, including aliases and dynamic check for custom tasks
 export const ALLOWED_TASK_NAMES = [
@@ -114,6 +120,7 @@ export const ALLOWED_TASK_NAMES = [
     ...WEEKLIES_LIST, 'weeklies', 'weekly',
     ...TEMPLESHRINE_LIST, 'templeshrine', 
     ...ORIGINUL_LIST, 'originul',
+    ...LEGION_LIST, 'legion',
     ...OTHERS_FOUR_LIST,
     ...OTHERS_SEVEN_LIST,
     ...GENERIC_TASKS_LIST,
@@ -165,6 +172,11 @@ export const TASK_ALIASES = {
     'ultraiara': 'iara',
     'ariel' : 'iara',
 
+    // --- legion ---
+    'sevencircleswar': 'beast',
+    'mrbeast': 'beast',
+    'lich': 'lichlord',
+
     // --- originul ---
     'flibbi': 'voidflibbi',
     'nightbane': 'voidnightbane',
@@ -176,6 +188,9 @@ export const TASK_ALIASES = {
     'nerfkitten': 'voidnerfkitten',
     'astral': 'astralshrine',
     'lava': 'lavarockshore', 
+    'lavarock': 'lavarockshore',
+    'rockshore': 'lavarockshore',
+    'apex': 'apexazalith',
 
     // -- generic tasks ---
     'easy': 'simple',
@@ -193,32 +208,48 @@ export const TASK_MAP_CATEGORIES = {
     'othersfour': OTHERS_FOUR_LIST,
     'othersseven': OTHERS_SEVEN_LIST,
     'generic': GENERIC_TASKS_LIST,
+    'legion': LEGION_LIST,
 };
 
 export const TASK_TO_MAP_PREFIX_MAPPING = {
+
+    // --- dailies ---
     'ezrajal': 'ultraezrajal',
     'warden': 'ultrawarden',
     'engineer': 'ultraengineer',
     'tyndarius': 'ultratyndarius',
     'kala': 'ultrakala',
     'iara': 'ultraiara',
+
+    // --- weeklies ---
     'nulgath': 'ultranulgath',
     'drakath': 'championdrakath',     
     'dage': 'ultradage',
     'darkon': 'ultradarkon',
     'drago': 'ultradrago',     
     'speaker': 'ultraspeaker',
-    'mechabinky': 'grimchallenge',
     'gramiel': 'ultragramiel',
+    
+    // --- originul ---
     'voidflibbi': 'voidflibbi',
     'voidnightbane': 'voidnightbane',
     'voidxyfrag': 'voidxyfrag',
+
+    // --- other seven ---
+    'mechabinky': 'grimchallenge',    
     'voidnerfkitten': 'voidnerfkitten',
     'kathool': 'kathooldepths',
     'astralshrine': 'astralshrine',
+    'lavarockshore': 'lavarockshore',   
+    'apexazalith': 'apexazalith',
+
+    // --- other seven ---
     'tsmid': 'templeshrine',
     'tsleft': 'templeshrine',
     'tsright': 'templeshrine',
-    'lavarockshore': 'lavarockshore',   
-    'apexazalith': 'apexazalith',
+    
+    // --- legion ---
+    'deimos': 'deimos',
+    'beast': 'sevencircleswar',
+    'lichlord' : 'frozenlair',
 };
