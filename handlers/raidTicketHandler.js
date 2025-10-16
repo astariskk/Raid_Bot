@@ -55,9 +55,14 @@ const RAID_CHARTS = {
         image: 'https://files.catbox.moe/hvccl7.png',
         color: COLOR_WAITING
     },
+    '!2manEasy': {
+        title: '2-Man Easier Version',
+        image: 'https://files.catbox.moe/txgrr6.png',
+        color: COLOR_WAITING
+    },
     '!3man': {
         title: '3-Man Speaker Chart',
-        image: 'https://files.catbox.moe/5x4grv.jpg',
+        image: 'https://files.catbox.moe/ci6veo.png',
         color: COLOR_WAITING
     },
     '!4man': {
@@ -68,6 +73,11 @@ const RAID_CHARTS = {
     '!lpchart': {
         title: '2-Man LP Speakerchart',
         image: 'https://files.catbox.moe/xfb923.png',
+        color: COLOR_WAITING
+    },
+    '!3tap':{
+        title: '3-Man AP Chart',
+        image: 'https://files.catbox.moe/bqzx8t.png',
         color: COLOR_WAITING
     },
     '!famischart': {
