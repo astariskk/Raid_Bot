@@ -172,6 +172,13 @@ export function getCombinedTasksAndPointsEmbed() {
     const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2);
     addThreeColumnFields('🌌 `Originul` Raids', oRCol1, oRCol2, oRCol3);
 
+    // --- Legion Raids (3 column) ---
+    const legionPerColumn = Math.ceil(LEGION_LIST.length / 3);
+    const legionCol1 = LEGION_LIST.slice(0, legionPerColumn);
+    const legionCol2 = LEGION_LIST.slice(legionPerColumn, legionPerColumn * 2);
+    const legionCol3 = LEGION_LIST.slice(legionPerColumn * 2);
+    addThreeColumnFields('💀 `Legion` Daily Tasks', legionCol1, legionCol2, legionCol3);
+
     // --- Other 4 Room Raids (3 column) ---
     const othersFourpercolumn = Math.ceil(OTHERS_FOUR_LIST.length / 3);
     const othersFourCol1 = OTHERS_FOUR_LIST.slice(0, othersFourpercolumn);
@@ -185,13 +192,6 @@ export function getCombinedTasksAndPointsEmbed() {
     const othersSevenCol2 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn, othersSevenperColumn * 2);
     const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
     addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);
-
-    // --- Legion Raids (3 column) ---
-    const legionPerColumn = Math.ceil(LEGION_LIST.length / 3);
-    const legionCol1 = LEGION_LIST.slice(0, legionPerColumn);
-    const legionCol2 = LEGION_LIST.slice(legionPerColumn, legionPerColumn * 2);
-    const legionCol3 = LEGION_LIST.slice(legionPerColumn * 2);
-    addThreeColumnFields('💀 Legion Raids', legionCol1, legionCol2, legionCol3);
 
     // --- Generic Tasks (single field) ---
     embed.addFields(
