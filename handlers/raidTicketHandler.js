@@ -377,6 +377,15 @@ export function setupRaidTicketHandler(client) {
 
         try {
             if (content === '!2man') {
+                
+                if (isRaidTicketChannel) {
+                    const messageContent = "It's movie time <@114514543899705351>";
+                    
+                    const regularMessage = await message.channel.send({
+                        content: messageContent
+                    });       
+                }
+                         
                 await sendInitialPaginatedEmbed(message.channel, twoManEmbeds, '2man', message.author.id);
                 return;
             }
