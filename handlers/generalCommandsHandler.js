@@ -81,7 +81,7 @@ export const textGifCommands = {
     // -- kui --- 713920796913041459
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`, 	
     'kuimilk' : '<@713920796913041459> [**I LOVE THIS THICK WHITE STUFF DRINK**](https://files.catbox.moe/gkvm27.gif)', 	
-    'kuirage' : '<@713920796913041459> [**YOU CANT FINGER ME LIKE THAT**](https://files.catbox.moe/hqqolp.gif)', 	
+    'kuiscream': '<@713920796913041459> [**MISUUU LET ME INNNN**](https://imgur.com/a/Tqgr3tA)',	
 
     // --- famis --- 365314970633633793
     'famisgoon' : `<@365314970633633793> [**LET ME GOON**](https://files.catbox.moe/xrf4y6.gif)`, 	
