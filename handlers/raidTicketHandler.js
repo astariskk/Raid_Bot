@@ -66,19 +66,25 @@ const twoManA = new EmbedBuilder()
 const twoManEmbeds = [twoManMain, twoManLP, twoManA];
 
 // 3-man embeds (2 pages)
-const threeManMain = new EmbedBuilder()
+const threeManA = new EmbedBuilder()
     .setColor(COLOR_WAITING)
     .setTitle('3-Man Speaker Chart')
     .setImage('https://files.catbox.moe/ci6veo.png')
-    .setFooter({ text: "Page 1 of 2" });
+    .setFooter({ text: "Page 1 of 3" });
 
-const threeManAP = new EmbedBuilder()
+const threeManB = new EmbedBuilder()
     .setColor(COLOR_WAITING)
     .setTitle('3-Man AP Chart')
     .setImage('https://files.catbox.moe/bqzx8t.png')
-    .setFooter({ text: 'Page 2 of 2' });
+    .setFooter({ text: 'Page 2 of 3' });
 
-const threeManEmbeds = [threeManMain, threeManAP];
+const threeManC = new EmbedBuilder()
+    .setColor(COLOR_WAITING)
+    .setTitle('3-Man Detailed AP LOO  Chart')
+    .setImage('https://files.catbox.moe/twyt8w.png')
+    .setFooter({ text: 'Page 3 of 3' });
+
+const threeManEmbeds = [threeManA, threeManB, threeManC];
 
 const activeChartSessions = new Map();
 const RAID_CHART_SESSION_LIFETIME_MS = 2 * 60 * 1000; // 2 minutes
@@ -103,12 +109,6 @@ const RAID_CHARTS = {
     '!1man': {
         title: '1-Man Speaker Chart',
         image: 'https://files.catbox.moe/u3huep.png',
-        color: COLOR_WAITING
-    },
-    // '!2man' and '!3man' entries are intentionally left out because those are paginated now
-    '!2maneasy': {
-        title: '2-Man Easier Version',
-        image: 'https://files.catbox.moe/txgrr6.png',
         color: COLOR_WAITING
     },
     '!4man': {
