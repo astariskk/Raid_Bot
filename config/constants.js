@@ -134,12 +134,15 @@ export const TASK_ALIASES = {
     // --- weeklies ---
     'ultradage': 'dage',
     'dave': 'dage',
+    'david': 'dage',
     'ultraspeaker': 'speaker',
     'malgor' : 'speaker',
     'malgae' : 'speaker',
     'malg' : 'speaker',
+    'yapper' : 'speaker',
     'championdrakath': 'drakath',
     'drak': 'drakath',
+    'drakky' : 'drakath',
     'ultranulgath': 'nulgath',   
     'nully' : 'nulgath',
     'nul': 'nulgath',
@@ -151,13 +154,18 @@ export const TASK_ALIASES = {
     'drag': 'drago',    
     'ultragramiel' : 'gramiel',
     'gram' : 'gramiel',
+    'grammy' : 'gramiel',
 
     // --- dailies ---
-    'ultrawarden': 'warden',
     'ultraezrajal': 'ezrajal',
     'ezra' : 'ezrajal',
+    'ultrawarden': 'warden',
+    'ward' : 'warden',     
     'ultraengineer': 'engineer',
+    'engi': 'engineer',
     'ultratyndarius': 'tyndarius',
+    'tyn': 'tyndarius',
+    'tynd' : 'tyndarius',
 
     // --- templeshrine ---
     'tleft': 'tsleft',
@@ -169,6 +177,7 @@ export const TASK_ALIASES = {
 
     // --- others four ---
     'ultrakala': 'kala',
+    'pregnantman': 'kala',
     'ultraiara': 'iara',
     'ariel' : 'iara',
 
