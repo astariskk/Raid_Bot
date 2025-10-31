@@ -193,6 +193,7 @@ export const TASK_ALIASES = {
 
     // --- other seven ---
     'grimchallenge': 'mechabinky',
+    'stupidhorse': 'mechabinky',
     'kathooldepths': 'kathool',
     'nerfkitten': 'voidnerfkitten',
     'astral': 'astralshrine',

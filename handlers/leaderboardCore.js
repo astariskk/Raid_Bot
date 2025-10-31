@@ -274,6 +274,7 @@ export async function sendPreviousLeaderboardAnnouncement(client, isManualTrigge
 export function setupMonthlyResetTask(client) {
     const performMonthlyCheck = async () => {
         try {
+            /*
             const leaderboard = await getCachedLeaderboard(); // Use cached version for consistency
             const lastReset = leaderboard._lastResetDate ? new Date(leaderboard._lastResetDate) : null;
             const now = new Date();
@@ -288,8 +289,10 @@ export function setupMonthlyResetTask(client) {
                 // After sending all pages, perform the reset and backup
                 await resetLeaderboard(false);
                 await sendLeaderboardBackup(client);
-
+            
             }
+            */
+           console.log("Monthly reset task disabled.");
         } catch (error) {
             console.error('Error in monthly leaderboard reset check:', error);
         }
