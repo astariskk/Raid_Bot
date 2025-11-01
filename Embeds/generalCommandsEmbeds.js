@@ -114,7 +114,8 @@ export function getCombinedTasksAndPointsEmbed() {
         .setColor(0x3498DB) // Blue
         .setTitle('📋 Raid Tasks & EXP Values')
         .setDescription(
-            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`\n' +
+            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n' +
+            '* You can also use alternative names for each tasks using `/taskalias [task]` to see the list\n' +
             'below are the list of available tasks and exp values sectioned by their category.\n\n'
         )
         .setTimestamp()
@@ -267,8 +268,10 @@ export function getModeratorCommandsEmbed() {
             {
                 name: ' Moderator Commands (Administrator/Officer/Manager Only)',
                 value: `
-\`!addxp @user @user <amount>\`: Manually adds EXP to a specified user.
-\`!removexp @user @user <amount>\`: Manually removes EXP from a specified user.
+\`!addxp @user @user <amount>\`: Manually add EXP to user(s).
+\`/addxp\`: slash command version
+\`!removexp @user @user <amount>\`: Manually remove EXP to user(s).
+\`/removexp\`: slash command version
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
 \`!lbackup\`: Forces the bot to upload a new leaderboard backup and replace the old one.
 \`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
