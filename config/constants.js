@@ -135,23 +135,30 @@ export const TASK_ALIASES = {
     'ultradage': 'dage',
     'dave': 'dage',
     'david': 'dage',
+
     'ultraspeaker': 'speaker',
     'malgor' : 'speaker',
     'malgae' : 'speaker',
     'malg' : 'speaker',
+    'spika' : 'speaker',
     'yapper' : 'speaker',
+
     'championdrakath': 'drakath',
     'drak': 'drakath',
     'drakky' : 'drakath',
+
     'ultranulgath': 'nulgath',   
     'nully' : 'nulgath',
     'nul': 'nulgath',
     'nulg': 'nulgath',
     'nugget' : 'nulgath',
+
     'ultradarkon': 'darkon',
     'dark' : 'darkon',
+
     'ultradrago': 'drago',
     'drag': 'drago',    
+    
     'ultragramiel' : 'gramiel',
     'gram' : 'gramiel',
     'grammy' : 'gramiel',
