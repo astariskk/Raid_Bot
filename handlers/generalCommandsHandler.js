@@ -96,8 +96,7 @@ export const textGifCommands = {
 
     // --- pix --- 192921939818315777
     'pixpunt' :'<@192921939818315777> [**SYBAU PIX**](https://files.catbox.moe/rvy8fy.gif)',
-    'pixdive' :'<@192921939818315777> [**SEVEN DAYS A WEEK, NIGHT AFTER NIGHT**](https://files.catbox.moe/y3kqx9.gif) :smiling_imp:',
-    'pixsmooch' : `<@192921939818315777> [**BITING ISN"T THE ONLY THING THIS MOUTH CAN DO**](https://files.catbox.moe/wnmng9.gif)`, 	
+    'pixsmooch' : `<@192921939818315777> [**BITING ISN'T THE ONLY THING THIS MOUTH CAN DO**](https://files.catbox.moe/wnmng9.gif)`, 	
 
     // --- royalty --- 201893726535024640
     'royaltyswag' : `<@201893726535024640> [**SWIGGITY SWOOTY IM COMIN' FO DAT BOOTY**](https://files.catbox.moe/dgg08v.gif)`,
