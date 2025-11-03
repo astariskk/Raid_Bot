@@ -8,7 +8,7 @@ import {
     ActionRowBuilder // For organizing buttons in rows
 } from 'discord.js';
 import {
-    // channe id's
+    // channel id's
     EXP_LAIR_CHANNEL_ID,
     RAID_CATEGORY_ID, 
 
@@ -80,8 +80,6 @@ async function isStaff(interaction) {
 }
 
 function extractUserIds(text) {
-    // This regex already correctly handles multiple mentions separated by commas or spaces,
-    // as it finds all occurrences of the mention pattern.
     return (text.match(/<@!?(\d+)>/g) || []).map(mention =>
         mention.replace(/<@!?(\d+)>/, '$1')
     );

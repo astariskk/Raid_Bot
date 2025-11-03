@@ -37,54 +37,13 @@ import {
     updateRaid, 
 } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from '../Embeds/generalCommandsEmbeds.js';
+import { RAID_CHARTS, twoManEmbeds, threeManEmbeds } from '../Embeds/raidChartsEmbeds.js';
 
 
 // --- Constants for Embed Colors ---
 const COLOR_WAITING = 0x0099ff; // Blue for waiting
 const COLOR_FULL = 0xdd2e44;    // Red for full
 const COLOR_ONGOING = 0x78b159; // Lime Green for ongoing
-
-// 2-man embeds (3 pages)
-const twoManMain = new EmbedBuilder()
-    .setColor(COLOR_WAITING)
-    .setTitle('2-Man Speaker Chart')
-    .setImage('https://files.catbox.moe/hvccl7.png')
-    .setFooter({ text: "Page 1 of 3" });
-
-const twoManLP = new EmbedBuilder()
-    .setColor(COLOR_WAITING)
-    .setTitle('2-Man LP Speakerchart')
-    .setImage('https://files.catbox.moe/xfb923.png')
-    .setFooter({ text: "Page 2 of 3" });
-
-const twoManA = new EmbedBuilder()
-    .setColor(COLOR_WAITING)
-    .setTitle('2-Man Easier Version')
-    .setImage('https://files.catbox.moe/txgrr6.png')
-    .setFooter({ text: "Page 3 of 3" });
-
-const twoManEmbeds = [twoManMain, twoManLP, twoManA];
-
-// 3-man embeds (2 pages)
-const threeManA = new EmbedBuilder()
-    .setColor(COLOR_WAITING)
-    .setTitle('3-Man Speaker Chart')
-    .setImage('https://files.catbox.moe/ci6veo.png')
-    .setFooter({ text: "Page 1 of 3" });
-
-const threeManB = new EmbedBuilder()
-    .setColor(COLOR_WAITING)
-    .setTitle('3-Man AP Chart')
-    .setImage('https://files.catbox.moe/bqzx8t.png')
-    .setFooter({ text: 'Page 2 of 3' });
-
-const threeManC = new EmbedBuilder()
-    .setColor(COLOR_WAITING)
-    .setTitle('3-Man Detailed AP LOO  Chart')
-    .setImage('https://files.catbox.moe/twyt8w.png')
-    .setFooter({ text: 'Page 3 of 3' });
-
-const threeManEmbeds = [threeManA, threeManB, threeManC];
 
 const activeChartSessions = new Map();
 const RAID_CHART_SESSION_LIFETIME_MS = 2 * 60 * 1000; // 2 minutes
@@ -104,34 +63,6 @@ function createChartActionRow(type, requesterId, sessionTimestamp, disabled = fa
 
     return new ActionRowBuilder().addComponents(prev, next);
 }
-
-const RAID_CHARTS = {
-    '!1man': {
-        title: '1-Man Speaker Chart',
-        image: 'https://files.catbox.moe/u3huep.png',
-        color: COLOR_WAITING
-    },
-    '!4man': {
-        title: '4-Man Speaker Chart',
-        image: 'https://files.catbox.moe/yi71zh.jpg',
-        color: COLOR_WAITING
-    },
-    '!famischart': {
-        title: 'Famis Goon',
-        image: 'https://files.catbox.moe/bo3vri.png',
-        color: COLOR_WAITING
-    },
-    '!gramielchart': {
-        title: 'Gramiel Chart by Lilicht',
-        image: 'https://files.catbox.moe/esowjk.png',
-        color: COLOR_WAITING
-    },
-    '!gramiel': {
-        title: 'Gramiel Chart by Lilicht',
-        image: 'https://files.catbox.moe/esowjk.png',
-        color: COLOR_WAITING
-    },
-};
 
 function getChartEmbed(command) {
     const chartData = RAID_CHARTS[command];
@@ -365,11 +296,11 @@ export function setupRaidTicketHandler(client) {
                     // Update the channel name via updateRaidStatus (which includes DB update)
                     await updateRaidStatus(client, message.channel.id, newStatusTag, newColor);
                     await message.react('👍');
-                    return; // Consume the message
+                    return; 
                 } catch (error) {
                     console.error(`Error updating status for channel ${message.channel.id}:`, error);
                     await message.channel.send('Failed to update raid status. Ensure the new name is valid and try again later.');
-                    return; // Consume the message
+                    return; 
                 }
             }
         }
