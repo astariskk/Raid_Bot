@@ -173,6 +173,7 @@ export const TASK_ALIASES = {
     'ultratyndarius': 'tyndarius',
     'tyn': 'tyndarius',
     'tynd' : 'tyndarius',
+    'thundarius' : 'tyndarius',
 
     // --- templeshrine ---
     'tleft': 'tsleft',
