@@ -21,7 +21,6 @@ export const gifCommands = {
 export const textGifCommands = {
     // --- other tags ---
     'acefault': '<@467703633618796544> [**ALWAYS AT FAURLT**](https://files.catbox.moe/chroap.gif)', 	// Ace 467703633618796544
-    'kaerat': "<@792031861425569822> [**IT'S THE RAT**](https://files.catbox.moe/1leclp.gif)", 	// kae 792031861425569822
     'ninjaboing' : '<@502473085857824779> [**I LIKE TO MOVE IT MOVE IT**](https://files.catbox.moe/6lusbi.gif)', 	// ninja 502473085857824779
 
     // --- xy --- 965985831649169438
@@ -64,6 +63,10 @@ export const textGifCommands = {
     // --- wordles --- 252026199667245056
     'sybauwordles' :'<@252026199667245056> [**Bark for me like you mean it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)', 	// wordle 252026199667245056
     'wordlesxmas' : '<@252026199667245056> [**LOOKS LIKE CHRISTMAS IS COMING EARLY THIS YEAR**](https://files.catbox.moe/wicbmd.gif)',
+
+    // --- kae --- 792031861425569822
+    'kaerat': "<@792031861425569822> [**IT'S THE RAT**](https://files.catbox.moe/1leclp.gif)", 	
+    'kaedive': "<@792031861425569822> [**ATTACKING KURODIHHH**](https://files.catbox.moe/cuc1re.gif)",
 
     // --- others --- 	
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
