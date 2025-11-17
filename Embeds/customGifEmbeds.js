@@ -69,8 +69,8 @@ export const textGifCommands = {
     'kaedive': "<@792031861425569822> [**ATTACKING KURODIHHH**](https://files.catbox.moe/cuc1re.gif)",
 
     // --- devil x king --- 701781514580656228
-    'devzesty' : '<@701781514580656228> [**ICHI NII SAN NYAHH**](https://files.catbox.moe/3k1f6g.gif)',
-        
+    'devzesty' : '<@701781514580656228> [**ICHI NII SAN NYAHH**](https://files.catbox.moe/15uiib.gif)',
+
     // --- others --- 	
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
 
