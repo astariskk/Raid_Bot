@@ -355,7 +355,7 @@ export function setupRaidTicketHandler(client) {
 
 
         // --- Handle !raidmaps without a number ---
-        if (content === '!raidmaps') {
+        if (content === '!raidmaps' || content === '!maps') {
             if (!isRaidTicketChannel) {
                 await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
