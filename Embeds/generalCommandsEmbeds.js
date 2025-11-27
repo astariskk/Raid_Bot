@@ -78,14 +78,14 @@ export function getHowToUseEmbed(raidHelperRoleName) {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
         .setDescription(
-            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**. You can press it again to remove the role\n\n` +
-            `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Use \`📋 Raid Tasks\` to see accepted tasks and their EXP values. ` +
+            `**1. Get Help Role:** Get the ${raidHelperRoleName} Role using the \`📣 Get Help Role\` button to have access to raid content**. You can press it again to remove the role\n\n` +
+            `**2. Request a Raid:** Select the room based on room size, and type out the task listed in the \`Raid task\` button ` +
             `For tasks not on the list, you can use generic tasks:\n` +
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
             `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
-            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
+            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket. Simply Mention the Helpers to close.\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`10000\` points every month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
@@ -228,9 +228,9 @@ export function getStringSelectMenu() {
         .setCustomId('raidTypeSelect')
         .setPlaceholder('⚔️ Select Room Type')
         .addOptions([
-            { label: '4-man rooms', value: '4-man', description: 'Ezrajal, Dage, Speaker, Gramiel' },
-            { label: '7-man rooms', value: '7-man', description: 'Mechabinky, kathool, Astralshrine' },
-            { label: 'Other rooms', value: 'other', description: `if you're unsure about room size`},
+            { label: '4-man rooms', value: '4-man', description: 'Dailies, Weeklies, Speaker, Tyndarius, any 4-man rooms' },
+            { label: '7-man rooms', value: '7-man', description: 'Mechabinky, kathool, Astralshrine, any 7-man rooms' },
+            { label: 'Other rooms', value: 'other', description: `Select this If you're unsure about room size`},
         ]);
 
     return new ActionRowBuilder().addComponents(raidTypeSelectMenu);

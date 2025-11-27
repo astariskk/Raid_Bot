@@ -39,6 +39,8 @@ import {
 } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from '../Embeds/generalCommandsEmbeds.js';
 import { RAID_CHARTS, twoManEmbeds, threeManEmbeds } from '../Embeds/raidChartsEmbeds.js';
+import { generateRaidMapsEmbed, parseRaidTasks, getRaidMapsModal } from '../utils/raidMaps.js';
+
 
 
 // --- Constants for Embed Colors ---
@@ -200,7 +202,7 @@ async function updateChartSessionPage(interaction, sessionKey, action, sessionTi
     activeChartSessions.set(sessionKey, sessionData);
 }
 
-const closeTicketButton = new ButtonBuilder()
+export const closeTicketButton = new ButtonBuilder()
     .setCustomId("closeRaidTicket")
     .setLabel('🔒 Close Raid')
     .setStyle(ButtonStyle.Danger);
@@ -211,8 +213,19 @@ const editTaskButton = new ButtonBuilder()
     .setLabel('✏️ Edit Task')
     .setStyle(ButtonStyle.Secondary);
 
+const cancelTicketButton = new ButtonBuilder()
+    .setCustomId("cancelRaidTicket")
+    .setLabel('❌ Cancel')
+    .setStyle(ButtonStyle.Danger);
+
+const  raidmapsButton = new ButtonBuilder()
+    .setCustomId("raidmapsButton")
+    .setLabel('🗺️ Maps')
+    .setStyle(ButtonStyle.Primary)
+    
+
 const threadActionRow = new ActionRowBuilder()
-    .addComponents(closeTicketButton, editTaskButton);
+    .addComponents(closeTicketButton, editTaskButton, cancelTicketButton, raidmapsButton);
 
 export function getRaidRequestModal(raidType) {
     const modal = new ModalBuilder()
@@ -363,43 +376,18 @@ export function setupRaidTicketHandler(client) {
             const mapNumber = raidMapsMatch[1];
 
             if (isRaidTicketChannel && raidInfo) {
-                // This is fine because the restricted status check above will prevent it if necessary.
-                const raidTasksString = raidInfo.task;
-                // Split by '+' or ','
-                const rawRequestedTasks = raidTasksString.split(/\s*[+,]\s*/).map(t => t.trim());
-
-                let expandedTasks = [];
-                for (const task of rawRequestedTasks) {
-                    // Check if the task is a category alias (e.g., 'daily')
-                    if (TASK_MAP_CATEGORIES[task]) {
-                        expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);
-                    } else {
-                        expandedTasks.push(task);
-                    }
-                }
-
-                const joinLinksWithPoints = expandedTasks.map(task => {
-                    // Use the task itself as the prefix if no specific mapping exists
-                    const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task; 
-                    return `* /join ${mapPrefix}-${mapNumber}`;
-                }).join('\n');
-
-                const embedToSend = new EmbedBuilder()
-                    .setColor(0x0099FF)
-                    .setTitle(`Raid Maps for this raid:`)
-                    .setDescription(`Here are the join commands:\n\n${joinLinksWithPoints}`)
-                    .setFooter(null);
+                const raidTasks = parseRaidTasks(raidInfo.task);
+                const embed = generateRaidMapsEmbed(raidTasks, mapNumber);
 
                 try {
-                    await message.channel.send({ embeds: [embedToSend] });
+                    await message.channel.send({ embeds: [embed] });
                 } catch (error) {
                     console.error(`Error sending !raidmaps for channel ${message.channel.id}:`, error);
-                    await message.channel.send('Failed to display raid maps for this channel. Please try again later.');
+                    await message.channel.send('Failed to display raid maps. Please try again later.');
                 }
             } else {
                 await message.channel.send(
-                    'The `!raidmaps [number]` command can only be used inside an active raid ticket channel ' +
-                    'to get join links for the tasks in that specific raid.'
+                    'The `!raidmaps [number]` command can only be used inside an active raid ticket channel.'
                 );
             }
             return;
@@ -479,6 +467,11 @@ export function setupRaidTicketHandler(client) {
                 const description = interaction.fields.getTextInputValue('descriptionInput');
 
                 // Map raid type to allowed tasks
+                const requestedTasks = rawTaskInput
+                    .split(/\s*[+,]\s*/)
+                    .map(t => t.trim().toLowerCase())
+                    .map(t => TASK_ALIASES[t] || t);     
+
                 let allowedTasksForType = [];
                 switch (raidType) {
                     case '4-man':
@@ -504,11 +497,6 @@ export function setupRaidTicketHandler(client) {
                     default:
                         allowedTasksForType = ALLOWED_TASK_NAMES; // fallback
                 }
-
-                // Split by '+' or ',' and resolve aliases
-                const requestedTasks = rawTaskInput
-                    .split(/\s*[+,]\s*/)
-                    .map(t => TASK_ALIASES[t.trim().toLowerCase()] || t.trim().toLowerCase());
 
                 // Validate tasks against allowed tasks for this raid type
                 for (const singleTask of requestedTasks) {
@@ -616,11 +604,23 @@ export function setupRaidTicketHandler(client) {
                     await interaction.reply({ content: 'There was an error processing your request. Please try again later.', flags: MessageFlags.Ephemeral });
                 }
             }
+            if (interaction.customId === 'raidMapsModal') {
+                const mapNumber = interaction.fields.getTextInputValue('raidMapNumberInput').trim();
+
+                if (!/^\d+$/.test(mapNumber)) {
+                    return interaction.reply({ content: 'Please enter a valid number.', ephemeral: true });
+                }
+                const raidTasks = parseRaidTasks(raidInfo.task);
+                const embed = generateRaidMapsEmbed(raidTasks, mapNumber);
+
+                await interaction.reply({ embeds: [embed] });
+            }               
             return;
         }
 
         if (interaction.isButton()) {
             const custom = interaction.customId;
+            
             if (custom && custom.startsWith('raidchart_')) {
                 const parts = custom.split('_');
                 // validate parts
@@ -657,6 +657,22 @@ export function setupRaidTicketHandler(client) {
                 // perform page update (handles defer/update and timeout reset)
                 await updateChartSessionPage(interaction, sessionKey, action, sessionTimestamp);
                 return;
+            }
+
+            switch (custom) {
+                case 'raidmapsButton':
+                    if (isRaidTicketChannel && raidInfo) {
+                        const raidMapsModal = getRaidMapsModal(raidInfo);
+                        await interaction.showModal(raidMapsModal);
+                    } else {
+                        await interaction.reply({
+                            content: 'The Raid Maps button can only be used inside an active raid ticket channel.',
+                            ephemeral: true
+                        });
+                    }
+                break;
+
+                default:
             }
         }
     });

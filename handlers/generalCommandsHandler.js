@@ -351,6 +351,15 @@ export function setupGeneralCommandsHandler(client) {
                 const modal = getRaidRequestModal(selectedRaidType);
 
                 await interaction.showModal(modal);
+
+                try {
+                    await interaction.message.edit({
+                        components: [getStringSelectMenu()] // new fresh menu
+                    });
+                } catch (e) {
+                    console.error("Failed to reset select menu:", e);
+                }              
+                  
                 break;
             default:
                 break;
