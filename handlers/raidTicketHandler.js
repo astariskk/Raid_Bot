@@ -231,14 +231,26 @@ export function getRaidRequestModal(raidType) {
     const modal = new ModalBuilder()
         .setCustomId(`raidRequestModal_${raidType}`) // Store type in ID
         .setTitle(`Raid Assistance Request (${raidType})`);
-
+    
+    let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
+    let mapPlaceHolder = ("/join ultraspeaker-1212, /join voidflibbi-3434, etc.");
+    switch(raidType) {
+        case '4-man':
+            taskPlaceHolder = "daily, dage, weeklies, templeshrine";
+            mapPlaceHolder = "ultraspeaker, championdrakath, tyndarius etc.";
+            break;
+        case '7-man':
+            taskPlaceHolder = "originul, astralshrine, kathooldepths";
+            mapPlaceHolder = "voidflibbi, deimos, grimchallenge etc.";
+            break;
+        }
     // Input field for the task(s).
     const taskInput = new TextInputBuilder()
         .setCustomId('taskInput')
         .setLabel("Task(s): ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setPlaceholder(`e.g., 'daily, dage' or 'originul, astralshrine'`);
+        .setPlaceholder(taskPlaceHolder);
 
     // Input field for the map name.
     const mapNameInput = new TextInputBuilder()
@@ -246,7 +258,7 @@ export function getRaidRequestModal(raidType) {
         .setLabel("Map Name: ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setPlaceholder('e.g., ultraspeaker, championdrakath, etc.');
+        .setPlaceholder(mapPlaceHolder);
 
     // Input field for the server.
     const serverInput = new TextInputBuilder()

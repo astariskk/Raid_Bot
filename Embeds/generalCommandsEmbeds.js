@@ -57,18 +57,6 @@ export function getCommandsEmbed() {
 \`!gramielchart\` or \`!gramiel\`: Displays the chart for ultragramiel.
 `
             },
-            {
-                name: '💬 Commands for closing the Raid Request',
-                value: `
-\`cancel\`: Close the raid ticket without awarding points.
-\`+\` and \`,\`: Use these to separate multiple tasks.
-\`=\` \`-\` and \`:\` : Use these to separate tasks and tag helpers.
-\`all = @user1 @user2\`: Awards EXP for all tasks requested in the raid to the tagged player(s).
-\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
-\`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
-`
-            }
         )
         .setTimestamp()
         .setFooter({ text: 'Bot Commands' });
@@ -109,97 +97,85 @@ export function getRaidRulesEmbed() {
         .setColor(0x3498DB);
 }
 
-export function getCombinedTasksAndPointsEmbed() {
-    const embed = new EmbedBuilder()
-        .setColor(0x3498DB) // Blue
-        .setTitle('📋 Raid Tasks & EXP Values')
+    function getTasksDescriptionEmbed() {
+        return new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle("Raid Tasks & EXP Values")
+            .setDescription(
+                "You can use the following combined task names: `dailies`, `daily`, `weeklies`, `weekly`, `templeshrine`, `originul`, `legion`.\n" +
+                "You can also view alternative task names using `/taskalias [task]`.\n\n" +
+                "Below are the complete lists of available tasks and EXP values, divided into categories."
+            )
+            .setTimestamp()
+            .setFooter({ text: "Raid Helper Bot | Tasks & Points" });
+    }
+
+    function addThreeColumnFields(embed, title, list) {
+        const colSize = Math.ceil(list.length / 3);
+
+        const col1 = list.slice(0, colSize);
+        const col2 = list.slice(colSize, colSize * 2);
+        const col3 = list.slice(colSize * 2);
+
+        embed.addFields({ name: title, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true });
+        embed.addFields({
+            name: "\u200B",
+            value: col2.length ? formatTasksForEmbed(col2, POINTS_CONFIG) : "\u200B",
+            inline: true
+        });
+        embed.addFields({
+            name: "\u200B",
+            value: col3.length ? formatTasksForEmbed(col3, POINTS_CONFIG) : "\u200B",
+            inline: true
+        });
+    }
+
+    function getFourManTasksEmbed() {
+        const embed = new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle("4-Man Tasks");
+
+        addThreeColumnFields(embed, "Daily Tasks", DAILIES_LIST);
+        addThreeColumnFields(embed, "Weekly Tasks", WEEKLIES_LIST);
+        addThreeColumnFields(embed, "Temple Shrine Tasks", TEMPLESHRINE_LIST);
+        addThreeColumnFields(embed, "Other 4-Man Tasks", OTHERS_FOUR_LIST);
+
+        return embed;
+    }
+
+    function getSevenManTasksEmbed() {
+        const embed = new EmbedBuilder()
+            .setColor(0x3498DB)
+            .setTitle("7-Man Tasks");
+
+        addThreeColumnFields(embed, "Originul Tasks", ORIGINUL_LIST);
+        addThreeColumnFields(embed, "Legion Tasks", LEGION_LIST);
+        addThreeColumnFields(embed, "Other 7-Man Tasks", OTHERS_SEVEN_LIST);
+
+        return embed;
+    }
+
+    function getGenericTasksEmbed() {
+    return new EmbedBuilder()
+        .setColor(0x3498DB)
+        .setTitle("Generic Tasks")
         .setDescription(
-            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n' +
-            '* You can also use alternative names for each tasks using `/taskalias [task]` to see the list\n' +
-            'below are the list of available tasks and exp values sectioned by their category.\n\n'
+            "These tasks are considered general-purpose and may apply to both 4-man and 7-man runs.\n" +
+            "Use these when your requested task does not clearly fit into the main categories."
         )
-        .setTimestamp()
-        .setFooter({ text: 'Raid Helper Bot | Tasks & Points' });
+        .addFields({
+            name: "Available Generic Tasks",
+            value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG),
+            inline: false
+        });
+}
 
-    // Helper to add fields dynamically based on column data
-    const addThreeColumnFields = (name, col1, col2, col3) => {
-        // Add name field with content
-        embed.addFields(
-            { name: name, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true }
-        );
-        // Add blank fields to maintain 3-column structure
-        if (col2.length > 0) {
-            embed.addFields(
-                { name: '\u200B', value: formatTasksForEmbed(col2, POINTS_CONFIG), inline: true }
-            );
-        } else {
-            embed.addFields({ name: '\u200B', value: '\u200B', inline: true }); // Empty field 2
-        }
-
-        if (col3.length > 0) {
-            embed.addFields(
-                { name: '\u200B', value: formatTasksForEmbed(col3, POINTS_CONFIG), inline: true }
-            );
-        } else {
-            embed.addFields({ name: '\u200B', value: '\u200B', inline: true }); // Empty field 3
-        }
-    };
-
-    // --- Daily Raids (3 columns) ---
-    const dailiesPerColumn = Math.ceil(DAILIES_LIST.length / 3);
-    const dailiesCol1 = DAILIES_LIST.slice(0, dailiesPerColumn);
-    const dailiesCol2 = DAILIES_LIST.slice(dailiesPerColumn, dailiesPerColumn * 2);
-    const dailiesCol3 = DAILIES_LIST.slice(dailiesPerColumn * 2);
-    addThreeColumnFields('☀️ `Daily` or `Dailies`', dailiesCol1, dailiesCol2, dailiesCol3);
-
-    // --- Weekly Raids (3 columns) ---
-    const weekliesPerColumn = Math.ceil(WEEKLIES_LIST.length / 3);
-    const weekliesCol1 = WEEKLIES_LIST.slice(0, weekliesPerColumn);
-    const weekliesCol2 = WEEKLIES_LIST.slice(weekliesPerColumn, weekliesPerColumn * 2);
-    const weekliesCol3 = WEEKLIES_LIST.slice(weekliesPerColumn * 2);
-    addThreeColumnFields('🗓️ `Weekly` or `Weeklies`', weekliesCol1, weekliesCol2, weekliesCol3);
-
-    // --- Temple Shrine (3 columns) ---
-    const tsPerColumn = Math.ceil(TEMPLESHRINE_LIST.length / 3);
-    const tsCol1 = TEMPLESHRINE_LIST.slice(0, tsPerColumn);
-    const tsCol2 = TEMPLESHRINE_LIST.slice(tsPerColumn, tsPerColumn * 2);
-    const tsCol3 = TEMPLESHRINE_LIST.slice(tsPerColumn * 2);
-    addThreeColumnFields('⛩️ `Templeshrine`', tsCol1, tsCol2, tsCol3);
-
-    // --- Originul Raids (3 Columns) ---
-    const originulPerColumn = Math.ceil(ORIGINUL_LIST.length / 3);
-    const oRCol1 = ORIGINUL_LIST.slice(0, originulPerColumn);
-    const oRCol2 = ORIGINUL_LIST.slice(originulPerColumn, originulPerColumn * 2);
-    const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2);
-    addThreeColumnFields('🌌 `Originul` Raids', oRCol1, oRCol2, oRCol3);
-
-    // --- Legion Raids (3 column) ---
-    const legionPerColumn = Math.ceil(LEGION_LIST.length / 3);
-    const legionCol1 = LEGION_LIST.slice(0, legionPerColumn);
-    const legionCol2 = LEGION_LIST.slice(legionPerColumn, legionPerColumn * 2);
-    const legionCol3 = LEGION_LIST.slice(legionPerColumn * 2);
-    addThreeColumnFields('💀 `Legion` Daily Tasks', legionCol1, legionCol2, legionCol3);
-
-    // --- Other 4 Room Raids (3 column) ---
-    const othersFourpercolumn = Math.ceil(OTHERS_FOUR_LIST.length / 3);
-    const othersFourCol1 = OTHERS_FOUR_LIST.slice(0, othersFourpercolumn);
-    const othersFourCol2 = OTHERS_FOUR_LIST.slice(othersFourpercolumn, othersFourpercolumn * 2);
-    const othersFourCol3 = OTHERS_FOUR_LIST.slice(othersFourpercolumn * 2);
-    addThreeColumnFields('🗺️ Other 4 Room Tasks', othersFourCol1, othersFourCol2, othersFourCol3);
-
-    // --- Other 7 Room Raids (3 column) ---
-    const othersSevenperColumn = Math.ceil(OTHERS_SEVEN_LIST.length / 3);
-    const othersSevenCol1 = OTHERS_SEVEN_LIST.slice(0, othersSevenperColumn);
-    const othersSevenCol2 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn, othersSevenperColumn * 2);
-    const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
-    addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);
-
-    // --- Generic Tasks (single field) ---
-    embed.addFields(
-        { name: '💡 Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
-    );
-
-    return embed;
+export function getCombinedTasksAndPointsEmbed() {
+    const descriptionEmbed = getTasksDescriptionEmbed();
+    const fourManEmbed = getFourManTasksEmbed();
+    const sevenManEmbed = getSevenManTasksEmbed();
+    const genericTasksEmbed = getGenericTasksEmbed();
+    return [descriptionEmbed, fourManEmbed, sevenManEmbed, genericTasksEmbed];
 }
 
 export function getInitialButtonsRow() {

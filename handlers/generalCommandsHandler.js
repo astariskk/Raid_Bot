@@ -321,7 +321,7 @@ export function setupGeneralCommandsHandler(client) {
             
             case 'seeRaidTasks_btn':
                 const tasksEmbed = getCombinedTasksAndPointsEmbed();
-                await interaction.reply({ embeds: [tasksEmbed], ephemeral: true });
+                await interaction.reply({ embeds: tasksEmbed, ephemeral: true });
                 break;
             
             case 'showAllCommands_btn':
@@ -338,6 +338,7 @@ export function setupGeneralCommandsHandler(client) {
         switch (interaction.customId) {
             case 'raidTypeSelect':
                 // Only allow raid helpers
+                console.log(interaction.member.displayName + " tried using the bot");
                 if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                     await interaction.reply({
                         content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Click '📣 Get Help Role' first.`,
