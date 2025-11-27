@@ -41,7 +41,6 @@ export const client = new Client({
 // --- Bot Ready Event ---
 client.on('ready', async () => { // Make ready event async
     console.log(`Logged in as ${client.user.tag}!`);
-    console.log('Bot is online!');
 
     try {
         await connectDB();
@@ -84,16 +83,13 @@ process.on('SIGTERM', async () => {
 // --- Global Error Handlers (NEWLY ADDED) ---
 process.on('unhandledRejection', (reason, promise) => {
     console.error('Unhandled Promise Rejection at:', promise, 'reason:', reason);
-    console.error('Unhandled Rejection Stack:', reason.stack); // Log stack trace
-    // It's generally good practice to exit on unhandled rejections in production
-    // as they often indicate a bug that could lead to an unstable state.
+    console.error('Unhandled Rejection Stack:', reason.stack); 
     process.exit(1);
 });
 
 process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error);
-    console.error('Uncaught Exception Stack:', error.stack); // Log stack trace
-    // Always exit on uncaught exceptions as they indicate a critical bug
+    console.error('Uncaught Exception Stack:', error.stack); 
     process.exit(1);
 });
 

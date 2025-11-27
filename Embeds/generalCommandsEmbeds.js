@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import {
     RAID_HELPER_ROLE_ID,
     RECORD_HOLDER_ROLE_ID,
@@ -208,11 +208,6 @@ export function getInitialButtonsRow() {
         .setLabel('📣 Get Help Role')
         .setStyle(ButtonStyle.Secondary);
 
-    const startRaidButton = new ButtonBuilder()
-        .setCustomId('startRaid_btn')
-        .setLabel('⚔️ Start Raid')
-        .setStyle(ButtonStyle.Primary);
-
     const seeRaidTasksButton = new ButtonBuilder()
         .setCustomId('seeRaidTasks_btn')
         .setLabel('📋 Raid Tasks')
@@ -224,7 +219,21 @@ export function getInitialButtonsRow() {
         .setStyle(ButtonStyle.Secondary);
 
     return new ActionRowBuilder()
-        .addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
+        .addComponents(getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
+}
+
+export function getStringSelectMenu() {
+    // Create the string select menu
+    const raidTypeSelectMenu = new StringSelectMenuBuilder()
+        .setCustomId('raidTypeSelect')
+        .setPlaceholder('⚔️ Select Room Type')
+        .addOptions([
+            { label: '4-man rooms', value: '4-man', description: 'Ezrajal, Dage, Speaker, Gramiel' },
+            { label: '7-man rooms', value: '7-man', description: 'Mechabinky, kathool, Astralshrine' },
+            { label: 'Other rooms', value: 'other', description: `if you're unsure about room size`},
+        ]);
+
+    return new ActionRowBuilder().addComponents(raidTypeSelectMenu);
 }
 
 export function getChartsEmbed() {
