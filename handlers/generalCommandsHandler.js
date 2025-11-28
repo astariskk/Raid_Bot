@@ -11,7 +11,7 @@ import {
     POINTS_CONFIG,
     TASK_ALIASES,
 } from '../config/constants.js';
-import { getRaidRequestModal } from './raidTicketHandler.js';
+import { getRaidRequestModal } from '../Embeds/raidTicketEmbeds.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
 
 // Import all necessary embed and button creation functions from the new file
@@ -300,7 +300,7 @@ export function setupGeneralCommandsHandler(client) {
 
                         const embed = new EmbedBuilder()
                             .setColor(0x3498DB)
-                            .setDescription(`The <@&${RAID_HELPER_ROLE_ID}> role has been removed.`); // Using <@&roleID> to mention the role
+                            .setDescription(`<@&${RAID_HELPER_ROLE_ID}> role has been removed.`); // Using <@&roleID> to mention the role
 
                         await interaction.reply({ embeds: [embed], ephemeral: true });
                     } else {
@@ -308,7 +308,7 @@ export function setupGeneralCommandsHandler(client) {
 
                         const embed = new EmbedBuilder()
                             .setColor(0x3498DB)
-                            .setDescription(`The <@&${RAID_HELPER_ROLE_ID}> role has been added!`); // Using <@&roleID> to mention the role
+                            .setDescription(`<@&${RAID_HELPER_ROLE_ID}> role has been added`); // Using <@&roleID> to mention the role
 
                         await interaction.reply({ embeds: [embed], ephemeral: true });
                     }

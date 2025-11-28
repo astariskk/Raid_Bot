@@ -9,9 +9,9 @@ export function getRaidMapsModal(raidInfo) {
 
     const mapNumberInput = new TextInputBuilder()
         .setCustomId('raidMapNumberInput')
-        .setLabel('Map number (1212, 2323 ...)')
+        .setLabel('Map number: ')
         .setStyle(TextInputStyle.Short)
-        .setPlaceholder('Enter a number...')
+        .setPlaceholder('1212, 2323, 3434, etc.')
         .setRequired(true);
 
     const row = new ActionRowBuilder().addComponents(mapNumberInput);
@@ -38,8 +38,7 @@ export function generateRaidMapsEmbed(tasks, mapNumber) {
     return new EmbedBuilder()
         .setColor(0x0099FF)
         .setTitle(`Raid Maps for this raid:`)
-        .setDescription(`Here are the join commands:\n\n${joinLinksWithPoints}`)
-        .setFooter({ text: 'Use the number to join the correct map instance.' });
+        .setDescription(`${joinLinksWithPoints}`)
 }
 
 export function parseRaidTasks(raidTasksString) {

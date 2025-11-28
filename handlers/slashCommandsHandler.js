@@ -8,7 +8,6 @@ import {
     MAX_XP_PER_RAID,
     RAID_HELPER_ROLE_ID,
     } from '../config/constants.js';
-import { getRaidRequestModal } from './raidTicketHandler.js';
 import { sendLeaderboardBackup } from './backupHandler.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js';
 
@@ -92,10 +91,6 @@ const commands = [
                 required: true,
             },
         ],
-    },
-    {
-        name: 'raidrequest',
-        description: 'Request a raid by opening a ticket.',
     },
     {
         name: 'taskalias',
@@ -239,22 +234,6 @@ export function setupSlashCommandsHandler(client) {
                 }
                 break;
             }
-            case 'raidrequest':
-                try {
-                    if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
-                        return interaction.reply({
-                            content: 'You do not have raid role to use this command.',
-                            flags: MessageFlags.Ephemeral
-                        });
-                    }
-                    const modal = getRaidRequestModal();
-                    await interaction.showModal(modal);
-
-                } catch (error) {
-                    console.error('Error showing raid request modal:', error);
-                }
-                
-            break;
             case 'taskalias': {
                 const { TASK_ALIASES } = await import('../config/constants.js');
                 const tasksInput = interaction.options.getString('tasks').toLowerCase();

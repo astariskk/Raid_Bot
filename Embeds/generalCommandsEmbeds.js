@@ -16,6 +16,7 @@ import {
     GENERIC_TASKS_LIST,
     LEGION_LIST,
 } from '../config/constants.js';
+import { threadActionRow } from '../Embeds/raidTicketEmbeds.js';
 
 function formatTasksForEmbed(taskList, pointsConfig) {
     if (!taskList || taskList.length === 0) {
@@ -67,7 +68,7 @@ export function getHowToUseEmbed(raidHelperRoleName) {
         .setTitle('📜 How to Use the Raid Helper Bot')
         .setDescription(
             `**1. Get Help Role:** Get the ${raidHelperRoleName} Role using the \`📣 Get Help Role\` button to have access to raid content**. You can press it again to remove the role\n\n` +
-            `**2. Request a Raid:** Select the room based on room size, and type out the task listed in the \`Raid task\` button ` +
+            `**2. **Request a Raid:** Select the room based on room size, and type out the task listed in the \`Raid task\` button ` +
             `For tasks not on the list, you can use generic tasks:\n` +
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
@@ -160,7 +161,7 @@ export function getRaidRulesEmbed() {
         .setColor(0x3498DB)
         .setTitle("Generic Tasks")
         .setDescription(
-            "These tasks are considered general-purpose and may apply to both 4-man and 7-man runs.\n" +
+            "These tasks are general-purpose and may apply to both 4-man and 7-man rooms.\n" +
             "Use these when your requested task does not clearly fit into the main categories."
         )
         .addFields({
