@@ -403,7 +403,7 @@ export function setupExpLairHandlers(client) {
 
                 if (invalidTasks.length > 0) {
                     await interaction.reply({
-                        content: `❌ Task(s) not allowed for ${raidType} raid: ${invalidTasks.join(', ')}`,
+                        content: `Task(s) not allowed for ${raidType} raid: ${invalidTasks.join(', ')}`,
                         flags: MessageFlags.Ephemeral
                     });
                     return;

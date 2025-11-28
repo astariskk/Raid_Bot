@@ -41,6 +41,7 @@ import { getCombinedTasksAndPointsEmbed } from '../Embeds/generalCommandsEmbeds.
 import { RAID_CHARTS, twoManEmbeds, threeManEmbeds } from '../Embeds/raidChartsEmbeds.js';
 import { threadActionRow } from '../Embeds/raidTicketEmbeds.js';
 import { generateRaidMapsEmbed, parseRaidTasks, getRaidMapsModal } from '../utils/raidMaps.js';
+import { validateAndResolveTasks } from '../utils/allowedTasks.js';
 
 
 
@@ -387,6 +388,9 @@ export function setupRaidTicketHandler(client) {
                 const rawTasksInput = interaction.fields.getTextInputValue('taskInput');
                 const raidType = interaction.customId.split('_')[1];
 
+                const mapName = interaction.fields.getTextInputValue('mapNameInput');
+                const server = interaction.fields.getTextInputValue('serverInput');
+                const description = interaction.fields.getTextInputValue('descriptionInput');
                 const { resolvedTasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
 
                 if (invalidTasks.length > 0) {
