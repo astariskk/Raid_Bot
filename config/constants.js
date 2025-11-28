@@ -126,6 +126,21 @@ export const ALLOWED_TASK_NAMES = [
     ...GENERIC_TASKS_LIST,
 ];
 
+export const ALLOWED_TASK_FOUR = [
+    ...DAILIES_LIST, 'daily', 'dailies',
+    ...WEEKLIES_LIST, 'weekly', 'weeklies',
+    ...TEMPLESHRINE_LIST,
+    ...OTHERS_FOUR_LIST,
+    ...GENERIC_TASKS_LIST
+];
+
+export const ALLOWED_TASK_SEVEN = [
+    ...ORIGINUL_LIST, 'originul',
+    ...OTHERS_SEVEN_LIST,
+    ...GENERIC_TASKS_LIST,
+    ...LEGION_LIST, 'legion'
+]
+
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, points]) => `${task} = ${points} EXP`);
 
 export const MAX_XP_PER_RAID = 30000;   // 30 000 EXP per raid

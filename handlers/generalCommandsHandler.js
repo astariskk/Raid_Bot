@@ -2,9 +2,6 @@ import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } fr
 import {
     RAID_CHANNEL_ID,
     RAID_HELPER_ROLE_ID,
-    MODERATOR_ROLE_ID,
-    OFFICER_ROLE_ID,
-    RECORD_HOLDER_ROLE_ID,
     LEADERBOARD_CHANNEL_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
     MAX_XP_PER_RAID,
@@ -71,20 +68,9 @@ export function setupGeneralCommandsHandler(client) {
 
         // --- Handle the !raidinfo command (formerly !raidcommands) ---
         if (commandContent === '!raidinfo' && message.channel.id === RAID_CHANNEL_ID) {
-            let raidHelperRoleName = 'Raid Helper';
-            if (message.guild) {
-                try {
-                    const role = await message.guild.roles.fetch(RAID_HELPER_ROLE_ID);
-                    if (role) {
-                        raidHelperRoleName = role.name;
-                    }
-                } catch (error) {
-                    console.error('Error fetching RAID_HELPER_ROLE_ID name for !raidinfo:', error);
-                }
-            }
 
             // USE IMPORTED EMBED FUNCTION
-            const howToUseEmbed = getHowToUseEmbed(raidHelperRoleName);
+            const howToUseEmbed = getHowToUseEmbed();
             const initialButtonsRow = getInitialButtonsRow();
             const stringSelectMenuRow = getStringSelectMenu();
 
@@ -338,7 +324,6 @@ export function setupGeneralCommandsHandler(client) {
         switch (interaction.customId) {
             case 'raidTypeSelect':
                 // Only allow raid helpers
-                console.log(interaction.member.displayName + " tried using the bot");
                 if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                     await interaction.reply({
                         content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Click '📣 Get Help Role' first.`,

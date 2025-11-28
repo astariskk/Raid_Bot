@@ -37,7 +37,7 @@ export function getRaidRequestModal(raidType) {
         .setTitle(`Raid Assistance Request (${raidType})`);
     
     let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
-    let mapPlaceHolder = ("/join ultraspeaker-1212, /join voidflibbi-3434, etc.");
+    let mapPlaceHolder = ("hydrachallenge-1212, deleuzethundra-3434, etc.");
     switch(raidType) {
         case '4-man':
             taskPlaceHolder = "daily, dage, weeklies, templeshrine";

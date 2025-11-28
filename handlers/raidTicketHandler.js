@@ -17,8 +17,8 @@ import {
     RAID_CATEGORY_ID,
 
     ALLOWED_TASK_NAMES,
-    TASK_MAP_CATEGORIES,
-    TASK_TO_MAP_PREFIX_MAPPING,
+    ALLOWED_TASK_FOUR,
+    ALLOWED_TASK_SEVEN,
     TASK_ALIASES,
 
     GENERIC_TASKS_LIST,    
@@ -145,9 +145,6 @@ async function updateChartSessionPage(interaction, sessionKey, action, sessionTi
     if (interaction.user.id !== sessionData.originalRequesterId) {
         return interaction.reply({ content: 'You can only navigate your own chart session!', ephemeral: true });
     }
-
-    // Defer the update (we will edit after)
-    await interaction.deferUpdate().catch(() => null);
 
     // Clear old timeout
     if (sessionData.timeoutId) {
@@ -386,60 +383,22 @@ export function setupRaidTicketHandler(client) {
         // Handle modal submissions (new raid requests are always allowed, as they create a new channel)
         if (interaction.isModalSubmit()) {
             if (interaction.customId.startsWith('raidRequestModal')) {
-                // Extract raid type from modal ID
-                const raidType = interaction.customId.split('_')[1]; // "4-man", "7-man", "other"
+            
+                const rawTasksInput = interaction.fields.getTextInputValue('taskInput');
+                const raidType = interaction.customId.split('_')[1];
 
-                const rawTaskInput = interaction.fields.getTextInputValue('taskInput');
-                const mapName = interaction.fields.getTextInputValue('mapNameInput');
-                const server = interaction.fields.getTextInputValue('serverInput');
-                const description = interaction.fields.getTextInputValue('descriptionInput');
+                const { resolvedTasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
 
-                // Map raid type to allowed tasks
-                const requestedTasks = rawTaskInput
-                    .split(/\s*[+,]\s*/)
-                    .map(t => t.trim().toLowerCase())
-                    .map(t => TASK_ALIASES[t] || t);     
-
-                let allowedTasksForType = [];
-                switch (raidType) {
-                    case '4-man':
-                        allowedTasksForType = [
-                            ...DAILIES_LIST, 
-                            ...WEEKLIES_LIST,
-                            ...TEMPLESHRINE_LIST,
-                            ...OTHERS_FOUR_LIST,
-                            ...GENERIC_TASKS_LIST
-                        ];
-                        break;
-                    case '7-man':
-                        allowedTasksForType = [
-                            ...ORIGINUL_LIST,
-                            ...OTHERS_SEVEN_LIST,
-                            ...GENERIC_TASKS_LIST,
-                            ...LEGION_LIST
-                        ];
-                        break;
-                    case 'other':
-                        allowedTasksForType = [...GENERIC_TASKS_LIST];
-                        break;
-                    default:
-                        allowedTasksForType = ALLOWED_TASK_NAMES; // fallback
+                if (invalidTasks.length > 0) {
+                    await interaction.reply({
+                        content: `❌ Task(s) not allowed in a ${raidType} room: ${invalidTasks.join(', ')}`,
+                        embeds: getCombinedTasksAndPointsEmbed(),
+                        flags: MessageFlags.Ephemeral
+                    });
+                    return;
                 }
 
-                // Validate tasks against allowed tasks for this raid type
-                for (const singleTask of requestedTasks) {
-                    if (!allowedTasksForType.includes(singleTask)) {
-                        await interaction.reply({
-                            content: `❌ Task "${singleTask}" is not allowed in a ${raidType} room.`,
-                            embeds: getCombinedTasksAndPointsEmbed(),
-                            flags: MessageFlags.Ephemeral
-                        });
-                        return;
-                    }
-                }
-
-                // Create a clean, comma-separated string of resolved tasks
-                const resolvedTaskString = requestedTasks.join(', ');
+                const resolvedTaskString = resolvedTasks.join(', ');
 
                 try {
                     const guild = interaction.guild;
@@ -483,9 +442,9 @@ export function setupRaidTicketHandler(client) {
                         .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
                         .addFields(
                             { name: 'Task(s)', value: resolvedTaskString, inline: false },
-                            { name: 'Map Name', value: mapName, inline: true },
-                            { name: 'Server', value: server, inline: true },
-                            { name: 'Status', value: 'Waiting', inline: true },
+                            { name: 'Map Name', value: mapName, inline: false },
+                            { name: 'Server', value: server, inline: false },
+                            { name: 'Status', value: 'Waiting', inline: false },
                             { name: 'Description', value: description || 'No description provided.' },
                         )
                         .setTimestamp()
@@ -583,7 +542,6 @@ export function setupRaidTicketHandler(client) {
                     return interaction.reply({ content: 'You can only navigate your own chart session!', ephemeral: true });
                 }
 
-                // perform page update (handles defer/update and timeout reset)
                 await updateChartSessionPage(interaction, sessionKey, action, sessionTimestamp);
                 return;
             }

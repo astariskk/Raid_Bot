@@ -63,11 +63,11 @@ export function getCommandsEmbed() {
         .setFooter({ text: 'Bot Commands' });
 }
 
-export function getHowToUseEmbed(raidHelperRoleName) {
+export function getHowToUseEmbed() {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
         .setDescription(
-            `**1. Get Help Role:** Get the ${raidHelperRoleName} Role using the \`📣 Get Help Role\` button to have access to raid content**. You can press it again to remove the role\n\n` +
+            `**1. Get Help Role:** Get the <@&${RAID_HELPER_ROLE_ID}> Role using the \`📣 Get Help Role\` button to have access to raid content**. You can press it again to remove the role\n\n` +
             `**2. **Request a Raid:** Select the room based on room size, and type out the task listed in the \`Raid task\` button ` +
             `For tasks not on the list, you can use generic tasks:\n` +
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +

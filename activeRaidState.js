@@ -37,7 +37,6 @@ export async function createRaid(channelId, raidDetails) {
         const document = { _id: channelId, ...raidDetails };
         await raidStatesCollection.insertOne(document);
         raidStateCache.set(channelId, { data: document, timestamp: Date.now() });
-        console.log(`Raid ${channelId} created in DB.`);
     } catch (error) {
         console.error(`Error creating raid ${channelId} in DB:`, error);
         throw error;
