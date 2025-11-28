@@ -431,7 +431,7 @@ export function setupRaidTicketHandler(client) {
                     if (!allowedTasksForType.includes(singleTask)) {
                         await interaction.reply({
                             content: `❌ Task "${singleTask}" is not allowed in a ${raidType} room.`,
-                            embeds: [getCombinedTasksAndPointsEmbed()],
+                            embeds: getCombinedTasksAndPointsEmbed(),
                             flags: MessageFlags.Ephemeral
                         });
                         return;
@@ -516,6 +516,7 @@ export function setupRaidTicketHandler(client) {
                         description: description,
                         status: 'active',
                         color: COLOR_WAITING,
+                        size: raidType,
                         awaitingCompletion: false,
                         originalName: baseChannelName,
                     });

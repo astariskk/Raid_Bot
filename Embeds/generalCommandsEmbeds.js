@@ -75,7 +75,7 @@ export function getHowToUseEmbed(raidHelperRoleName) {
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
             `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
             `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket. Simply Mention the Helpers to close.\n\n` +
-            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`10000\` points every month as long as their record is not broken.\n\n` +
+            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will receive \`10000\` points for every reacord each month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
         .setColor(0x3498DB);

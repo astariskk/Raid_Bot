@@ -645,7 +645,7 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-
+                    console.log("Raid Size is:" , raidInfo.size);
                     await updateRaid(interaction.channel.id, {
                         status: 'awaiting_user_input',
                         awaitingCompletionRequesterId: interaction.user.id,
@@ -669,7 +669,7 @@ export function setupExpLairHandlers(client) {
                     if (!await isAuthorizedToManageRaid(interaction, raidInfo)) {
                         return;
                     }
-                    const editTaskModal = getEditTaskModal(raidInfo.task);
+                    const editTaskModal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.server, raidInfo.size);
                     await interaction.showModal(editTaskModal);
                     break;
 
