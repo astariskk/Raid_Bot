@@ -2,9 +2,6 @@
 import {
     ButtonBuilder,
     ButtonStyle,
-    ModalBuilder,
-    TextInputBuilder,
-    TextInputStyle,
     ActionRowBuilder,
     EmbedBuilder,
     PermissionFlagsBits,
@@ -15,27 +12,12 @@ import {
 import { 
     RAID_HELPER_ROLE_ID,
     RAID_CATEGORY_ID,
-
-    ALLOWED_TASK_NAMES,
-    ALLOWED_TASK_FOUR,
-    ALLOWED_TASK_SEVEN,
-    TASK_ALIASES,
-
-    GENERIC_TASKS_LIST,    
-    WEEKLIES_LIST,
-    DAILIES_LIST,
-    TEMPLESHRINE_LIST,    
-    ORIGINUL_LIST,
-    OTHERS_FOUR_LIST,
-    OTHERS_SEVEN_LIST,
-    LEGION_LIST,
 } from '../config/constants.js';
 
 import {
     updateRaidStatus, 
     getRaidInfo,
     createRaid,
-    updateRaid, 
 } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from '../Embeds/generalCommandsEmbeds.js';
 import { RAID_CHARTS, twoManEmbeds, threeManEmbeds } from '../Embeds/raidChartsEmbeds.js';

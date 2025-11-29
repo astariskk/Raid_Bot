@@ -145,9 +145,15 @@ async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAward
                                     const expTotal = pointsAwarded[uid];
 
                                     // Points Breakdown Line
-                                    threadContent += `${userDisplay}: ${expTotal} EXP\n`;
+                                    threadContent += `${userDisplay}: ${expTotal} EXP]\n`;
                                 }
                                 
+                                // Naughty Nice Event:
+                                threadContent += "Event Commands for mods: \n"
+                                for (const uid of Object.keys(pointsAwarded)) {
+                                    threadContent += `\`\`\`$give <@${uid}> 10\`\`\`\n`;
+                                }
+
                             } else {
                                 threadContent += "No points awarded.";
                             }
@@ -249,7 +255,29 @@ export function setupExpLairHandlers(client) {
         }
 
         // ----- BUTTON HANDLERS -----
+
+        if (interaction.isButton() && interaction.customId === "deleteFinalizedRaidChannel") {
+            if (!await isStaff(interaction)) return;
+            try {
+                const raidToDeleteInfo = await getRaidInfo(interaction.channel.id);
+                if (raidToDeleteInfo) await deleteRaid(interaction.channel.id).catch(() => {});
+                await interaction.channel.delete('Admin manually deleted completed raid channel after review.');
+            } catch (err) {
+                console.error(`Error deleting finalized raid channel ${interaction.channel.id}:`, err);
+                await interaction.reply({ content: 'Error deleting channel. Check bot permissions.', flags: MessageFlags.Ephemeral });
+            }
+            return;
+        }
+
         if (interaction.isButton()) {
+            if (raidInfo.awaitingCompletion || raidInfo.status === "Awaiting_Completion") {
+                    await interaction.reply({
+                        content: "The raid is being closed, you cannot press any buttons",
+                        ephemeral: true
+                    });
+                return;
+            }
+            
             if (interaction.customId === "closeRaidTicket") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
                 
@@ -284,70 +312,86 @@ export function setupExpLairHandlers(client) {
                 return;
             }
             
-            if (interaction.customId === "confirmCloseSelection") {
-                if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
+        if (interaction.customId === "confirmCloseSelection") {
+            if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
-                const currentEphemeralMessage = interaction.message; 
-                
-                let selectedUserIds = [];
-                // Find all user mentions from the ephemeral message content (where the selection list is echoed)
-                if (currentEphemeralMessage && currentEphemeralMessage.content) {
-                    const selectionMatch = currentEphemeralMessage.content.match(/<@(\d+)>/g); 
-                    selectedUserIds = selectionMatch ? selectionMatch.map(mention => mention.replace(/<@|>/g, '')) : [];
-                }
+            await updateRaid(interaction.channel.id, {
+                status: "Awaiting_Completion",
+                awaitingCompletion: true
+            });
 
-                if (selectedUserIds.length === 0) {
-                    await interaction.Reply({ content: "Helper selection was lost or empty. Please restart the closing process.", components: [] });
-                    return;
-                }
-                
-                // --- NEW: Requester Exclusion Logic ---
-                let requesterWarning = '';
-                const requesterIndex = selectedUserIds.indexOf(raidInfo.requesterId);
-                
-                if (requesterIndex !== -1) {
-                    selectedUserIds.splice(requesterIndex, 1);
-                    requesterWarning = `\n⚠️ **Note:** The raid requester (<@${raidInfo.requesterId}>) was automatically excluded from receiving helper points.`;
-                }
+            // You must fetch the selected user IDs from the select menu interaction
+            const selectMenu = interaction.message.components[0].components[0];
 
-                if (selectedUserIds.length === 0) {
-                     await interaction.editReply({ 
-                        content: `No eligible helpers were selected or remained after validation.${requesterWarning}`, 
-                        components: [] 
-                    });
-                     return;
-                }
+            // Get values currently stored in the select menu
+            const selectedUserIds = selectMenu.options
+                .filter(opt => opt.default)
+                .map(opt => opt.value);
 
-                // Calculate points based on the raid task
-                const { originalTotalCalculatedPoints: pointsPerUser, unknownTasks } = calculateTaskPointsWithMultiplier(raidInfo.task);
-                
-                if (unknownTasks?.length) {
-                    await interaction.editReply({ content: `Could not calculate points due to unknown task(s): ${unknownTasks.join(", ")}. Aborting closure.`, components: [] });
-                    return;
-                }
-
-                // Award points, capped by MAX_XP_PER_RAID
-                const pointsAwarded = {};
-                selectedUserIds.forEach(uid => pointsAwarded[uid] = Math.min(pointsPerUser, MAX_XP_PER_RAID));
-
-                // Finalize raid without notes
-                await finalizeRaidForAdminReview(client, interaction.channel, raidInfo, pointsAwarded, interaction.user.id, "completed", "");
-
-                const mentions = selectedUserIds.map(id => `<@${id}>`).join(", ");
-                await interaction.editReply({
-                    content: `Raid finalized and points processed. **Helpers:** ${mentions}\n**Points awarded:** ${pointsPerUser} EXP each.${requesterWarning}`,
+            if (selectedUserIds.length === 0) {
+                return interaction.update({
+                    content: "Helper selection was lost or empty. Please restart the closing process.",
                     components: []
                 });
-                return;
             }
 
+            // Remove requester automatically
+            let requesterWarning = "";
+            const index = selectedUserIds.indexOf(raidInfo.requesterId);
+            if (index !== -1) {
+                selectedUserIds.splice(index, 1);
+                requesterWarning = `\n⚠️ Requester (<@${raidInfo.requesterId}>) was removed from helper list.`;
+            }
+
+            if (selectedUserIds.length === 0) {
+                return interaction.update({
+                    content: `No valid helpers remain after filtering.${requesterWarning}`,
+                    components: []
+                });
+            }
+
+            // Calculate points
+            const { originalTotalCalculatedPoints: pointsPerUser, unknownTasks } =
+                calculateTaskPointsWithMultiplier(raidInfo.task);
+
+            if (unknownTasks?.length) {
+                return interaction.update({
+                    content: `Unknown task(s): ${unknownTasks.join(", ")}. Cannot close raid.`,
+                    components: []
+                });
+            }
+
+            // Cap points
+            const pointsAwarded = {};
+            selectedUserIds.forEach(uid => {
+                pointsAwarded[uid] = Math.min(pointsPerUser, MAX_XP_PER_RAID);
+            });
+
+            // Acknowledge first (avoid Discord errors)
+            await interaction.update({
+                content: "Closing raid…",
+                components: []
+            });
+
+            // Finalize raid
+            await finalizeRaidForAdminReview(
+                client,
+                interaction.channel,
+                raidInfo,
+                pointsAwarded,
+                interaction.user.id,
+                "completed",
+                ""
+            );
+
+            return;
+        }
 
             if (interaction.customId === "abortCloseRaid") {
                 await interaction.update({ content: "Raid closing process aborted.", components: [] });
                 return;
             }
 
-            // Edit Task button
             if (interaction.customId === "editTask_btn") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
@@ -361,7 +405,6 @@ export function setupExpLairHandlers(client) {
                 return;
             }   
 
-            // Cancel Raid button → ephemeral confirm/cancel
             if (interaction.customId === "cancelRaidTicket") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
@@ -379,7 +422,6 @@ export function setupExpLairHandlers(client) {
                 return;
             }
 
-            // Confirm or abort cancel
             if (["confirmCancelRaid", "abortCancelRaid"].includes(interaction.customId)) {
                 if (interaction.customId === "abortCancelRaid") {
                     await interaction.update({ content: "Raid cancellation aborted.", components: [] });
@@ -389,21 +431,6 @@ export function setupExpLairHandlers(client) {
                 await interaction.update({ content: "Raid will now be cancelled.", components: [] });
                 // Finalize raid as cancelled (no points awarded)
                 await finalizeRaidForAdminReview(client, interaction.channel, raidInfo, {}, interaction.user.id, "cancelled");
-                return;
-            }
-
-            // Delete Finalized Raid Channel (Staff/Admin only)
-            if (interaction.customId === "deleteFinalizedRaidChannel") {
-                if (!await isStaff(interaction)) return;
-                try {
-                    // Delete the DB entry first, then the channel.
-                    const raidToDeleteInfo = await getRaidInfo(interaction.channel.id);
-                    if (raidToDeleteInfo) await deleteRaid(interaction.channel.id).catch(() => {});
-                    await interaction.channel.delete('Admin manually deleted completed raid channel after review.');
-                } catch (err) {
-                    console.error(`Error deleting finalized raid channel ${interaction.channel.id}:`, err);
-                    await interaction.reply({ content: 'Error deleting channel. Check bot permissions.', flags: MessageFlags.Ephemeral });
-                }
                 return;
             }
         }
@@ -466,7 +493,7 @@ export function setupExpLairHandlers(client) {
 
                 if (invalidTasks.length > 0) {
                     await interaction.reply({
-                        content: `❌ Task(s) not allowed for ${raidType} raid:\n${invalidTasks.join(', ')}\n\nPlease edit and try again.`,
+                        content: `Task(s) not allowed for ${raidType} raid:\n${invalidTasks.join(', ')}\n\nPlease edit and try again.`,
                         flags: MessageFlags.Ephemeral
                     });
                     return;
@@ -494,7 +521,7 @@ export function setupExpLairHandlers(client) {
 
                 // Confirmation
                 await interaction.reply({
-                    content: `Raid updated: **${resolvedTaskString}**`,
+                    content: `**Raid Successfuly updated**`,
                     flags: MessageFlags.Ephemeral
                 });
 
