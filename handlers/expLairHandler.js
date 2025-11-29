@@ -145,11 +145,11 @@ async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAward
                                     const expTotal = pointsAwarded[uid];
 
                                     // Points Breakdown Line
-                                    threadContent += `${userDisplay}: ${expTotal} EXP]\n`;
+                                    threadContent += `${userDisplay}: ${expTotal} EXP\n`;
                                 }
                                 
                                 // Naughty Nice Event:
-                                threadContent += "Event Commands for mods: \n"
+                                threadContent += "\n**Event Commands for mods: **\n"
                                 for (const uid of Object.keys(pointsAwarded)) {
                                     threadContent += `\`\`\`$give <@${uid}> 10\`\`\`\n`;
                                 }
@@ -312,80 +312,85 @@ export function setupExpLairHandlers(client) {
                 return;
             }
             
-        if (interaction.customId === "confirmCloseSelection") {
-            if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
+            if (interaction.customId === "confirmCloseSelection") {
 
-            await updateRaid(interaction.channel.id, {
-                status: "Awaiting_Completion",
-                awaitingCompletion: true
-            });
-
-            // You must fetch the selected user IDs from the select menu interaction
-            const selectMenu = interaction.message.components[0].components[0];
-
-            // Get values currently stored in the select menu
-            const selectedUserIds = selectMenu.options
-                .filter(opt => opt.default)
-                .map(opt => opt.value);
-
-            if (selectedUserIds.length === 0) {
-                return interaction.update({
-                    content: "Helper selection was lost or empty. Please restart the closing process.",
-                    components: []
+                // Always reply immediately to avoid 10062
+                await interaction.reply({
+                    content: "Processing raid closure...",
+                    flags: 64
                 });
-            }
 
-            // Remove requester automatically
-            let requesterWarning = "";
-            const index = selectedUserIds.indexOf(raidInfo.requesterId);
-            if (index !== -1) {
-                selectedUserIds.splice(index, 1);
-                requesterWarning = `\n⚠️ Requester (<@${raidInfo.requesterId}>) was removed from helper list.`;
-            }
+                // Now it's safe to run slow logic
+                if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
-            if (selectedUserIds.length === 0) {
-                return interaction.update({
-                    content: `No valid helpers remain after filtering.${requesterWarning}`,
-                    components: []
+                await updateRaid(interaction.channel.id, {
+                    status: "Awaiting_Completion",
+                    awaitingCompletion: true
                 });
+
+                let selectedUserIds = [];
+                const msg = interaction.message;
+
+                if (msg && msg.content) {
+                    const matches = msg.content.match(/<@(\d+)>/g);
+                    selectedUserIds = matches ? matches.map(m => m.replace(/<@|>/g, "")) : [];
+                }
+
+                if (selectedUserIds.length === 0) {
+                    await interaction.followUp({
+                        content: "Helper selection was lost or empty. Please restart the closing process.",
+                        flags: 64
+                    });
+                    return;
+                }
+
+                // Requester exclusion
+                let requesterWarning = "";
+                const requesterIndex = selectedUserIds.indexOf(raidInfo.requesterId);
+
+                if (requesterIndex !== -1) {
+                    selectedUserIds.splice(requesterIndex, 1);
+                    requesterWarning =
+                        `\n⚠️ Note: requester (<@${raidInfo.requesterId}>) excluded from helper points.`;
+                }
+
+                if (selectedUserIds.length === 0) {
+                    await interaction.followUp({
+                        content: `No eligible helpers remained.${requesterWarning}`,
+                        flags: 64
+                    });
+                    return;
+                }
+
+                // Calculate points
+                const { originalTotalCalculatedPoints: pointsPerUser, unknownTasks } =
+                    calculateTaskPointsWithMultiplier(raidInfo.task);
+
+                if (unknownTasks?.length) {
+                    await interaction.followUp({
+                        content: `Could not calculate points: ${unknownTasks.join(", ")}`,
+                        flags: 64
+                    });
+                    return;
+                }
+
+                // Cap points
+                const pointsAwarded = {};
+                for (const uid of selectedUserIds) {
+                    pointsAwarded[uid] = Math.min(pointsPerUser, MAX_XP_PER_RAID);
+                }
+
+                await finalizeRaidForAdminReview(
+                    client,
+                    interaction.channel,
+                    raidInfo,
+                    pointsAwarded,
+                    interaction.user.id,
+                    "completed",
+                    ""
+                );
             }
 
-            // Calculate points
-            const { originalTotalCalculatedPoints: pointsPerUser, unknownTasks } =
-                calculateTaskPointsWithMultiplier(raidInfo.task);
-
-            if (unknownTasks?.length) {
-                return interaction.update({
-                    content: `Unknown task(s): ${unknownTasks.join(", ")}. Cannot close raid.`,
-                    components: []
-                });
-            }
-
-            // Cap points
-            const pointsAwarded = {};
-            selectedUserIds.forEach(uid => {
-                pointsAwarded[uid] = Math.min(pointsPerUser, MAX_XP_PER_RAID);
-            });
-
-            // Acknowledge first (avoid Discord errors)
-            await interaction.update({
-                content: "Closing raid…",
-                components: []
-            });
-
-            // Finalize raid
-            await finalizeRaidForAdminReview(
-                client,
-                interaction.channel,
-                raidInfo,
-                pointsAwarded,
-                interaction.user.id,
-                "completed",
-                ""
-            );
-
-            return;
-        }
 
             if (interaction.customId === "abortCloseRaid") {
                 await interaction.update({ content: "Raid closing process aborted.", components: [] });
