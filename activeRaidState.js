@@ -111,7 +111,7 @@ export async function updateRaidStatus(client, channelId, newStatus, newColor) {
     }
 }
 
-export function getEditTaskModal(currentTasks, currentMap, currentServer, size) {
+export function getEditTaskModal(currentTasks, currentMap, currentServer, size, description) {
     
     let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
     let mapPlaceHolder = ("/join ultraspeaker-1212, /join voidflibbi-3434, etc.");
@@ -154,11 +154,19 @@ export function getEditTaskModal(currentTasks, currentMap, currentServer, size) 
         .setPlaceholder('e.g., Artix, Yorumi, Safiria')
         .setValue(currentServer);
 
+    const descriptionInput = new TextInputBuilder()
+        .setCustomId('editedDescriptionInput')
+        .setLabel("Description: ")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setPlaceholder('Any specific details or requirements?')
+        .setValue(description);
 
     const row1 = new ActionRowBuilder().addComponents(taskInput);
     const row2 = new ActionRowBuilder().addComponents(mapInput);
     const row3 = new ActionRowBuilder().addComponents(serverInput);    
-    modal.addComponents(row1, row2, row3);
+    const row4 = new ActionRowBuilder().addComponents(descriptionInput);    
+    modal.addComponents(row1, row2, row3, row4);
     return modal;
 }
 

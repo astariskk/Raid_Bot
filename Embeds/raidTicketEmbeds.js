@@ -36,7 +36,7 @@ export function getRaidRequestModal(raidType) {
         .setCustomId(`raidRequestModal_${raidType}`) // Store type in ID
         .setTitle(`Raid Assistance Request ${raidType}`);
     
-    let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
+    let taskPlaceHolder = ("Simple, Moderate, Hard, be specific in the description.");
     let mapPlaceHolder = ("hydrachallenge-1212, deleuzethundra-3434, etc.");
     switch(raidType) {
         case '4-man':

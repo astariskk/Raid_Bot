@@ -61,17 +61,6 @@ async function isStaff(interaction) {
     return false;
 }
 
-/**
- * Finalizes a raid channel by adjusting permissions, posting to the EXP Lair,
- * updating the database record, and applying points to the leaderboard.
- * * @param {import('discord.js').Client} client - The Discord client instance.
- * @param {import('discord.js').TextChannel} channel - The raid channel to finalize.
- * @param {object} raidInfo - The raid information object from the DB.
- * @param {object} pointsAwarded - Key-value pair of userId: points awarded (only for 'completed' raids).
- * @param {string} completionInitiatorId - The ID of the user who initiated the completion/cancellation.
- * @param {('completed'|'cancelled')} reason - The reason for finalization.
- * @param {string} notes - Optional notes for staff review.
- */
 async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAwarded = {}, completionInitiatorId, reason = "completed", notes = "") {
     const COLOR_INFO = 0x0099ff;
 
@@ -297,8 +286,6 @@ export function setupExpLairHandlers(client) {
             
             if (interaction.customId === "confirmCloseSelection") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
-                
-                await interaction.deferUpdate({ ephemeral: true });
 
                 const currentEphemeralMessage = interaction.message; 
                 
@@ -310,7 +297,7 @@ export function setupExpLairHandlers(client) {
                 }
 
                 if (selectedUserIds.length === 0) {
-                    await interaction.editReply({ content: "Helper selection was lost or empty. Please restart the closing process.", components: [] });
+                    await interaction.Reply({ content: "Helper selection was lost or empty. Please restart the closing process.", components: [] });
                     return;
                 }
                 
@@ -364,7 +351,7 @@ export function setupExpLairHandlers(client) {
             if (interaction.customId === "editTask_btn") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
-                const editModal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.server, raidInfo.size);
+                const editModal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.server, raidInfo.size, raidInfo.description);
                 try {
                     await interaction.showModal(editModal);
                 } catch (e) {
@@ -372,7 +359,7 @@ export function setupExpLairHandlers(client) {
                     await interaction.reply({ content: "Could not open edit task modal. Please try again.", flags: MessageFlags.Ephemeral });
                 }
                 return;
-            }
+            }   
 
             // Cancel Raid button → ephemeral confirm/cancel
             if (interaction.customId === "cancelRaidTicket") {
@@ -454,7 +441,7 @@ export function setupExpLairHandlers(client) {
 
                 // Update the ephemeral message content to explicitly show the selected users
                 await interaction.update({
-                    content: `✅ **Selected Helpers (${selectedCount} users):** ${mentions || 'None selected.'}\n\nPress 'Confirm Closing' to process points.`,
+                    content: `**Selected Helpers (${selectedCount} users):** ${mentions || 'None selected.'}\nPress **Confirm Closing** to process points.`,
                     components: [selectRow, buttonRow],
                 });
                 return;
@@ -467,33 +454,50 @@ export function setupExpLairHandlers(client) {
             if (interaction.customId === "editTaskModal") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
+                // Collect modal inputs
                 const rawTasksInput = interaction.fields.getTextInputValue('editedTaskInput');
+                const rawMapInput = interaction.fields.getTextInputValue('editedMapInput');
+                const rawServerInput = interaction.fields.getTextInputValue('editedServerInput');
+                const rawDescriptionInput = interaction.fields.getTextInputValue('editedDescriptionInput');
                 const raidType = raidInfo.size;
 
-                // Validate and resolve tasks against the allowed list for the raid type
+                // Validate tasks
                 const { resolvedTasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
 
                 if (invalidTasks.length > 0) {
                     await interaction.reply({
-                        content: `Task(s) not allowed for ${raidType} raid: ${invalidTasks.join(', ')}. Please edit and try again.`,
+                        content: `❌ Task(s) not allowed for ${raidType} raid:\n${invalidTasks.join(', ')}\n\nPlease edit and try again.`,
                         flags: MessageFlags.Ephemeral
                     });
                     return;
                 }
 
                 const resolvedTaskString = resolvedTasks.join(', ');
-
-                // Update DB record
-                await updateRaid(interaction.channel.id, { task: resolvedTaskString }).catch(e => console.error("Failed to update raid task:", e));
+                const finalDescription = rawDescriptionInput.trim() === ""  ? "No description provided." : rawDescriptionInput;
+                // Update DB
+                await updateRaid(interaction.channel.id, {
+                    task: resolvedTaskString,
+                    mapName: rawMapInput,
+                    server: rawServerInput,
+                    description: finalDescription
+                }).catch(e => console.error("Failed to update raid task:", e));
                 
-                // Update the visible raid log embed message
+                // Update visible embed
                 await updateRaidLogEmbed(client, interaction.channel.id, {
                     fields: [
-                        { name: 'Task(s)', value: resolvedTaskString, inline: false }
+                        { name: 'Task(s)', value: resolvedTaskString, inline: false },
+                        { name: 'Map Name', value: rawMapInput, inline: false },
+                        { name: 'Server', value: rawServerInput, inline: false },
+                        { name: 'Description', value: finalDescription, inline: false }
                     ]
                 }).catch(e => console.error("Failed to update raid log embed:", e));
 
-                await interaction.reply({ content: `Tasks updated to: ${resolvedTaskString}`, flags: MessageFlags.Ephemeral });
+                // Confirmation
+                await interaction.reply({
+                    content: `Raid updated: **${resolvedTaskString}**`,
+                    flags: MessageFlags.Ephemeral
+                });
+
                 return;
             }
         }
