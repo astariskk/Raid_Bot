@@ -381,7 +381,7 @@ export function setupRaidTicketHandler(client) {
             }
         }
 
-        // Handle modal submissions (new raid requests are always allowed, as they create a new channel)
+        // Handle modal submissions
         if (interaction.isModalSubmit()) {
             if (interaction.customId.startsWith('raidRequestModal')) {
             
@@ -395,7 +395,7 @@ export function setupRaidTicketHandler(client) {
 
                 if (invalidTasks.length > 0) {
                     await interaction.reply({
-                        content: `❌ Task(s) not allowed in a ${raidType} room: ${invalidTasks.join(', ')}`,
+                        content: `Task(s) not allowed in a ${raidType} room: ${invalidTasks.join(', ')}`,
                         embeds: getCombinedTasksAndPointsEmbed(),
                         flags: MessageFlags.Ephemeral
                     });
@@ -442,7 +442,7 @@ export function setupRaidTicketHandler(client) {
                     // Create the embed for the new raid request
                     const embedMessage = new EmbedBuilder()
                         .setColor(COLOR_WAITING)
-                        .setTitle(`New Raid Request by: ${interaction.member.displayName}`)
+                        .setTitle(`${raidType} Raid Request by: ${interaction.member.displayName}`)
                         .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
                         .addFields(
                             { name: 'Task(s)', value: resolvedTaskString, inline: false },
@@ -462,7 +462,7 @@ export function setupRaidTicketHandler(client) {
 
                     // Send instructions and buttons
                     await raidTicketChannel.send({
-                        content: `To update the status, type **!waiting**, **!ongoing** or **!full** in this channel.\nTo cancel, press the close raid button and type **cancel**`,
+                        content: `To update the status, type **!waiting**, **!ongoing** or **!full** in this channel,`,
                         components: [threadActionRow]
                     });
 
@@ -493,7 +493,6 @@ export function setupRaidTicketHandler(client) {
 
                 } catch (error) {
                     console.error('Error handling modal submission and creating raid ticket channel:', error);
-                    await interaction.reply({ content: 'There was an error processing your request. Please try again later.', flags: MessageFlags.Ephemeral });
                 }
             }
             if (interaction.customId === 'raidMapsModal') {

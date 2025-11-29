@@ -34,7 +34,7 @@ export const threadActionRow = new ActionRowBuilder()
 export function getRaidRequestModal(raidType) {
     const modal = new ModalBuilder()
         .setCustomId(`raidRequestModal_${raidType}`) // Store type in ID
-        .setTitle(`Raid Assistance Request (${raidType})`);
+        .setTitle(`Raid Assistance Request ${raidType}`);
     
     let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
     let mapPlaceHolder = ("hydrachallenge-1212, deleuzethundra-3434, etc.");

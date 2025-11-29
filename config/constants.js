@@ -216,6 +216,7 @@ export const TASK_ALIASES = {
 
     // --- other seven ---
     'grimchallenge': 'mechabinky',
+    'grim' : 'mechabinky',
     'stupidhorse': 'mechabinky',
     'dabinky' : 'mechabinky',
     
