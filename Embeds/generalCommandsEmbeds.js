@@ -74,7 +74,7 @@ export function getHowToUseEmbed() {
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
             `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
-            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket. Simply Mention the Helpers to close.\n\n` +
+            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket and Mention the Helpers to close. If someone left midrun, mention them in the ticket if you want them to get the points\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will receive \`10000\` points for every reacord each month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
@@ -98,85 +98,65 @@ export function getRaidRulesEmbed() {
         .setColor(0x3498DB);
 }
 
-    function getTasksDescriptionEmbed() {
-        return new EmbedBuilder()
-            .setColor(0x3498DB)
-            .setTitle("Raid Tasks & EXP Values")
-            .setDescription(
-                "You can use the following combined task names: `dailies`, `daily`, `weeklies`, `weekly`, `templeshrine`, `originul`, `legion`.\n" +
-                "You can also view alternative task names using `/taskalias [task]`.\n\n" +
-                "Below are the complete lists of available tasks and EXP values, divided into categories."
-            )
-            .setTimestamp()
-            .setFooter({ text: "Raid Helper Bot | Tasks & Points" });
-    }
 
-    function addThreeColumnFields(embed, title, list) {
-        const colSize = Math.ceil(list.length / 3);
+export function getCombinedTasksAndPointsEmbed() {
+    const embeds = [];
 
-        const col1 = list.slice(0, colSize);
-        const col2 = list.slice(colSize, colSize * 2);
-        const col3 = list.slice(colSize * 2);
+    const addThreeColumnFields = (embed, name, list) => {
+        const perColumn = Math.ceil(list.length / 3);
+        const col1 = list.slice(0, perColumn);
+        const col2 = list.slice(perColumn, perColumn * 2);
+        const col3 = list.slice(perColumn * 2);
 
-        embed.addFields({ name: title, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true });
-        embed.addFields({
-            name: "\u200B",
-            value: col2.length ? formatTasksForEmbed(col2, POINTS_CONFIG) : "\u200B",
-            inline: true
-        });
-        embed.addFields({
-            name: "\u200B",
-            value: col3.length ? formatTasksForEmbed(col3, POINTS_CONFIG) : "\u200B",
-            inline: true
-        });
-    }
+        embed.addFields(
+            { name, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true },
+            { name: '\u200B', value: col2.length ? formatTasksForEmbed(col2, POINTS_CONFIG) : '\u200B', inline: true },
+            { name: '\u200B', value: col3.length ? formatTasksForEmbed(col3, POINTS_CONFIG) : '\u200B', inline: true },
+        );
+    };
 
-    function getFourManTasksEmbed() {
-        const embed = new EmbedBuilder()
-            .setColor(0x3498DB)
-            .setTitle("4-Man Tasks");
-
-        addThreeColumnFields(embed, "Daily Tasks", DAILIES_LIST);
-        addThreeColumnFields(embed, "Weekly Tasks", WEEKLIES_LIST);
-        addThreeColumnFields(embed, "Temple Shrine Tasks", TEMPLESHRINE_LIST);
-        addThreeColumnFields(embed, "Other 4-Man Tasks", OTHERS_FOUR_LIST);
-
-        return embed;
-    }
-
-    function getSevenManTasksEmbed() {
-        const embed = new EmbedBuilder()
-            .setColor(0x3498DB)
-            .setTitle("7-Man Tasks");
-
-        addThreeColumnFields(embed, "Originul Tasks", ORIGINUL_LIST);
-        addThreeColumnFields(embed, "Legion Tasks", LEGION_LIST);
-        addThreeColumnFields(embed, "Other 7-Man Tasks", OTHERS_SEVEN_LIST);
-
-        return embed;
-    }
-
-    function getGenericTasksEmbed() {
-    return new EmbedBuilder()
+    // -----------------------------------------------------------
+    // 📘 EMBED 1 — 4-MAN TASKS
+    // -----------------------------------------------------------
+    const embed4Man = new EmbedBuilder()
         .setColor(0x3498DB)
-        .setTitle("Generic Tasks")
-        .setDescription(
-            "These tasks are general-purpose and may apply to both 4-man and 7-man rooms.\n" +
-            "Use these when your requested task does not clearly fit into the main categories."
-        )
+        .setTitle('=== 4-Man Tasks ===');
+
+    addThreeColumnFields(embed4Man, '☀️ `Daily` / `Dailies`', DAILIES_LIST);
+    addThreeColumnFields(embed4Man, '🗺️ Other 4-Man Tasks', OTHERS_FOUR_LIST);
+    addThreeColumnFields(embed4Man, '🗓️ `Weekly` / `Weeklies`', WEEKLIES_LIST);
+    addThreeColumnFields(embed4Man, '⛩️ `Templeshrine`', TEMPLESHRINE_LIST);
+
+    embeds.push(embed4Man);
+
+    // -----------------------------------------------------------
+    // 📙 EMBED 2 — 7-MAN TASKS
+    // -----------------------------------------------------------
+    const embed7Man = new EmbedBuilder()
+        .setColor(0x3498DB)
+        .setTitle('=== 7-Man Tasks ===');
+
+    addThreeColumnFields(embed7Man, '🌌 `Originul` Raids', ORIGINUL_LIST);
+    addThreeColumnFields(embed7Man, '💀 `Legion` Daily Tasks', LEGION_LIST);
+    addThreeColumnFields(embed7Man, '🗺️ Other 7-Man Tasks', OTHERS_SEVEN_LIST);
+
+    embeds.push(embed7Man);
+
+    // -----------------------------------------------------------
+    // 📗 EMBED 3 — GENERIC TASKS
+    // -----------------------------------------------------------
+    const embedGeneric = new EmbedBuilder()
+        .setColor(0x3498DB)
+        .setTitle('=== Generic Tasks ===')
         .addFields({
-            name: "Available Generic Tasks",
+            name: '\u200B',
             value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG),
             inline: false
         });
-}
 
-export function getCombinedTasksAndPointsEmbed() {
-    const descriptionEmbed = getTasksDescriptionEmbed();
-    const fourManEmbed = getFourManTasksEmbed();
-    const sevenManEmbed = getSevenManTasksEmbed();
-    const genericTasksEmbed = getGenericTasksEmbed();
-    return [descriptionEmbed, fourManEmbed, sevenManEmbed, genericTasksEmbed];
+    embeds.push(embedGeneric);
+
+    return embeds;
 }
 
 export function getInitialButtonsRow() {

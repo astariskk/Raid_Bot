@@ -307,7 +307,11 @@ export function setupGeneralCommandsHandler(client) {
             
             case 'seeRaidTasks_btn':
                 const tasksEmbed = getCombinedTasksAndPointsEmbed();
-                await interaction.reply({ embeds: tasksEmbed, ephemeral: true });
+                await interaction.reply({
+                    content:'Below are the list of available tasks and exp values sectioned by their category.\n' +            
+                            '* You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n'+
+                            '* You can also use /taskalias [task] for other names you could use for that task, like \`gramiel\` as \`gram\`\n',
+                     embeds: tasksEmbed, ephemeral: true });
                 break;
             
             case 'showAllCommands_btn':

@@ -152,7 +152,7 @@ export function setupLeaderboardHandlers(client) {
                 const leaderboard = await getCachedLeaderboard();
                 const allPlayers = getSortedLeaderboard(leaderboard, Infinity, true); // Get all non-zero players
                 const lastResetDate = leaderboard._lastResetDate ?
-                    new Date(leaderboard._lastResetDate).toLocaleDateString() : 'Never';
+                new Date(leaderboard._lastResetDate).toLocaleDateString() : 'Never';
                 const resetInfo = `Last reset: ${lastResetDate}`;
 
                 const USERS_PER_PAGE = 10;
