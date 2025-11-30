@@ -22,7 +22,7 @@ import {
 import { getCombinedTasksAndPointsEmbed } from '../Embeds/generalCommandsEmbeds.js';
 import { RAID_CHARTS, twoManEmbeds, threeManEmbeds } from '../Embeds/raidChartsEmbeds.js';
 import { threadActionRow } from '../Embeds/raidTicketEmbeds.js';
-import { generateRaidMapsEmbed, parseRaidTasks, getRaidMapsModal } from '../utils/raidMaps.js';
+import { generateRaidMapsEmbed, parseRaidTasks } from '../utils/raidMaps.js';
 import { validateAndResolveTasks } from '../utils/allowedTasks.js';
 
 
@@ -273,12 +273,11 @@ export function setupRaidTicketHandler(client) {
             if (!isRaidTicketChannel) {
                 await message.channel.send('The `!raidmaps [number]` command can only be used inside an active raid ticket channel to get join links for the tasks in that specific raid.');
             }
-            // If it is a raid ticket, it must be blocked by the early exit restricted status check.
             return;
         }
 
         // --- Handle the !raidmaps <number> command ---
-        const raidMapsMatch = message.content.toLowerCase().match(/^!raidmaps\s+(\d+)$/);
+        const raidMapsMatch = message.content.toLowerCase().match(/^!(raidmaps|maps)\s+(\d+)$/);
 
         if (raidMapsMatch) {
             const mapNumber = raidMapsMatch[1];
@@ -366,11 +365,12 @@ export function setupRaidTicketHandler(client) {
         // Handle modal submissions
         if (interaction.isModalSubmit()) {
             if (interaction.customId.startsWith('raidRequestModal')) {
-            
+
                 const rawTasksInput = interaction.fields.getTextInputValue('taskInput');
                 const raidType = interaction.customId.split('_')[1];
 
                 const mapName = interaction.fields.getTextInputValue('mapNameInput');
+                const mapNumber = interaction.fields.getTextInputValue('mapNumberInput'); // <-- NEW
                 const server = interaction.fields.getTextInputValue('serverInput');
                 const description = interaction.fields.getTextInputValue('descriptionInput');
                 const { resolvedTasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
@@ -429,6 +429,7 @@ export function setupRaidTicketHandler(client) {
                         .addFields(
                             { name: 'Task(s)', value: resolvedTaskString, inline: false },
                             { name: 'Map Name', value: mapName, inline: false },
+                            { name: 'Map Number', value: mapNumber, inline: false}, // <-- NEW
                             { name: 'Server', value: server, inline: false },
                             { name: 'Status', value: 'Waiting', inline: false },
                             { name: 'Description', value: description || 'No description provided.' },
@@ -457,6 +458,7 @@ export function setupRaidTicketHandler(client) {
                         task: resolvedTaskString,
                         requesterId: interaction.user.id,
                         mapName: mapName,
+                        mapNumber: mapNumber, // <-- NEW
                         server: server,
                         description: description,
                         status: 'active',
@@ -477,20 +479,8 @@ export function setupRaidTicketHandler(client) {
                     console.error('Error handling modal submission and creating raid ticket channel:', error);
                 }
             }
-            if (interaction.customId === 'raidMapsModal') {
-                const mapNumber = interaction.fields.getTextInputValue('raidMapNumberInput').trim();
-
-                if (!/^\d+$/.test(mapNumber)) {
-                    return interaction.reply({ content: 'Please enter a valid number.', ephemeral: true });
-                }
-                const raidTasks = parseRaidTasks(raidInfo.task);
-                const embed = generateRaidMapsEmbed(raidTasks, mapNumber);
-
-                await interaction.reply({ embeds: [embed] });
-            }               
-            return;
+            return; 
         }
-
         if (interaction.isButton()) {
             const custom = interaction.customId;
             
@@ -534,8 +524,20 @@ export function setupRaidTicketHandler(client) {
             switch (custom) {
                 case 'raidmapsButton':
                     if (isRaidTicketChannel && raidInfo) {
-                        const raidMapsModal = getRaidMapsModal(raidInfo);
-                        await interaction.showModal(raidMapsModal);
+                        const savedMapNumber = raidInfo.mapNumber;
+                        
+                        if (!savedMapNumber || !/^\d+$/.test(savedMapNumber)) {
+                             await interaction.reply({
+                                content: `The map number is missing or invalid in the raid information: **${savedMapNumber || 'None'}**. Please use the \`!raidmaps [number]\` command or \`!edit\` to set it.`,
+                                ephemeral: true
+                            });
+                            return;
+                        }
+
+                        const raidTasks = parseRaidTasks(raidInfo.task);
+                        const embed = generateRaidMapsEmbed(raidTasks, savedMapNumber);
+
+                        await interaction.reply({ embeds: [embed], ephemeral: false }); 
                     } else {
                         await interaction.reply({
                             content: 'The Raid Maps button can only be used inside an active raid ticket channel.',

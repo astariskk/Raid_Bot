@@ -64,6 +64,13 @@ export function getRaidRequestModal(raidType) {
         .setRequired(true)
         .setPlaceholder(mapPlaceHolder);
 
+    const mapNumberInput = new TextInputBuilder()
+        .setCustomId('mapNumberInput')
+        .setLabel("Map Number (e.g., 99999)")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder('e.g., 2323, 1212');
+
     // Input field for the server.
     const serverInput = new TextInputBuilder()
         .setCustomId('serverInput')
@@ -83,10 +90,11 @@ export function getRaidRequestModal(raidType) {
     // Action rows to contain each text input component.
     const firstActionRow = new ActionRowBuilder().addComponents(taskInput);
     const secondActionRow = new ActionRowBuilder().addComponents(mapNameInput);
-    const thirdActionRow = new ActionRowBuilder().addComponents(serverInput);
-    const fourthActionRow = new ActionRowBuilder().addComponents(descriptionInput);
+    const thirdActionRow = new ActionRowBuilder().addComponents(mapNumberInput);    
+    const fourthActionRow = new ActionRowBuilder().addComponents(serverInput);
+    const fifthActionRow = new ActionRowBuilder().addComponents(descriptionInput);
 
     // Add all action rows to the modal.
-    modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow);
+    modal.addComponents(firstActionRow, secondActionRow, thirdActionRow, fourthActionRow, fifthActionRow);
     return modal;
 }    

@@ -477,7 +477,7 @@ export function setupExpLairHandlers(client) {
         if (interaction.isButton() && interaction.customId === "editTask_btn") {
             if (!await replyIfUnauthorized(interaction, raidInfo, 'raid_manager')) return; 
 
-            const editModal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.server, raidInfo.size, raidInfo.description);
+            const editModal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.mapNumber, raidInfo.server, raidInfo.size, raidInfo.description);
             try {
                 await interaction.showModal(editModal);
             } catch (e) {
@@ -566,6 +566,7 @@ export function setupExpLairHandlers(client) {
             try {
                 const rawTasksInput = interaction.fields.getTextInputValue('editedTaskInput');
                 const rawMapInput = interaction.fields.getTextInputValue('editedMapInput');
+                const rawMapNumberInput = interaction.fields.getTextInputValue('editedMapNumberInput');
                 const rawServerInput = interaction.fields.getTextInputValue('editedServerInput');
                 const rawDescriptionInput = interaction.fields.getTextInputValue('editedDescriptionInput');
                 const raidType = raidInfo.size;
@@ -582,18 +583,20 @@ export function setupExpLairHandlers(client) {
 
                 const resolvedTaskString = resolvedTasks.join(', ');
                 const finalDescription = rawDescriptionInput.trim() === "" ? "No description provided." : rawDescriptionInput;
-                
+
                 await updateRaid(interaction.channel.id, {
                     task: resolvedTaskString,
                     mapName: rawMapInput,
+                    mapNumber: rawMapNumberInput, 
                     server: rawServerInput,
                     description: finalDescription
                 });
-                
+
                 await updateRaidLogEmbed(client, interaction.channel.id, {
                     fields: [
                         { name: 'Task(s)', value: resolvedTaskString, inline: false },
                         { name: 'Map Name', value: rawMapInput, inline: false },
+                        { name: 'Map Number', value: rawMapNumberInput, inline: false },
                         { name: 'Server', value: rawServerInput, inline: false },
                         { name: 'Description', value: finalDescription, inline: false }
                     ]

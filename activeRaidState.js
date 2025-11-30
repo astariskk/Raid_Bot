@@ -111,7 +111,7 @@ export async function updateRaidStatus(client, channelId, newStatus, newColor) {
     }
 }
 
-export function getEditTaskModal(currentTasks, currentMap, currentServer, size, description) {
+export function getEditTaskModal(currentTasks, currentMap, currentNumber, currentServer, size, description) {
     
     let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
     let mapPlaceHolder = ("/join ultraspeaker-1212, /join voidflibbi-3434, etc.");
@@ -146,6 +146,14 @@ export function getEditTaskModal(currentTasks, currentMap, currentServer, size, 
         .setPlaceholder(mapPlaceHolder)
         .setValue(currentMap);
 
+    const mapNumberInput = new TextInputBuilder()
+        .setCustomId('editedMapNumberInput')
+        .setLabel("Map Name: ")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder("2323, 1212")
+        .setValue(currentNumber);
+
     const serverInput = new TextInputBuilder()
         .setCustomId('editedServerInput')
         .setLabel("Server Name: ") 
@@ -164,9 +172,10 @@ export function getEditTaskModal(currentTasks, currentMap, currentServer, size, 
 
     const row1 = new ActionRowBuilder().addComponents(taskInput);
     const row2 = new ActionRowBuilder().addComponents(mapInput);
-    const row3 = new ActionRowBuilder().addComponents(serverInput);    
-    const row4 = new ActionRowBuilder().addComponents(descriptionInput);    
-    modal.addComponents(row1, row2, row3, row4);
+    const row3 = new ActionRowBuilder().addComponents(mapNumberInput);      
+    const row4 = new ActionRowBuilder().addComponents(serverInput);    
+    const row5 = new ActionRowBuilder().addComponents(descriptionInput);    
+    modal.addComponents(row1, row2, row3, row4, row5);
     return modal;
 }
 

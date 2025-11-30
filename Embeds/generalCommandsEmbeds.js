@@ -44,7 +44,7 @@ export function getCommandsEmbed() {
             {
                 name: '⚔️ Commands Inside Raid Tickets',
                 value: `
-\`!raidmaps [number]\` or \`!maps\`: Displays the map's specified in the raid to make joining maps easier.
+\`!raidmaps [number]\` or \`!maps [number]\`: Displays the map's specified in the raid to make joining maps easier.
 \`!raidsite\`: Sends a website for making joining maps easier.
 \`!waiting\`: Set the raid status to 'Waiting (requester only)'.
 \`!ongoing\`: Set the raid status to 'Ongoing (requester only)'.
