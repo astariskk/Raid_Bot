@@ -34,11 +34,9 @@ export async function getRaidInfo(channelId) {
 
 export async function createRaid(channelId, raidDetails) {
     try {
-        
         const document = { _id: channelId, ...raidDetails };
         await raidStatesCollection.insertOne(document);
         raidStateCache.set(channelId, { data: document, timestamp: Date.now() });
-        console.log(`Raid ${channelId} created in DB.`);
     } catch (error) {
         console.error(`Error creating raid ${channelId} in DB:`, error);
         throw error;
@@ -113,7 +111,21 @@ export async function updateRaidStatus(client, channelId, newStatus, newColor) {
     }
 }
 
-export function getEditTaskModal(currentTasks = '') {
+export function getEditTaskModal(currentTasks, currentMap, currentNumber, currentServer, size, description) {
+    
+    let taskPlaceHolder = ("Daily, Weeklies, Originul, etc.");
+    let mapPlaceHolder = ("/join ultraspeaker-1212, /join voidflibbi-3434, etc.");
+    switch(size) {
+        case '4-man':
+            taskPlaceHolder = "daily, dage, weeklies, templeshrine";
+            mapPlaceHolder = "ultraspeaker, championdrakath, tyndarius etc.";
+            break;
+        case '7-man':
+            taskPlaceHolder = "originul, astralshrine, kathooldepths";
+            mapPlaceHolder = "voidflibbi, deimos, grimchallenge etc.";
+            break;
+        }
+
     const modal = new ModalBuilder()
         .setCustomId('editTaskModal')
         .setTitle('Edit Raid Task(s)');
@@ -123,11 +135,47 @@ export function getEditTaskModal(currentTasks = '') {
         .setLabel("Current Task(s): ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
-        .setPlaceholder(`Enter task(s) like 'speaker' or 'dage + darkon'`)
-        .setValue(currentTasks); // Pre-fill with current tasks
+        .setPlaceholder(taskPlaceHolder)
+        .setValue(currentTasks);
 
-    const firstActionRow = new ActionRowBuilder().addComponents(taskInput);
-    modal.addComponents(firstActionRow);
+    const mapInput = new TextInputBuilder()
+        .setCustomId('editedMapInput')
+        .setLabel("Map Name: ")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder(mapPlaceHolder)
+        .setValue(currentMap);
+
+    const mapNumberInput = new TextInputBuilder()
+        .setCustomId('editedMapNumberInput')
+        .setLabel("Map Name: ")
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder("2323, 1212")
+        .setValue(currentNumber);
+
+    const serverInput = new TextInputBuilder()
+        .setCustomId('editedServerInput')
+        .setLabel("Server Name: ") 
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder('e.g., Artix, Yorumi, Safiria')
+        .setValue(currentServer);
+
+    const descriptionInput = new TextInputBuilder()
+        .setCustomId('editedDescriptionInput')
+        .setLabel("Description: ")
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setPlaceholder('Any specific details or requirements?')
+        .setValue(description);
+
+    const row1 = new ActionRowBuilder().addComponents(taskInput);
+    const row2 = new ActionRowBuilder().addComponents(mapInput);
+    const row3 = new ActionRowBuilder().addComponents(mapNumberInput);      
+    const row4 = new ActionRowBuilder().addComponents(serverInput);    
+    const row5 = new ActionRowBuilder().addComponents(descriptionInput);    
+    modal.addComponents(row1, row2, row3, row4, row5);
     return modal;
 }
 

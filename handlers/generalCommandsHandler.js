@@ -2,22 +2,20 @@ import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } fr
 import {
     RAID_CHANNEL_ID,
     RAID_HELPER_ROLE_ID,
-    MODERATOR_ROLE_ID,
-    OFFICER_ROLE_ID,
-    RECORD_HOLDER_ROLE_ID,
     LEADERBOARD_CHANNEL_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
     MAX_XP_PER_RAID,
     POINTS_CONFIG,
     TASK_ALIASES,
 } from '../config/constants.js';
-import { getRaidRequestModal } from './raidTicketHandler.js';
+import { getRaidRequestModal } from '../Embeds/raidTicketEmbeds.js';
 import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
 
 // Import all necessary embed and button creation functions from the new file
 import {
     getHowToUseEmbed,
     getInitialButtonsRow,
+    getStringSelectMenu,
     getChartsEmbed,
     getRaidRulesEmbed,
     getLeaderboardCommandsEmbed,
@@ -70,24 +68,16 @@ export function setupGeneralCommandsHandler(client) {
 
         // --- Handle the !raidinfo command (formerly !raidcommands) ---
         if (commandContent === '!raidinfo' && message.channel.id === RAID_CHANNEL_ID) {
-            let raidHelperRoleName = 'Raid Helper';
-            if (message.guild) {
-                try {
-                    const role = await message.guild.roles.fetch(RAID_HELPER_ROLE_ID);
-                    if (role) {
-                        raidHelperRoleName = role.name;
-                    }
-                } catch (error) {
-                    console.error('Error fetching RAID_HELPER_ROLE_ID name for !raidinfo:', error);
-                }
-            }
 
             // USE IMPORTED EMBED FUNCTION
-            const howToUseEmbed = getHowToUseEmbed(raidHelperRoleName);
+            const howToUseEmbed = getHowToUseEmbed();
             const initialButtonsRow = getInitialButtonsRow();
+            const stringSelectMenuRow = getStringSelectMenu();
 
             try {
                 await message.channel.send({ embeds: [howToUseEmbed], components: [initialButtonsRow] });
+                await message.channel.send({ content: null, components: [stringSelectMenuRow] });
+
             } catch (error) {
                 console.error('Error sending !raidinfo embed:', error);
                 await message.channel.send('Failed to display raid information. Please try again later.');
@@ -296,7 +286,7 @@ export function setupGeneralCommandsHandler(client) {
 
                         const embed = new EmbedBuilder()
                             .setColor(0x3498DB)
-                            .setDescription(`The <@&${RAID_HELPER_ROLE_ID}> role has been removed.`); // Using <@&roleID> to mention the role
+                            .setDescription(`<@&${RAID_HELPER_ROLE_ID}> role has been removed.`); // Using <@&roleID> to mention the role
 
                         await interaction.reply({ embeds: [embed], ephemeral: true });
                     } else {
@@ -304,7 +294,7 @@ export function setupGeneralCommandsHandler(client) {
 
                         const embed = new EmbedBuilder()
                             .setColor(0x3498DB)
-                            .setDescription(`The <@&${RAID_HELPER_ROLE_ID}> role has been added!`); // Using <@&roleID> to mention the role
+                            .setDescription(`<@&${RAID_HELPER_ROLE_ID}> role has been added`); // Using <@&roleID> to mention the role
 
                         await interaction.reply({ embeds: [embed], ephemeral: true });
                     }
@@ -314,22 +304,16 @@ export function setupGeneralCommandsHandler(client) {
                     await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
                 }
                 break;
-            case 'startRaid_btn':
-                // check if they are a raid helper
-                if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
-                    await interaction.reply({
-                        content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Please click the '📣 Get Help Role' button first to obtain it.`, ephemeral: true
-                    });
-                    return;
-                }
-                // Show the raid request modal
-                const modal = getRaidRequestModal(interaction.user.id);
-                await interaction.showModal(modal);
-                break;
+            
             case 'seeRaidTasks_btn':
                 const tasksEmbed = getCombinedTasksAndPointsEmbed();
-                await interaction.reply({ embeds: [tasksEmbed], ephemeral: true });
+                await interaction.reply({
+                    content:'Below are the list of available tasks and exp values sectioned by their category.\n' +            
+                            '* You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n'+
+                            '* You can also use /taskalias [task] for other names you could use for that task, like \`gramiel\` as \`gram\`\n',
+                     embeds: tasksEmbed, ephemeral: true });
                 break;
+            
             case 'showAllCommands_btn':
                 const commandsEmbed = getCommandsEmbed();
                 await interaction.reply({ embeds: [commandsEmbed], ephemeral: true });
@@ -338,4 +322,37 @@ export function setupGeneralCommandsHandler(client) {
                 break;
         }
     });
+
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isStringSelectMenu()) return; 
+        switch (interaction.customId) {
+            case 'raidTypeSelect':
+                // Only allow raid helpers
+                if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
+                    await interaction.reply({
+                        content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Click '📣 Get Help Role' first.`,
+                        ephemeral: true
+                    });
+                    return;
+                }
+
+                // Grab the selected raid type
+                const selectedRaidType = interaction.values[0]; // "4-man", "7-man", or "other"
+                const modal = getRaidRequestModal(selectedRaidType);
+
+                await interaction.showModal(modal);
+
+                try {
+                    await interaction.message.edit({
+                        components: [getStringSelectMenu()] // new fresh menu
+                    });
+                } catch (e) {
+                    console.error("Failed to reset select menu:", e);
+                }              
+                  
+                break;
+            default:
+                break;
+        }
+    });            
 }

@@ -1,4 +1,4 @@
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import {
     RAID_HELPER_ROLE_ID,
     RECORD_HOLDER_ROLE_ID,
@@ -43,8 +43,8 @@ export function getCommandsEmbed() {
             {
                 name: '⚔️ Commands Inside Raid Tickets',
                 value: `
-\`!raidmaps [number]\` or \`!maps\`: Displays the map's specified in the raid to make joining maps easier.
-\`!raidsite\`: Sends a website for making joining maps easier.
+\`!raidmaps [number]\` or \`!maps [number]\`: Displays the map's specified in the raid to make joining maps easier.
+\`!raidsite\`: Sends a website for making joining maps easier, made by Neru.
 \`!waiting\`: Set the raid status to 'Waiting (requester only)'.
 \`!ongoing\`: Set the raid status to 'Ongoing (requester only)'.
 \`!full\`: Set the raid status to 'Full (requester only)'.
@@ -57,36 +57,24 @@ export function getCommandsEmbed() {
 \`!gramielchart\` or \`!gramiel\`: Displays the chart for ultragramiel.
 `
             },
-            {
-                name: '💬 Commands for closing the Raid Request',
-                value: `
-\`cancel\`: Close the raid ticket without awarding points.
-\`+\` and \`,\`: Use these to separate multiple tasks.
-\`=\` \`-\` and \`:\` : Use these to separate tasks and tag helpers.
-\`all = @user1 @user2\`: Awards EXP for all tasks requested in the raid to the tagged player(s).
-\`taskname = @user1 @user2\`: Awards EXP for a specific task to tagged player(s).
-\`taskname + taskname = @user1\`: Awards EXP for multiple tasks to the tagged player(s).
-\`taskname xN = @user1\`: Awards EXP with a multiplier for multiple runs to the tagged player(s).
-`
-            }
         )
         .setTimestamp()
         .setFooter({ text: 'Bot Commands' });
 }
 
-export function getHowToUseEmbed(raidHelperRoleName) {
+export function getHowToUseEmbed() {
     return new EmbedBuilder()
         .setTitle('📜 How to Use the Raid Helper Bot')
         .setDescription(
-            `**1. Get Help Role:** Press the \`📣 Get Help Role\` button to receive the ${raidHelperRoleName} role and **get notified and have access to raid content**. You can press it again to remove the role\n\n` +
-            `**2. Request a Raid:** Use the \`⚔️ Start Raid\` button and fill out the form. Use \`📋 Raid Tasks\` to see accepted tasks and their EXP values. ` +
+            `**1. Get Help Role:** Get the <@&${RAID_HELPER_ROLE_ID}> Role using the \`📣 Get Help Role\` button to have access to raid content**. You can press it again to remove the role\n\n` +
+            `**2. **Request a Raid:** Select the room based on room size, and type out the task listed in the \`Raid task\` button ` +
             `For tasks not on the list, you can use generic tasks:\n` +
             ` • \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
             `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
-            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket. You will be prompted with instructions on how to tag helpers and finalize the raid.\n\n` +
-            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will automatically receive \`10000\` points every month as long as their record is not broken.\n\n` +
+            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket and Mention the Helpers to close. If someone left during the raid, mention what task they helped with in the ticket if you want them to get rewarded.\n\n` +
+            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will receive \`10000\` points for every reacord each month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
         .setColor(0x3498DB);
@@ -109,97 +97,65 @@ export function getRaidRulesEmbed() {
         .setColor(0x3498DB);
 }
 
+
 export function getCombinedTasksAndPointsEmbed() {
-    const embed = new EmbedBuilder()
-        .setColor(0x3498DB) // Blue
-        .setTitle('📋 Raid Tasks & EXP Values')
-        .setDescription(
-            'You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n' +
-            '* You can also use alternative names for each tasks using `/taskalias [task]` to see the list\n' +
-            'below are the list of available tasks and exp values sectioned by their category.\n\n'
-        )
-        .setTimestamp()
-        .setFooter({ text: 'Raid Helper Bot | Tasks & Points' });
+    const embeds = [];
 
-    // Helper to add fields dynamically based on column data
-    const addThreeColumnFields = (name, col1, col2, col3) => {
-        // Add name field with content
+    const addThreeColumnFields = (embed, name, list) => {
+        const perColumn = Math.ceil(list.length / 3);
+        const col1 = list.slice(0, perColumn);
+        const col2 = list.slice(perColumn, perColumn * 2);
+        const col3 = list.slice(perColumn * 2);
+
         embed.addFields(
-            { name: name, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true }
+            { name, value: formatTasksForEmbed(col1, POINTS_CONFIG), inline: true },
+            { name: '\u200B', value: col2.length ? formatTasksForEmbed(col2, POINTS_CONFIG) : '\u200B', inline: true },
+            { name: '\u200B', value: col3.length ? formatTasksForEmbed(col3, POINTS_CONFIG) : '\u200B', inline: true },
         );
-        // Add blank fields to maintain 3-column structure
-        if (col2.length > 0) {
-            embed.addFields(
-                { name: '\u200B', value: formatTasksForEmbed(col2, POINTS_CONFIG), inline: true }
-            );
-        } else {
-            embed.addFields({ name: '\u200B', value: '\u200B', inline: true }); // Empty field 2
-        }
-
-        if (col3.length > 0) {
-            embed.addFields(
-                { name: '\u200B', value: formatTasksForEmbed(col3, POINTS_CONFIG), inline: true }
-            );
-        } else {
-            embed.addFields({ name: '\u200B', value: '\u200B', inline: true }); // Empty field 3
-        }
     };
 
-    // --- Daily Raids (3 columns) ---
-    const dailiesPerColumn = Math.ceil(DAILIES_LIST.length / 3);
-    const dailiesCol1 = DAILIES_LIST.slice(0, dailiesPerColumn);
-    const dailiesCol2 = DAILIES_LIST.slice(dailiesPerColumn, dailiesPerColumn * 2);
-    const dailiesCol3 = DAILIES_LIST.slice(dailiesPerColumn * 2);
-    addThreeColumnFields('☀️ `Daily` or `Dailies`', dailiesCol1, dailiesCol2, dailiesCol3);
+    // -----------------------------------------------------------
+    // 📘 EMBED 1 — 4-MAN TASKS
+    // -----------------------------------------------------------
+    const embed4Man = new EmbedBuilder()
+        .setColor(0x3498DB)
+        .setTitle('=== 4-Man Tasks ===');
 
-    // --- Weekly Raids (3 columns) ---
-    const weekliesPerColumn = Math.ceil(WEEKLIES_LIST.length / 3);
-    const weekliesCol1 = WEEKLIES_LIST.slice(0, weekliesPerColumn);
-    const weekliesCol2 = WEEKLIES_LIST.slice(weekliesPerColumn, weekliesPerColumn * 2);
-    const weekliesCol3 = WEEKLIES_LIST.slice(weekliesPerColumn * 2);
-    addThreeColumnFields('🗓️ `Weekly` or `Weeklies`', weekliesCol1, weekliesCol2, weekliesCol3);
+    addThreeColumnFields(embed4Man, '☀️ `Daily` / `Dailies`', DAILIES_LIST);
+    addThreeColumnFields(embed4Man, '🗺️ Other 4-Man Tasks', OTHERS_FOUR_LIST);
+    addThreeColumnFields(embed4Man, '🗓️ `Weekly` / `Weeklies`', WEEKLIES_LIST);
+    addThreeColumnFields(embed4Man, '⛩️ `Templeshrine`', TEMPLESHRINE_LIST);
 
-    // --- Temple Shrine (3 columns) ---
-    const tsPerColumn = Math.ceil(TEMPLESHRINE_LIST.length / 3);
-    const tsCol1 = TEMPLESHRINE_LIST.slice(0, tsPerColumn);
-    const tsCol2 = TEMPLESHRINE_LIST.slice(tsPerColumn, tsPerColumn * 2);
-    const tsCol3 = TEMPLESHRINE_LIST.slice(tsPerColumn * 2);
-    addThreeColumnFields('⛩️ `Templeshrine`', tsCol1, tsCol2, tsCol3);
+    embeds.push(embed4Man);
 
-    // --- Originul Raids (3 Columns) ---
-    const originulPerColumn = Math.ceil(ORIGINUL_LIST.length / 3);
-    const oRCol1 = ORIGINUL_LIST.slice(0, originulPerColumn);
-    const oRCol2 = ORIGINUL_LIST.slice(originulPerColumn, originulPerColumn * 2);
-    const oRCol3 = ORIGINUL_LIST.slice(originulPerColumn * 2);
-    addThreeColumnFields('🌌 `Originul` Raids', oRCol1, oRCol2, oRCol3);
+    // -----------------------------------------------------------
+    // 📙 EMBED 2 — 7-MAN TASKS
+    // -----------------------------------------------------------
+    const embed7Man = new EmbedBuilder()
+        .setColor(0x3498DB)
+        .setTitle('=== 7-Man Tasks ===');
 
-    // --- Legion Raids (3 column) ---
-    const legionPerColumn = Math.ceil(LEGION_LIST.length / 3);
-    const legionCol1 = LEGION_LIST.slice(0, legionPerColumn);
-    const legionCol2 = LEGION_LIST.slice(legionPerColumn, legionPerColumn * 2);
-    const legionCol3 = LEGION_LIST.slice(legionPerColumn * 2);
-    addThreeColumnFields('💀 `Legion` Daily Tasks', legionCol1, legionCol2, legionCol3);
+    addThreeColumnFields(embed7Man, '🌌 `Originul` Raids', ORIGINUL_LIST);
+    addThreeColumnFields(embed7Man, '💀 `Legion` Daily Tasks', LEGION_LIST);
+    addThreeColumnFields(embed7Man, '🗺️ Other 7-Man Tasks', OTHERS_SEVEN_LIST);
 
-    // --- Other 4 Room Raids (3 column) ---
-    const othersFourpercolumn = Math.ceil(OTHERS_FOUR_LIST.length / 3);
-    const othersFourCol1 = OTHERS_FOUR_LIST.slice(0, othersFourpercolumn);
-    const othersFourCol2 = OTHERS_FOUR_LIST.slice(othersFourpercolumn, othersFourpercolumn * 2);
-    const othersFourCol3 = OTHERS_FOUR_LIST.slice(othersFourpercolumn * 2);
-    addThreeColumnFields('🗺️ Other 4 Room Tasks', othersFourCol1, othersFourCol2, othersFourCol3);
+    embeds.push(embed7Man);
 
-    // --- Other 7 Room Raids (3 column) ---
-    const othersSevenperColumn = Math.ceil(OTHERS_SEVEN_LIST.length / 3);
-    const othersSevenCol1 = OTHERS_SEVEN_LIST.slice(0, othersSevenperColumn);
-    const othersSevenCol2 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn, othersSevenperColumn * 2);
-    const othersSevenCol3 = OTHERS_SEVEN_LIST.slice(othersSevenperColumn * 2);
-    addThreeColumnFields('🗺️ Other 7 Room Tasks', othersSevenCol1, othersSevenCol2, othersSevenCol3);
+    // -----------------------------------------------------------
+    // 📗 EMBED 3 — GENERIC TASKS
+    // -----------------------------------------------------------
+    const embedGeneric = new EmbedBuilder()
+        .setColor(0x3498DB)
+        .setTitle('=== Generic Tasks ===')
+        .addFields({
+            name: '\u200B',
+            value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG),
+            inline: false
+        });
 
-    // --- Generic Tasks (single field) ---
-    embed.addFields(
-        { name: '💡 Generic Tasks', value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG), inline: false }
-    );
+    embeds.push(embedGeneric);
 
-    return embed;
+    return embeds;
 }
 
 export function getInitialButtonsRow() {
@@ -207,11 +163,6 @@ export function getInitialButtonsRow() {
         .setCustomId('getHelpRole_btn')
         .setLabel('📣 Get Help Role')
         .setStyle(ButtonStyle.Secondary);
-
-    const startRaidButton = new ButtonBuilder()
-        .setCustomId('startRaid_btn')
-        .setLabel('⚔️ Start Raid')
-        .setStyle(ButtonStyle.Primary);
 
     const seeRaidTasksButton = new ButtonBuilder()
         .setCustomId('seeRaidTasks_btn')
@@ -224,7 +175,21 @@ export function getInitialButtonsRow() {
         .setStyle(ButtonStyle.Secondary);
 
     return new ActionRowBuilder()
-        .addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
+        .addComponents(getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
+}
+
+export function getStringSelectMenu() {
+    // Create the string select menu
+    const raidTypeSelectMenu = new StringSelectMenuBuilder()
+        .setCustomId('raidTypeSelect')
+        .setPlaceholder('⚔️ Select Room Type')
+        .addOptions([
+            { label: '4-man rooms', value: '4-man', description: 'Dailies, Weeklies, Speaker, Tyndarius, any 4-man rooms' },
+            { label: '7-man rooms', value: '7-man', description: 'Mechabinky, kathool, Astralshrine, any 7-man rooms' },
+            { label: 'Other rooms', value: 'other', description: `Select this If you're unsure about room size`},
+        ]);
+
+    return new ActionRowBuilder().addComponents(raidTypeSelectMenu);
 }
 
 export function getChartsEmbed() {
