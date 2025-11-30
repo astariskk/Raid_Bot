@@ -307,7 +307,6 @@ export function setupExpLairHandlers(client) {
                 await interaction.reply({
                     content: `Please select the users who successfully helped with the raid. (Max: ${maxHelpers})`,
                     components: [selectRow, buttonRow],
-                    flags: MessageFlags.Ephemeral 
                 });
                 return;
             }
