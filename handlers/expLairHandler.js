@@ -263,20 +263,41 @@ export function setupExpLairHandlers(client) {
         // Handle interactions outside of active raid tickets (mostly cleanup)
         if (!isRaidTicketChannel) {
             if (interaction.isButton() && interaction.customId === "deleteFinalizedRaidChannel") {
-                if (!isStaff(interaction)) {
-                    await interaction.reply({ content: "Only staff members can delete finalized raid channels.", flags: MessageFlags.Ephemeral }).catch(() => {});
-                    return;
-                }
-                
-                await interaction.reply({ content: "Could not retrieve raid details. Attempting to delete channel...", flags: MessageFlags.Ephemeral }).catch(() => {});
+                if (!await replyIfUnauthorized(interaction, raidInfo, 'staff')) return;
+
                 try {
-                    await interaction.channel.delete('Orphaned raid channel without DB entry, manually deleting.').catch(e => console.error("Failed to delete orphan channel:", e));
-                } catch (e) {
-                    console.error("Error deleting orphan channel:", e);
-                    await interaction.followUp({ content: "Error deleting orphan channel. Check bot permissions.", flags: MessageFlags.Ephemeral }).catch(() => {});
+                    // Send immediate reply instead of deferring
+                    await interaction.reply({
+                        content: "Deleting this finalized raid channel...",
+                        ephemeral: true
+                    });
+
+                    const raidToDeleteInfo = await getRaidInfo(interaction.channel.id);
+                    if (raidToDeleteInfo) {
+                        await deleteRaid(interaction.channel.id).catch(() => {});
+                    }
+
+                    // Delete channel AFTER replying
+                    await interaction.channel.delete(
+                        'Admin manually deleted completed raid channel after review.'
+                    );
+
+                } catch (err) {
+                    console.error(
+                        `Error deleting finalized raid channel ${interaction.channel.id}:`,
+                        err
+                    );
+
+                    // Try notifying user only if interaction is still valid
+                    try {
+                        await interaction.followUp({
+                            content: "Error deleting channel. Check bot permissions.",
+                            ephemeral: true
+                        });
+                    } catch (_) {}
                 }
+                return;
             }
-            return;
         }
 
         // =========================================================================================
