@@ -270,47 +270,15 @@ export function setupExpLairHandlers(client) {
         }
 
         if (interaction.isButton()) {
-            if (raidInfo.awaitingCompletion || raidInfo.status === "Awaiting_Completion") {
-                    await interaction.reply({
-                        content: "The raid is being closed, you cannot press any buttons",
-                        ephemeral: true
-                    });
+
+            if (interaction.customId === "abortCloseRaid") {
+                await interaction.update({ content: "Raid closing process aborted.", components: [] });
+                await updateRaid(interaction.channel.id, {                  
+                    awaitingCompletion: false
+                });                
                 return;
             }
-            
-            if (interaction.customId === "closeRaidTicket") {
-                if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
-                
-                // --- User Select Menu & Buttons (Single Ephemeral Message) ---
-                const maxHelpers = raidInfo.size === "4-man" ? 4 : raidInfo.size === "7-man" ? 7 : 10;
 
-                const userSelect = new UserSelectMenuBuilder()
-                    .setCustomId("closeRaid_SelectHelpers")
-                    .setPlaceholder("Select users who helped (Max: " + maxHelpers + ")")
-                    .setMaxValues(maxHelpers)
-                    .setMinValues(1);
-                    
-                const confirmButton = new ButtonBuilder()
-                    .setCustomId("confirmCloseSelection")
-                    .setLabel("Confirm Closing")
-                    .setStyle(ButtonStyle.Success)
-                    .setDisabled(true); // Disabled initially
-                    
-                const abortButton = new ButtonBuilder()
-                    .setCustomId("abortCloseRaid")
-                    .setLabel("Abort")
-                    .setStyle(ButtonStyle.Secondary);
-
-                const selectRow = new ActionRowBuilder().addComponents(userSelect);
-                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, abortButton);
-
-                await interaction.reply({
-                    content: `Please select the users who successfully helped with the raid. (Max: ${maxHelpers})`,
-                    components: [selectRow, buttonRow],
-                });
-                return;
-            }
-            
             if (interaction.customId === "confirmCloseSelection") {
 
                 // Always reply immediately to avoid 10062
@@ -323,7 +291,6 @@ export function setupExpLairHandlers(client) {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
 
                 await updateRaid(interaction.channel.id, {
-                    status: "Awaiting_Completion",
                     awaitingCompletion: true
                 });
 
@@ -388,17 +355,17 @@ export function setupExpLairHandlers(client) {
                     "completed",
                     ""
                 );
-            }
-
-
-            if (interaction.customId === "abortCloseRaid") {
-                await interaction.update({ content: "Raid closing process aborted.", components: [] });
-                return;
-            }
-
+            }    
+                    
             if (interaction.customId === "editTask_btn") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
-
+                    if (raidInfo.awaitingCompletion) {
+                        await interaction.reply({
+                            content: "The raid is being closed, you cannot press any buttons",
+                            ephemeral: true
+                        });
+                    return;      
+                    }              
                 const editModal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.server, raidInfo.size, raidInfo.description);
                 try {
                     await interaction.showModal(editModal);
@@ -408,6 +375,70 @@ export function setupExpLairHandlers(client) {
                 }
                 return;
             }   
+
+            if (raidInfo.awaitingCompletion) {
+                try {
+                    if (!interaction.replied && !interaction.deferred) {
+                        await interaction.reply({
+                            content: "The raid is being closed, you cannot press any buttons",
+                            ephemeral: true
+                        });
+                    } else {
+                        await interaction.followUp({
+                            content: "The raid is being closed, you cannot press any buttons",
+                            ephemeral: true
+                        });
+                    }
+                } catch (e) {
+                    console.warn("Duplicate interaction reply prevented:", e?.code, e?.message);
+                    // swallow the error so the bot does NOT crash
+                }
+            return;
+            }
+            
+            if (interaction.customId === "closeRaidTicket") {
+                if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
+                if (raidInfo.awaitingCompletion) {
+                    await interaction.reply({
+                        content: "The raid is being closed, you cannot press any buttons",
+                        ephemeral: true
+                    });
+                    return;
+                }
+
+                await updateRaid(interaction.channel.id, {                  
+                    awaitingCompletion: true,
+                });
+                
+                // --- User Select Menu & Buttons (Single Ephemeral Message) ---
+                const maxHelpers = raidInfo.size === "4-man" ? 4 : raidInfo.size === "7-man" ? 7 : 10;
+
+                const userSelect = new UserSelectMenuBuilder()
+                    .setCustomId("closeRaid_SelectHelpers")
+                    .setPlaceholder("Select users who helped (Max: " + maxHelpers + ")")
+                    .setMaxValues(maxHelpers)
+                    .setMinValues(1);
+                    
+                const confirmButton = new ButtonBuilder()
+                    .setCustomId("confirmCloseSelection")
+                    .setLabel("Confirm Closing")
+                    .setStyle(ButtonStyle.Success)
+                    .setDisabled(true); // Disabled initially
+                    
+                const abortButton = new ButtonBuilder()
+                    .setCustomId("abortCloseRaid")
+                    .setLabel("Abort")
+                    .setStyle(ButtonStyle.Secondary);
+
+                const selectRow = new ActionRowBuilder().addComponents(userSelect);
+                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, abortButton);
+
+                await interaction.reply({
+                    content: `Please select the users who successfully helped with the raid. (Max: ${maxHelpers})`,
+                    components: [selectRow, buttonRow],
+                });
+                return;
+            }
 
             if (interaction.customId === "cancelRaidTicket") {
                 if (!await isAuthorizedToManageRaid(interaction, raidInfo)) return;
