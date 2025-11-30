@@ -16,7 +16,6 @@ import {
     GENERIC_TASKS_LIST,
     LEGION_LIST,
 } from '../config/constants.js';
-import { threadActionRow } from '../Embeds/raidTicketEmbeds.js';
 
 function formatTasksForEmbed(taskList, pointsConfig) {
     if (!taskList || taskList.length === 0) {
@@ -45,7 +44,7 @@ export function getCommandsEmbed() {
                 name: '⚔️ Commands Inside Raid Tickets',
                 value: `
 \`!raidmaps [number]\` or \`!maps [number]\`: Displays the map's specified in the raid to make joining maps easier.
-\`!raidsite\`: Sends a website for making joining maps easier.
+\`!raidsite\`: Sends a website for making joining maps easier, made by Neru.
 \`!waiting\`: Set the raid status to 'Waiting (requester only)'.
 \`!ongoing\`: Set the raid status to 'Ongoing (requester only)'.
 \`!full\`: Set the raid status to 'Full (requester only)'.
@@ -74,7 +73,7 @@ export function getHowToUseEmbed() {
             ` • \`moderate\`: Raids expected to take less than 30 minutes.\n` +
             ` • \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
             `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
-            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket and Mention the Helpers to close. If someone left midrun, mention them in the ticket if you want them to get the points\n\n` +
+            `**4. Complete Raid:** Click the \`🔒 Close Raid\` button in your ticket and Mention the Helpers to close. If someone left during the raid, mention what task they helped with in the ticket if you want them to get rewarded.\n\n` +
             `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will receive \`10000\` points for every reacord each month as long as their record is not broken.\n\n` +
             `**Press the buttons below to interact with the bot and get more details:**`
         )
