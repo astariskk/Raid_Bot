@@ -129,7 +129,7 @@ export const ALLOWED_TASK_NAMES = [
 export const ALLOWED_TASK_FOUR = [
     ...DAILIES_LIST, 'daily', 'dailies',
     ...WEEKLIES_LIST, 'weekly', 'weeklies',
-    ...TEMPLESHRINE_LIST,
+    ...TEMPLESHRINE_LIST, 'templeshrine',
     ...OTHERS_FOUR_LIST,
     ...GENERIC_TASKS_LIST
 ];
