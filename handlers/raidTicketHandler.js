@@ -280,7 +280,7 @@ export function setupRaidTicketHandler(client) {
         const raidMapsMatch = message.content.toLowerCase().match(/^!(raidmaps|maps)\s+(\d+)$/);
 
         if (raidMapsMatch) {
-            const mapNumber = raidMapsMatch[1];
+             const mapNumber = raidMapsMatch[2];
 
             if (isRaidTicketChannel && raidInfo) {
                 const raidTasks = parseRaidTasks(raidInfo.task);
