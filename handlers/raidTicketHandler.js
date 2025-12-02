@@ -324,7 +324,7 @@ export function setupRaidTicketHandler(client) {
         // --- Command to list all available raid tasks with their points ---
         if (content === '!raidtasks') {
             try {
-                await message.channel.send({ embeds: [getCombinedTasksAndPointsEmbed()] });
+                await message.channel.send({ embeds: getCombinedTasksAndPointsEmbed() });
             } catch (error) {
                 console.error('Error sending !raidtasks message:', error);
                 await message.channel.send('Failed to display raid tasks. Please try again later.');

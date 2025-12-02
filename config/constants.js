@@ -129,7 +129,7 @@ export const ALLOWED_TASK_NAMES = [
 export const ALLOWED_TASK_FOUR = [
     ...DAILIES_LIST, 'daily', 'dailies',
     ...WEEKLIES_LIST, 'weekly', 'weeklies',
-    ...TEMPLESHRINE_LIST, 'templeshrine',
+    ...TEMPLESHRINE_LIST, 'templeshrine', 'tshrine',
     ...OTHERS_FOUR_LIST,
     ...GENERIC_TASKS_LIST
 ];
@@ -146,6 +146,13 @@ export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(([task, poi
 export const MAX_XP_PER_RAID = 30000;   // 30 000 EXP per raid
 
 export const TASK_ALIASES = {
+    // --- Meta tasks ---
+    'dailies': 'dailies',
+    'daily': 'dailies',
+    'weeklies': 'weeklies',
+    'weekly': 'weeklies',
+    'tshrine': 'templeshrine',
+
     // --- weeklies ---
     'ultradage': 'dage',
     'dave': 'dage',
@@ -244,6 +251,7 @@ export const TASK_MAP_CATEGORIES = {
     'weeklies': WEEKLIES_LIST,
     'weekly': WEEKLIES_LIST, // Alias for 'weeklies'
     'templeshrine': TEMPLESHRINE_LIST,
+    'tshrine': TEMPLESHRINE_LIST, // Alias for 'templeshrine'
     'originul': ORIGINUL_LIST,
     'othersfour': OTHERS_FOUR_LIST,
     'othersseven': OTHERS_SEVEN_LIST,

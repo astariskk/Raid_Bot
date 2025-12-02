@@ -124,7 +124,7 @@ export function getCombinedTasksAndPointsEmbed() {
     addThreeColumnFields(embed4Man, '☀️ `Daily` / `Dailies`', DAILIES_LIST);
     addThreeColumnFields(embed4Man, '🗺️ Other 4-Man Tasks', OTHERS_FOUR_LIST);
     addThreeColumnFields(embed4Man, '🗓️ `Weekly` / `Weeklies`', WEEKLIES_LIST);
-    addThreeColumnFields(embed4Man, '⛩️ `Templeshrine`', TEMPLESHRINE_LIST);
+    addThreeColumnFields(embed4Man, '⛩️ `Templeshrine` / `Tshrine`', TEMPLESHRINE_LIST);
 
     embeds.push(embed4Man);
 
