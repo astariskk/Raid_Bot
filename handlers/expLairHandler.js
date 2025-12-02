@@ -134,7 +134,8 @@ async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAward
                         .setDescription(
                             `**Raid requested by:** ${requesterDisplay}\n` +
                             `**Task(s):** ${raidInfo.task}\n` +
-                            `**Helpers:** ${helperMentions}`
+                            `**Helpers:** ${helperMentions}\n` +
+                            `**Description:** ${raidInfo.description || "No description provided."}`
                         )
                         .setTimestamp()
                         .setFooter({ text: "Raid Completion Details" });
@@ -476,12 +477,11 @@ export function setupExpLairHandlers(client) {
         // =========================================================================================
         // GLOBAL LOCK: Helper Selection UI Active
         // =========================================================================================
-        if (raidInfo.awaitingCompletion) {
+        if (raidInfo?.awaitingCompletion) {
             console.log("Status: "+raidInfo.status + "\nawaitingCompletion?: " +raidInfo.awaitingCompletion +
                 "\nstatus is Awaiting Completion?: " +raidInfo.status === "Awaiting_Completion" +
                 "\awaitingCompletion?: "+raidInfo.awaitingCompletion
             );
-                        
             await interaction.reply({
                 content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
                 flags: MessageFlags.Ephemeral
