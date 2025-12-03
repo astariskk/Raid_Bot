@@ -148,7 +148,7 @@ export function getEditTaskModal(currentTasks, currentMap, currentNumber, curren
 
     const mapNumberInput = new TextInputBuilder()
         .setCustomId('editedMapNumberInput')
-        .setLabel("Map Name: ")
+        .setLabel("Map Number: ")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder("2323, 1212")

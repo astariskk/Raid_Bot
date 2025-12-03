@@ -96,6 +96,12 @@ export function setupGeneralCommandsHandler(client) {
         return;
         }
 
+        if (commandContent === `!ping`) {
+            await message.reply('Pong!');
+            console.log(`Ping command used by ${message.author.tag}`);
+            return;
+        }
+
         // --- Handle the !RaidRules command ---
         if (commandContent === '!raidrules' && message.channel.id === RAID_CHANNEL_ID) {
             const raidRulesEmbed = getRaidRulesEmbed();

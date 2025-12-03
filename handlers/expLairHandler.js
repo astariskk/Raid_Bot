@@ -140,6 +140,10 @@ async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAward
                         .setTimestamp()
                         .setFooter({ text: "Raid Completion Details" });
 
+                    if (raidInfo.proofImage) {
+                        expEmbed.setImage(raidInfo.proofImage);
+                    }                        
+
                     const sent = await expLairChannel.send({
                         content: `Raid completed for ${requesterMember ? requesterMember.displayName : `<@${raidInfo.requesterId}>`}.`,
                         embeds: [expEmbed]
@@ -364,9 +368,14 @@ export function setupExpLairHandlers(client) {
                     .setPlaceholder("Select users who helped (Max: " + maxHelpers + ")")
                     .setMaxValues(maxHelpers)
                     .setMinValues(1);
+
+                const proofButton = new ButtonBuilder()
+                    .setCustomId("provideProof")
+                    .setLabel("Proof")
+                    .setStyle(ButtonStyle.Secondary);
                     
                 const selectRow = new ActionRowBuilder().addComponents(selectMenu);
-                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, abortButton);
+                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, abortButton, proofButton );
 
                 const mentions = interaction.values.map(id => `<@${id}>`).join(", ");
                 const selectedCount = interaction.values.length;
@@ -383,7 +392,6 @@ export function setupExpLairHandlers(client) {
 
         if (interaction.isButton() && interaction.customId === "confirmCloseSelection") {
             if (!await replyIfUnauthorized(interaction, raidInfo, 'raid_manager')) return;
-            console.log("Status: "+raidInfo.status + "\nawaitingCompletion?: " +raidInfo.isAwaitingCompletion + "\nLogic Below: " +raidInfo.status === "Awaiting_Completion");
             if (raidInfo.status === "Awaiting_Completion") {
                 await interaction.reply({
                     content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
@@ -393,9 +401,6 @@ export function setupExpLairHandlers(client) {
                     });
                 return;
             }
-
-
-
             try {
                 // Reply immediately to prevent timeout
                 await interaction.reply({
@@ -474,14 +479,60 @@ export function setupExpLairHandlers(client) {
             return;
         }
 
+        if (interaction.isButton() && interaction.customId === "provideProof") {
+        if (!await replyIfUnauthorized(interaction, raidInfo, 'raid_manager')) return;
+        await interaction.reply({
+            content: "Please send the screenshot/proof **in your next message**.",
+            flags: MessageFlags.Ephemeral
+        });
+        const channel = interaction.channel;
+
+        const filter = (m) =>
+            m.author.id === interaction.user.id &&
+            m.attachments.size > 0;
+
+        try {
+            const collected = await channel.awaitMessages({
+                filter,
+                max: 1,
+                time: 30_000,
+                errors: ["time"]
+            });
+
+            const msg = collected.first();
+            const attachment = msg.attachments.first();
+
+            if (!attachment) {
+                await interaction.followUp({
+                    content: "No attachment found. Please try again.",
+                    flags: MessageFlags.Ephemeral
+                });
+                return;
+            }
+
+            await updateRaid(channel.id, {
+                proofImage: attachment.url
+            });
+
+            await interaction.followUp({
+                content: "Proof saved! It will be attached to the completion post.",
+                flags: MessageFlags.Ephemeral
+            });
+
+        } catch (e) {
+            await interaction.followUp({
+                content: "Timed out. No proof received.",
+                flags: MessageFlags.Ephemeral
+            });
+        }
+
+        return;
+    }
+
         // =========================================================================================
         // GLOBAL LOCK: Helper Selection UI Active
         // =========================================================================================
         if (raidInfo?.awaitingCompletion) {
-            console.log("Status: "+raidInfo.status + "\nawaitingCompletion?: " +raidInfo.awaitingCompletion +
-                "\nstatus is Awaiting Completion?: " +raidInfo.status === "Awaiting_Completion" +
-                "\awaitingCompletion?: "+raidInfo.awaitingCompletion
-            );
             await interaction.reply({
                 content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
                 flags: MessageFlags.Ephemeral
@@ -534,8 +585,13 @@ export function setupExpLairHandlers(client) {
                     .setLabel("Abort")
                     .setStyle(ButtonStyle.Secondary);
 
+                const proofButton = new ButtonBuilder()
+                    .setCustomId("provideProof")
+                    .setLabel("Proof")
+                    .setStyle(ButtonStyle.Secondary);                    
+
                 const selectRow = new ActionRowBuilder().addComponents(userSelect);
-                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, abortButton);
+                const buttonRow = new ActionRowBuilder().addComponents(confirmButton, abortButton, proofButton);
 
                 await interaction.reply({
                     content: `Please select the users who successfully helped with the raid. (Max: ${maxHelpers})\n**Selected Helpers (0 users):** None selected.`,
@@ -557,7 +613,7 @@ export function setupExpLairHandlers(client) {
             const cancelButton = new ButtonBuilder()
                 .setCustomId("abortCancelRaid")
                 .setLabel("Abort")
-                .setStyle(ButtonStyle.Secondary);
+                .setStyle(ButtonStyle.Secondary);   
             const row = new ActionRowBuilder().addComponents(confirmButton, cancelButton);
 
             await interaction.reply({ content: "Are you sure you want to cancel this raid?", components: [row], flags: MessageFlags.Ephemeral });

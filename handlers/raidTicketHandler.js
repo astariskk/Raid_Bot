@@ -464,6 +464,7 @@ export function setupRaidTicketHandler(client) {
                         status: 'active',
                         color: COLOR_WAITING,
                         size: raidType,
+                        proofImage: null,
                         awaitingCompletion: false,
                         originalName: baseChannelName,
                     });
