@@ -3,7 +3,7 @@ import { TASK_MAP_CATEGORIES, TASK_TO_MAP_PREFIX_MAPPING } from '../config/const
 
 export function generateRaidMapsEmbed(tasks, mapNumber) {
     let expandedTasks = [];
-
+    
     for (const task of tasks) {
         if (TASK_MAP_CATEGORIES[task]) {
             expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);

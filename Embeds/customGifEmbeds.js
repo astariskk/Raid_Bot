@@ -56,6 +56,7 @@ export const textGifCommands = {
 
     // --- royalty --- 201893726535024640
     'royaltyswag' : `<@201893726535024640> [**SWIGGITY SWOOTY IM COMIN' FO DAT BOOTY**](https://files.catbox.moe/dgg08v.gif)`,
+    'adriyum' : `<@201893726535024640> [**IS SOMEBODY GONNA MATCH MY FREAK?**](https://files.catbox.moe/9avqo0.gif)`,
 
     // --- asta ---  745503767935451227
     'astadance' : '<@745503767935451227> [**I LOVE GOLDEN!!!**](https://files.catbox.moe/o9sa7o.gif)',
