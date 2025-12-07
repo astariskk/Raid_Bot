@@ -331,6 +331,17 @@ export function setupExpLairHandlers(client) {
             return;
         }
 
+        // ----- Awaiting Review Lock -----
+        if (raidInfo?.status === "admin_review") {
+            await interaction.reply({
+                content: "The raid is already closed.",
+                flags: MessageFlags.Ephemeral
+            }).catch(e => {
+                console.warn(`[Awaiting Comp] Failed to reply/followUp: ${e.code || e.message}`);
+            });
+            return;
+        }
+
         if (interaction.isButton() && interaction.customId === "abortCloseRaid") {
             if (!await replyIfUnauthorized(interaction, raidInfo, 'raid_manager')) return; 
             
@@ -392,7 +403,8 @@ export function setupExpLairHandlers(client) {
 
         if (interaction.isButton() && interaction.customId === "confirmCloseSelection") {
             if (!await replyIfUnauthorized(interaction, raidInfo, 'raid_manager')) return;
-            if (raidInfo.status === "Awaiting_Completion") {
+            if (raidInfo?.status === "admin_review") return;
+            if (raidInfo?.status === "Awaiting_Completion") {
                 await interaction.reply({
                     content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
                     flags: MessageFlags.Ephemeral
@@ -532,7 +544,7 @@ export function setupExpLairHandlers(client) {
         // =========================================================================================
         // GLOBAL LOCK: Helper Selection UI Active
         // =========================================================================================
-        if (raidInfo?.awaitingCompletion) {
+        if (raidInfo?.isAwaitingCompletion) {
             await interaction.reply({
                 content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
                 flags: MessageFlags.Ephemeral
@@ -673,8 +685,8 @@ export function setupExpLairHandlers(client) {
                     fields: [
                         { name: 'Task(s)', value: resolvedTaskString, inline: false },
                         { name: 'Map Name', value: rawMapInput, inline: false },
-                        { name: 'Map Number', value: rawMapNumberInput, inline: false },
-                        { name: 'Server', value: rawServerInput, inline: false },
+                        { name: 'Map Number', value: rawMapNumberInput, inline: true },
+                        { name: 'Server', value: rawServerInput, inline: true },
                         { name: 'Description', value: finalDescription, inline: false }
                     ]
                 });

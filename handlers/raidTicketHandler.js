@@ -429,9 +429,9 @@ export function setupRaidTicketHandler(client) {
                         .addFields(
                             { name: 'Task(s)', value: resolvedTaskString, inline: false },
                             { name: 'Map Name', value: mapName, inline: false },
-                            { name: 'Map Number', value: mapNumber, inline: false}, // <-- NEW
-                            { name: 'Server', value: server, inline: false },
-                            { name: 'Status', value: 'Waiting', inline: false },
+                            { name: 'Map Number', value: mapNumber, inline: true},
+                            { name: 'Server', value: server, inline: true },
+                            { name: 'Status', value: 'Waiting', inline: true },
                             { name: 'Description', value: description || 'No description provided.' },
                         )
                         .setTimestamp()
