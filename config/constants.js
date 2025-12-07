@@ -88,7 +88,11 @@ export const POINTS_CONFIG = {
     'lavarockshore': 1000,
     'apexazalith': 1000,    
 
-    // -- originul
+    // --- VA daily ---
+    'vamem': 1000,
+    'vanonmem': 2000,
+
+    // --- originul ---
     'voidflibbi': 1000,
     'voidnightbane': 1000,
     'voidxyfrag': 1000,
@@ -110,7 +114,7 @@ export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', '
 export const TEMPLESHRINE_LIST = ['tsleft', 'tsmid', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag'];
 export const OTHERS_FOUR_LIST = ['kala', 'iara']; 
-export const OTHERS_SEVEN_LIST = ['mechabinky', 'kathool', 'astralshrine', 'voidnerfkitten', 'lavarockshore', 'apexazalith'];
+export const OTHERS_SEVEN_LIST = ['mechabinky', 'kathool', 'astralshrine', 'voidnerfkitten', 'lavarockshore', 'apexazalith', 'vamem', 'vanonmem'];
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
@@ -152,6 +156,7 @@ export const TASK_ALIASES = {
     'weeklies': 'weeklies',
     'weekly': 'weeklies',
     'tshrine': 'templeshrine',
+    'shrine': 'templeshrine',
 
     // --- weeklies ---
     'ultradage': 'dage',
@@ -224,11 +229,14 @@ export const TASK_ALIASES = {
     // --- other seven ---
     'grimchallenge': 'mechabinky',
     'grim' : 'mechabinky',
+    'grimchal' : 'mechabinky',
     'stupidhorse': 'mechabinky',
     'dabinky' : 'mechabinky',
+    'binky' : 'mechabinky',
     
     'kathooldepths': 'kathool',
     'kathy': 'kathool',
+    'kath': 'kathool',
     'katherine': 'kathool',
     'takoyaki': 'kathool',
 
@@ -238,6 +246,11 @@ export const TASK_ALIASES = {
     'lavarock': 'lavarockshore',
     'rockshore': 'lavarockshore',
     'apex': 'apexazalith',
+
+    // --- VA daily ---
+    'vam': 'vamem',
+    'vanm': 'vanonmem',
+
 
     // -- generic tasks ---
     'easy': 'simple',
@@ -252,6 +265,7 @@ export const TASK_MAP_CATEGORIES = {
     'weekly': WEEKLIES_LIST, // Alias for 'weeklies'
     'templeshrine': TEMPLESHRINE_LIST,
     'tshrine': TEMPLESHRINE_LIST, // Alias for 'templeshrine'
+    'shrine': TEMPLESHRINE_LIST, 
     'originul': ORIGINUL_LIST,
     'othersfour': OTHERS_FOUR_LIST,
     'othersseven': OTHERS_SEVEN_LIST,
@@ -260,44 +274,47 @@ export const TASK_MAP_CATEGORIES = {
 };
 
 export const TASK_TO_MAP_PREFIX_MAPPING = {
-
     // --- dailies ---
-    'ezrajal': 'ultraezrajal',
-    'warden': 'ultrawarden',
-    'engineer': 'ultraengineer',
-    'tyndarius': 'ultratyndarius',
-    'kala': 'ultrakala',
-    'iara': 'ultraiara',
+    'ezrajal': ['ultraezrajal'],
+    'warden': ['ultrawarden'],
+    'engineer': ['ultraengineer'],
+    'tyndarius': ['ultratyndarius'],
+    'kala': ['ultrakala'],
+    'iara': ['ultraiara'],
 
     // --- weeklies ---
-    'nulgath': 'ultranulgath',
-    'drakath': 'championdrakath',     
-    'dage': 'ultradage',
-    'darkon': 'ultradarkon',
-    'drago': 'ultradrago',     
-    'speaker': 'ultraspeaker',
-    'gramiel': 'ultragramiel',
-    
+    'nulgath': ['ultranulgath'],
+    'drakath': ['championdrakath'],     
+    'dage': ['ultradage'],
+    'darkon': ['ultradarkon'],
+    'drago': ['ultradrago'],     
+    'speaker': ['ultraspeaker'],
+    'gramiel': ['ultragramiel'],
+
     // --- originul ---
-    'voidflibbi': 'voidflibbi',
-    'voidnightbane': 'voidnightbane',
-    'voidxyfrag': 'voidxyfrag',
+    'voidflibbi': ['voidflibbi'],
+    'voidnightbane': ['voidnightbane'],
+    'voidxyfrag': ['voidxyfrag'],
 
     // --- other seven ---
-    'mechabinky': 'grimchallenge',    
-    'voidnerfkitten': 'voidnerfkitten',
-    'kathool': 'kathooldepths',
-    'astralshrine': 'astralshrine',
-    'lavarockshore': 'lavarockshore',   
-    'apexazalith': 'apexazalith',
+    'mechabinky': ['grimchallenge'],    
+    'voidnerfkitten': ['voidnerfkitten'],
+    'kathool': ['kathooldepths'],
+    'astralshrine': ['astralshrine'],
+    'lavarockshore': ['lavarockshore'],   
+    'apexazalith': ['apexazalith'],
 
-    // --- other seven ---
-    'tsmid': 'templeshrine',
-    'tsleft': 'templeshrine',
-    'tsright': 'templeshrine',
-    
+    // --- temple shrine ---
+    'tsmid': ['templeshrine'],
+    'tsleft': ['templeshrine'],
+    'tsright': ['templeshrine'],
+
+    // --- VA daily ---
+    'vamem': ['ancienttrigoras', 'chaoskraken', 'gravechallenge'],
+    'vanonmem': ['icewing', 'hydrachallenge'],
+
     // --- legion ---
-    'deimos': 'deimos',
-    'beast': 'sevencircleswar',
-    'lichlord' : 'frozenlair',
+    'deimos': ['deimos'],
+    'beast': ['sevencircleswar'],
+    'lichlord': ['frozenlair'],
 };

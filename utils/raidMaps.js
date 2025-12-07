@@ -15,10 +15,13 @@ export function generateRaidMapsEmbed(tasks, mapNumber) {
     // Ensure mapNumber is a string for consistent join
     const finalMapNumber = String(mapNumber); 
 
-    const joinLinksWithPoints = expandedTasks.map(task => {
-        const mapPrefix = TASK_TO_MAP_PREFIX_MAPPING[task] || task;
-        return `* /join ${mapPrefix}-${finalMapNumber}`;
-    }).join('\n');
+    const joinLinksWithPoints = expandedTasks
+        .flatMap(task => {
+            const prefixes = TASK_TO_MAP_PREFIX_MAPPING[task] || [task];
+            return prefixes.map(prefix => `* /join ${prefix}-${finalMapNumber}`);
+        })
+        .join('\n');
+
 
     return new EmbedBuilder()
         .setColor(0x0099FF)
