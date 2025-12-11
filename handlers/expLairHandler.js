@@ -128,6 +128,7 @@ async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAward
 
                     const requesterDisplay = requesterMember ? requesterMember : `<@${raidInfo.requesterId}>`;
 
+                    // Build the embed as usual
                     const expEmbed = new EmbedBuilder()
                         .setColor(COLOR_INFO)
                         .setTitle(`Raid Completed`)
@@ -140,14 +141,34 @@ async function finalizeRaidForAdminReview(client, channel, raidInfo, pointsAward
                         .setTimestamp()
                         .setFooter({ text: "Raid Completion Details" });
 
-                    if (raidInfo.proofImage) {
-                        expEmbed.setImage(raidInfo.proofImage);
-                    }                        
+                    // Prepare file array for attachment
+                    let files = [];
 
+                    if (raidInfo.proofImage) {
+                        try {
+                            // Fetch the image from the saved URL
+                            const response = await fetch(raidInfo.proofImage);
+                            const buffer = Buffer.from(await response.arrayBuffer());
+
+                            // Give it a filename for attachment reference
+                            const fileName = "proof.png";
+
+                            files.push({ attachment: buffer, name: fileName });
+
+                            // Set the embed image to use the attachment
+                            expEmbed.setImage(`attachment://${fileName}`);
+                        } catch (err) {
+                            console.error("Failed to fetch proof image:", err);
+                        }
+                    }
+
+                    // Send the message with the embed and the attached image
                     const sent = await expLairChannel.send({
                         content: `Raid completed for ${requesterMember ? requesterMember.displayName : `<@${raidInfo.requesterId}>`}.`,
-                        embeds: [expEmbed]
+                        embeds: [expEmbed],
+                        files
                     }).catch(e => { console.error("Failed to send to EXP Lair:", e); return null; });
+
 
                     if (sent) {
                         expLairMessageLink = sent.url;
@@ -304,12 +325,6 @@ export function setupExpLairHandlers(client) {
                 return;
             }
         }
-
-        // =========================================================================================
-        // PRIORITY HANDLERS: These must run BEFORE the "Awaiting Completion" Global Lock
-        // This prevents the "Closure is active" error when interacting with the closure UI itself
-        // =========================================================================================
-
 
         if (interaction.isButton() && interaction.customId === "deleteFinalizedRaidChannel") {
             if (!await replyIfUnauthorized(interaction, raidInfo, 'staff')) return;
@@ -541,9 +556,7 @@ export function setupExpLairHandlers(client) {
         return;
     }
 
-        // =========================================================================================
         // GLOBAL LOCK: Helper Selection UI Active
-        // =========================================================================================
         if (raidInfo?.isAwaitingCompletion) {
             await interaction.reply({
                 content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
@@ -554,10 +567,7 @@ export function setupExpLairHandlers(client) {
             return;
         }
 
-        // =========================================================================================
         // STANDARD HANDLERS
-        // =========================================================================================
-
         if (interaction.isButton() && interaction.customId === "editTask_btn") {
             if (!await replyIfUnauthorized(interaction, raidInfo, 'raid_manager')) return; 
 
