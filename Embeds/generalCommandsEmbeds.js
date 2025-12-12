@@ -198,7 +198,7 @@ export function getChartsEmbed() {
         .setTitle('📊 Available Charts')
         .setDescription(null)
         .addFields(
-            { name: 'Ultraspeaker Taunt Charts', value: '`!1man`, `!2man`, `!3man`, `!4man`, `!lpchart`, `!famischart`',  },
+            { name: 'Ultraspeaker Taunt Charts', value: '`!1man`, `!2man`, `!3man`, `!4man`, `!lpchart`, `!famischart`, `!scamcharts` or `!scams`' },
             { name: 'Ultragramiel Chart', value: '`!gramielchart` or `!gramiel`' },
         )
         .setTimestamp()

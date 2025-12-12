@@ -32,25 +32,37 @@ export const RAID_CHARTS = {
 };
 
 // 2-man embeds (3 pages)
-const twoManMain = new EmbedBuilder()
-    .setColor(color)
-    .setTitle('2-Man Speaker Chart')
-    .setImage('https://files.catbox.moe/hvccl7.png')
-    .setFooter({ text: "Page 1 of 3" });
-
-const twoManLP = new EmbedBuilder()
-    .setColor(color)
-    .setTitle('2-Man LP Speakerchart')
-    .setImage('https://files.catbox.moe/xfb923.png')
-    .setFooter({ text: "Page 2 of 3" });
-
 const twoManA = new EmbedBuilder()
     .setColor(color)
-    .setTitle('2-Man Easier Version')
-    .setImage('https://files.catbox.moe/txgrr6.png')
-    .setFooter({ text: "Page 3 of 3" });
+    .setTitle('2-Man AP LOO Chart')
+    .setImage('https://files.catbox.moe/hvccl7.png')
+    .setFooter({ text: "Page 1 of 5" });
 
-export const twoManEmbeds = [twoManMain, twoManLP, twoManA];
+const twoManB = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('2-Man LOO LP Speakerchart')
+    .setImage('https://files.catbox.moe/xfb923.png')
+    .setFooter({ text: "Page 2 of 5" });
+
+const twoManC = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('2-Man AP LOO Chart')
+    .setImage('https://files.catbox.moe/txgrr6.png')
+    .setFooter({ text: "Page 3 of 5" });
+
+const twoManD = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('2-Man Ke-Loo')
+    .setImage('https://files.catbox.moe/94dmym.png')
+    .setFooter({ text: "Page 4 of 5" });
+
+const twoManE = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('2-Man LOO-LR Chart')
+    .setImage('https://files.catbox.moe/avw60p.png')
+    .setFooter({ text: "Page 5 of 5" });
+
+export const twoManEmbeds = [twoManA, twoManB, twoManC, twoManD, twoManE];
 
 // 3-man embeds (2 pages)
 const threeManA = new EmbedBuilder()
@@ -72,3 +84,17 @@ const threeManC = new EmbedBuilder()
     .setFooter({ text: 'Page 3 of 3' });
 
 export const threeManEmbeds = [threeManA, threeManB, threeManC];
+
+const scamChartA = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('VDK CAV PCM in one Zone chart')
+    .setImage('https://files.catbox.moe/2xlr74.png')
+    .setFooter({ text: "Page 1 of 2" });
+
+const scamChartB = new EmbedBuilder()
+    .setColor(color)
+    .setTitle('VDK CAV in one zone chart')
+    .setImage('https://files.catbox.moe/ty3fhh.png')
+    .setFooter({ text: 'Page 2 of 2' });
+
+export const scamChartEmbeds = [scamChartA, scamChartB];

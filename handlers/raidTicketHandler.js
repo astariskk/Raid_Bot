@@ -20,7 +20,7 @@ import {
     createRaid,
 } from '../activeRaidState.js';
 import { getCombinedTasksAndPointsEmbed } from '../Embeds/generalCommandsEmbeds.js';
-import { RAID_CHARTS, twoManEmbeds, threeManEmbeds } from '../Embeds/raidChartsEmbeds.js';
+import { RAID_CHARTS, twoManEmbeds, threeManEmbeds, scamChartEmbeds } from '../Embeds/raidChartsEmbeds.js';
 import { threadActionRow } from '../Embeds/raidTicketEmbeds.js';
 import { generateRaidMapsEmbed, parseRaidTasks } from '../utils/raidMaps.js';
 import { validateAndResolveTasks } from '../utils/allowedTasks.js';
@@ -240,6 +240,10 @@ export function setupRaidTicketHandler(client) {
             }
             if (content === '!3man') {
                 await sendInitialPaginatedEmbed(message.channel, threeManEmbeds, '3man', message.author.id);
+                return;
+            }
+            if (content === "!scamcharts" || content === "!scams") {
+                await sendInitialPaginatedEmbed(message.channel, scamChartEmbeds, 'scam', message.author.id);
                 return;
             }
         } catch (err) {
