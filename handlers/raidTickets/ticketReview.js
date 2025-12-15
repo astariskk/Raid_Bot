@@ -42,7 +42,7 @@ export async function finalizeAdminReview(
       .catch(() => null);
 
     /* -------------------- CLOSE WARNING -------------------- */
-    await channel.send("This Raid Will now Close.").catch(() => {});
+    await channel.send("This raid will now close.").catch(() => {});
     await new Promise(r => setTimeout(r, 5000));
 
     /* -------------------- LOCK CHANNEL -------------------- */
@@ -139,9 +139,9 @@ export async function finalizeAdminReview(
           let breakdown =
             `This thread contains the full details for the raid\n`;
 
-          breakdown += `**Total EXP Calculated:** ${totalCalculatedPoints} EXP. ${
+          breakdown += `**Total EXP Calculated:** ${totalCalculatedPoints} EXP ${
             originalTotalCalculatedPoints !== totalCalculatedPoints
-              ? "The Points were capped."
+              ? ` / ${originalTotalCalculatedPoints} EXP \n The Points were capped.`
               : ""
           }\n\n**Points awarded to Helpers:**\n`;
           
