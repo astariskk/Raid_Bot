@@ -6,6 +6,10 @@ import { finalizeAdminReview } from './ticketReview.js';
 
 export async function handleLifecycleInteractions(interaction, raidInfo, client) {
     
+    if (raidInfo.isAwaitingCompletion) { 
+        await interaction.reply({ content: "Raid is currently in the completion process.", flags: MessageFlags.Ephemeral });
+        return;
+    }
     // --- 1. Edit Task Button ---
     if (interaction.customId === "editTask_btn") {
         if (!await requireAuth(interaction, raidInfo)) return;
@@ -56,8 +60,8 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
     if (interaction.customId === "confirmCancelRaid") {
         if (!await requireAuth(interaction, raidInfo)) return;
-        await interaction.update({ content: "Cancelling...", components: [] });
-        // Trigger review logic with reason "cancelled"
+        await interaction.update({ content: "Raid will now be cancelled.", components: [] });
+        
         await finalizeAdminReview(client, interaction.channel, raidInfo, {}, interaction.user.id, "cancelled");
     }
 

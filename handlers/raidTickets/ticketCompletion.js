@@ -1,6 +1,11 @@
 import { ActionRowBuilder, UserSelectMenuBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
 import { updateRaid, getRaidInfo } from '../../activeRaidState.js'
-import { MAX_XP_PER_RAID } from '../../config/constants.js'; 
+import { 
+    MAX_XP_PER_RAID,
+    MODERATOR_ROLE_ID,
+    OFFICER_ROLE_ID,
+    RAID_MANAGER_ROLE_ID
+ } from '../../config/constants.js'; 
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
@@ -16,7 +21,6 @@ function createHelperSelectRow(raidInfo, maxValues) {
     );
 }
 
-// Helper to generate the Button Row
 function createButtonRow(isConfirmedEnabled, proofImageUrl) {
     const hasProof = !!proofImageUrl;
     return new ActionRowBuilder().addComponents(
@@ -51,7 +55,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         const btnRow = createButtonRow(false, raidInfo.proofImage); // Confirm disabled initially
 
         await interaction.reply({ 
-            content: `Select users who helped in this **${raidInfo.size}** raid:`, 
+            content: `Select users who helped in this raid:`, 
             components: [selectRow, btnRow] 
         });
     }
@@ -79,7 +83,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     // 3. Provide Proof (Wait for attachment)
     if (interaction.customId === "provideProof") {
         if (!await requireAuth(interaction, raidInfo)) return;
-        await interaction.reply({ content: "Please upload your screenshot now.", flags: MessageFlags.Ephemeral });
+        await interaction.reply({ content: "Send the proof in the next message.", flags: MessageFlags.Ephemeral });
         
         try {
             const collected = await interaction.channel.awaitMessages({ 
@@ -113,7 +117,6 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     // 4. Confirm Closing
     if (interaction.customId === "confirmCloseSelection") {
         if (!await requireAuth(interaction, raidInfo)) return;
-        await interaction.reply({ content: "Processing...", flags: MessageFlags.Ephemeral });
 
         // Retrieve the selected IDs from the updated state
         const currentRaidInfo = await getRaidInfo(interaction.channel.id); 
@@ -137,6 +140,6 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     // 5. Abort
     if (interaction.customId === "abortCloseRaid") {
         await updateRaid(interaction.channel.id, { isAwaitingCompletion: false, pendingHelperIds: null });
-        await interaction.update({ content: "Closing aborted. Raid status restored to active.", components: [] });
+        await interaction.update({ content: "Closing aborted.", components: [] });
     }
 }

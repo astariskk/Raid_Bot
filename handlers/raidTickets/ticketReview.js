@@ -1,48 +1,214 @@
-import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, ChannelType } from 'discord.js';
-import { EXP_LAIR_CHANNEL_ID, MODERATOR_ROLE_ID } from '../../config/constants.js';
+import {
+  EmbedBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ActionRowBuilder,
+  ChannelType,
+  PermissionsBitField
+} from 'discord.js';
+
+import {
+  EXP_LAIR_CHANNEL_ID,
+  MODERATOR_ROLE_ID,
+  OFFICER_ROLE_ID,
+  RAID_MANAGER_ROLE_ID,
+  RAID_HELPER_ROLE_ID
+} from '../../config/constants.js';
+
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboardCore.js';
 import { requireAuth } from './ticketUtils.js';
 
-export async function finalizeAdminReview(client, channel, raidInfo, pointsAwarded, initiatorId, reason, notes = "") {
-    // 1. Lock Channel
-    await channel.setName("Pending-raid-review");
-    // (Update permissions to hide from everyone except staff - omitted for brevity, copy from original)
+const COLOR_INFO = 0x0099ff;
 
-    // 2. Post to EXP Lair (if completed)
-    let expLink = "N/A";
-    if (reason === "completed") {
-        const lairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
+export async function finalizeAdminReview(
+  client, channel,
+  raidInfo,
+  pointsAwarded = {},
+  initiatorId,
+  reason = "completed",
+  notes = ""
+) {
+  try {
+    const guild = channel.guild;
+    const everyoneRole = guild.roles.everyone;
+
+    const moderatorRole = guild.roles.cache.get(MODERATOR_ROLE_ID);
+    const officerRole = guild.roles.cache.get(OFFICER_ROLE_ID);
+    const raidManagerRole = guild.roles.cache.get(RAID_MANAGER_ROLE_ID);
+
+    const requesterMember = await guild.members
+      .fetch(raidInfo.requesterId)
+      .catch(() => null);
+
+    /* -------------------- CLOSE WARNING -------------------- */
+    await channel.send("This Raid Will now Close.").catch(() => {});
+    await new Promise(r => setTimeout(r, 5000));
+
+    /* -------------------- LOCK CHANNEL -------------------- */
+    await channel.permissionOverwrites.edit(everyoneRole, {
+      ViewChannel: false
+    }).catch(() => {});
+
+    await channel.permissionOverwrites.edit(RAID_HELPER_ROLE_ID, {
+      ViewChannel: false
+    }).catch(() => {});
+
+    if (
+      requesterMember &&
+      !requesterMember.permissions.has(PermissionsBitField.Flags.Administrator)
+    ) {
+      await channel.permissionOverwrites.edit(requesterMember, {
+        ViewChannel: false
+      }).catch(() => {});
     }
 
-    // 3. Create Admin Review Embed in Ticket
-    const reviewEmbed = new EmbedBuilder()
-        .setTitle(`Raid ${reason} - Admin Review`)
-        .setDescription(`Initiated by <@${initiatorId}>\nPoints: ${Object.keys(pointsAwarded).length} users`)
-        .setColor(reason === "completed" ? 0x0099ff : 0xdd2e44);
+    if (moderatorRole) {
+      await channel.permissionOverwrites.edit(moderatorRole, { ViewChannel: true }).catch(() => {});
+    }
+    if (officerRole) {
+      await channel.permissionOverwrites.edit(officerRole, { ViewChannel: true }).catch(() => {});
+    }
+    if (raidManagerRole) {
+      await channel.permissionOverwrites.edit(raidManagerRole, { ViewChannel: true }).catch(() => {});
+    }
 
-    const delBtn = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId("deleteFinalizedRaidChannel").setLabel("Delete Channel").setStyle(ButtonStyle.Danger)
+    await channel.setName("Pending-raid-review").catch(() => {});
+
+    /* -------------------- EXP LAIR POST -------------------- */
+    let expLairMessageLink = "N/A (no post)";
+
+    if (reason === "completed") {
+      try {
+        const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
+
+        if (expLairChannel?.type === ChannelType.GuildText) {
+          const helpers =
+            Object.keys(pointsAwarded).length > 0
+              ? Object.keys(pointsAwarded).map(id => `<@${id}>`).join(", ")
+              : "None";
+
+          const expEmbed = new EmbedBuilder()
+            .setColor(COLOR_INFO)
+            .setTitle("Raid Completed")
+            .setDescription(
+              `**Raid requested by:** ${requesterMember ?? `<@${raidInfo.requesterId}>`}\n` +
+              `**Task(s):** ${raidInfo.task}\n` +
+              `**Helpers:** ${helpers}\n` +
+              `**Description:** ${raidInfo.description || "No description provided."}`
+            )
+            .setTimestamp()
+            .setFooter({ text: "Raid Completion Details" });
+
+          const files = [];
+
+          if (raidInfo.proofImage) {
+            try {
+              const res = await fetch(raidInfo.proofImage);
+              const buffer = Buffer.from(await res.arrayBuffer());
+              files.push({ attachment: buffer, name: "proof.png" });
+              expEmbed.setImage("attachment://proof.png");
+            } catch (err) {
+              console.error("Failed to fetch proof image:", err);
+            }
+          }
+
+          const sent = await expLairChannel.send({
+            content: `Raid completed for ${requesterMember?.displayName ?? `<@${raidInfo.requesterId}>`}.`,
+            embeds: [expEmbed],
+            files
+          });
+
+          expLairMessageLink = sent.url;
+
+          /* ---------- Thread ---------- */
+          const thread = await sent.startThread({
+            name: `Raid for ${requesterMember?.displayName ?? raidInfo.requesterId}`,
+            autoArchiveDuration: 60
+          });
+
+          let breakdown = `**Task Initially Requested:** ${raidInfo.task}\n\n`;
+
+          if (Object.keys(pointsAwarded).length) {
+            breakdown += "**Points Breakdown:**\n";
+            for (const uid of Object.keys(pointsAwarded)) {
+              const member = await guild.members.fetch(uid).catch(() => null);
+              breakdown += `• ${member?.displayName ?? `<@${uid}>`}: ${pointsAwarded[uid]} EXP\n`;
+            }
+          } else {
+            breakdown += "No points awarded.";
+          }
+
+          // task points breakdown, task: points
+          if (raidInfo.taskPointsBreakdown) {
+            breakdown += `\n\n**Task Points Breakdown:**\n`;
+            for (const [task, pts] of Object.entries(raidInfo.taskPointsBreakdown)) {
+              breakdown += `• ${task}: ${pts} EXP\n`;
+            }
+        }
+
+          await thread.send(breakdown);
+        }
+      } catch (err) {
+        console.error("EXP Lair post failed:", err);
+      }
+    }
+
+    /* -------------------- ADMIN REVIEW EMBED -------------------- */
+    const desc = [
+      `This raid was **${reason}** by <@${initiatorId}>.`,
+      `**Requester:** <@${raidInfo.requesterId}>`,
+      `**Original Task(s):** ${raidInfo.task}`
+    ];
+
+    if (notes) desc.push(`**Notes:** ${notes}`);
+    if (reason === "completed") {
+      desc.push(`**EXP Lair Post:** ${expLairMessageLink}`);
+    }
+
+    const reviewEmbed = new EmbedBuilder()
+      .setTitle(`Raid ${reason === "cancelled" ? "Cancelled" : "Completed"} - Admin Review`)
+      .setColor(COLOR_INFO)
+      .setDescription(desc.join("\n"))
+      .setTimestamp()
+      .setFooter({ text: "Staff may delete this channel after review." });
+
+    const deleteBtn = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId("deleteFinalizedRaidChannel")
+        .setLabel("Delete Channel After Review")
+        .setStyle(ButtonStyle.Danger)
     );
 
-    await channel.send({ embeds: [reviewEmbed], components: [delBtn] });
+    await channel.send({ embeds: [reviewEmbed], components: [deleteBtn] });
 
-    // 4. Update DB & Leaderboard
-    await updateRaid(channel.id, { status: "admin_review", pointsAwarded });
+    /* -------------------- DB + LEADERBOARD -------------------- */
+    await updateRaid(channel.id, {
+      status: "admin_review",
+      isAwaitingCompletion: false,
+      awaitingCompletionRequesterId: null,
+      pointsAwarded,
+      expLairMessageLink: reason === "completed" ? expLairMessageLink : null
+    });
+
     if (reason === "completed") {
-        for (const [uid, pts] of Object.entries(pointsAwarded)) {
-            await updateLeaderboard(uid, pts);
-        }
+      for (const uid of Object.keys(pointsAwarded)) {
+        await updateLeaderboard(uid, pointsAwarded[uid]);
+      }
     }
+
+  } catch (err) {
+    console.error("finalizeAdminReview failed:", err);
+    await channel.send("An error occurred. Please contact staff.");
+  }
 }
 
-// Handler for the "Delete Channel" button
+/* -------------------- DELETE BUTTON HANDLER -------------------- */
 export async function handleReviewInteractions(interaction, raidInfo) {
-    if (interaction.customId === "deleteFinalizedRaidChannel") {
-        if (!await requireAuth(interaction, raidInfo, 'staff')) return;
-        
-        await interaction.reply({ content: "Deleting...", ephemeral: true });
-        await deleteRaid(interaction.channel.id);
-        await interaction.channel.delete();
-    }
+  if (interaction.customId !== "deleteFinalizedRaidChannel") return;
+  if (!await requireAuth(interaction, raidInfo, "staff")) return;
+
+  await interaction.reply({ content: "Deleting channel…", ephemeral: true });
+  await deleteRaid(interaction.channel.id);
+  await interaction.channel.delete().catch(() => {});
 }

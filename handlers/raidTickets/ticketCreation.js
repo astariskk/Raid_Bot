@@ -78,6 +78,7 @@ export async function handleRaidCreation(interaction) {
             status: 'active',
             color: COLOR_WAITING,
             size: raidType,
+            proofImage: null,
             originalName: baseName
         });
 
