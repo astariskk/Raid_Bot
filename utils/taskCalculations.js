@@ -71,7 +71,7 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
 
         // Add to breakdown for display
         if (taskPoints > 0) {
-            calculatedBreakdown.push(`\`${taskName}${multiplier > 1 ? `x${multiplier}` : ''}\`: ${taskPoints} EXP`);
+            calculatedBreakdown.push(`${taskName}${multiplier > 1 ? `x${multiplier}` : ''}: ${taskPoints} EXP`);
         }
     }
 

@@ -62,7 +62,8 @@ export async function handleRaidCreation(interaction) {
         });
         
         await ticketChannel.send({
-            content: `Use the buttons below to manage your raid.`,
+            content: `You can type **!waiting** **!ongoing** or **!full** to update the raid status\n`+
+                `Use the buttons below to manage your raid.`,
             components: [threadActionRow]
         });
 
@@ -79,6 +80,7 @@ export async function handleRaidCreation(interaction) {
             color: COLOR_WAITING,
             size: raidType,
             proofImage: null,
+            isAwaitingCompletion: false,
             originalName: baseName
         });
 

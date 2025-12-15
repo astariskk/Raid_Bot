@@ -14,7 +14,7 @@ import {
   RAID_MANAGER_ROLE_ID,
   RAID_HELPER_ROLE_ID
 } from '../../config/constants.js';
-
+import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboardCore.js';
 import { requireAuth } from './ticketUtils.js';
@@ -83,7 +83,7 @@ export async function finalizeAdminReview(
         const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
 
         if (expLairChannel?.type === ChannelType.GuildText) {
-          const helpers =
+            const helpers =
             Object.keys(pointsAwarded).length > 0
               ? Object.keys(pointsAwarded).map(id => `<@${id}>`).join(", ")
               : "None";
@@ -93,8 +93,8 @@ export async function finalizeAdminReview(
             .setTitle("Raid Completed")
             .setDescription(
               `**Raid requested by:** ${requesterMember ?? `<@${raidInfo.requesterId}>`}\n` +
-              `**Task(s):** ${raidInfo.task}\n` +
               `**Helpers:** ${helpers}\n` +
+              `**Task(s):** ${raidInfo.task}\n` +
               `**Description:** ${raidInfo.description || "No description provided."}`
             )
             .setTimestamp()
@@ -127,25 +127,42 @@ export async function finalizeAdminReview(
             autoArchiveDuration: 60
           });
 
-          let breakdown = `**Task Initially Requested:** ${raidInfo.task}\n\n`;
+          /* ---------- Task EXP Calculation ---------- */
+          const {
+            calculatedBreakdown,
+            originalTotalCalculatedPoints,
+            totalCalculatedPoints,
+            unknownTasks
+          } = calculateTaskPointsWithMultiplier(raidInfo.task);
 
-          if (Object.keys(pointsAwarded).length) {
-            breakdown += "**Points Breakdown:**\n";
-            for (const uid of Object.keys(pointsAwarded)) {
-              const member = await guild.members.fetch(uid).catch(() => null);
-              breakdown += `• ${member?.displayName ?? `<@${uid}>`}: ${pointsAwarded[uid]} EXP\n`;
-            }
+          /* ---------- Thread Breakdown Message ---------- */
+          let breakdown =
+            `This thread contains the full details for the raid\n`;
+
+          breakdown += `**Total EXP Calculated:** ${totalCalculatedPoints} EXP. ${
+            originalTotalCalculatedPoints !== totalCalculatedPoints
+              ? "The Points were capped."
+              : ""
+          }\n\n**Points awarded to Helpers:**\n`;
+          
+          for (const uid of Object.keys(pointsAwarded)) {
+            const member = await guild.members.fetch(uid).catch(() => null);
+            breakdown += `* ${member?.displayName ?? `<@${uid}>`}: ${pointsAwarded[uid]} EXP\n`; 
+          }           
+
+          if (calculatedBreakdown.length) {
+            breakdown += "\n**Task EXP Breakdown:**\n";
+            breakdown += calculatedBreakdown.map(t => `* ${t}`).join("\n");
+
           } else {
-            breakdown += "No points awarded.";
+            breakdown += "No valid tasks were recognized for EXP calculation.";
           }
 
-          // task points breakdown, task: points
-          if (raidInfo.taskPointsBreakdown) {
-            breakdown += `\n\n**Task Points Breakdown:**\n`;
-            for (const [task, pts] of Object.entries(raidInfo.taskPointsBreakdown)) {
-              breakdown += `• ${task}: ${pts} EXP\n`;
-            }
-        }
+          if (unknownTasks.length) {
+            breakdown +=
+              `\n\n⚠️ **Unrecognized Task Entries:**\n` +
+              unknownTasks.map(t => `• \`${t}\``).join("\n");
+          }
 
           await thread.send(breakdown);
         }
@@ -153,6 +170,7 @@ export async function finalizeAdminReview(
         console.error("EXP Lair post failed:", err);
       }
     }
+
 
     /* -------------------- ADMIN REVIEW EMBED -------------------- */
     const desc = [

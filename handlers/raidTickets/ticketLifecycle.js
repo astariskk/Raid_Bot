@@ -1,71 +1,136 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } from 'discord.js';
-import { getEditTaskModal, updateRaid, updateRaidLogEmbed, deleteRaid } from '../../activeRaidState.js';
+import {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    MessageFlags
+} from 'discord.js';
+
+import {
+    getEditTaskModal,
+    updateRaid,
+    updateRaidLogEmbed
+} from '../../activeRaidState.js';
+
 import { validateAndResolveTasks } from '../../utils/allowedTasks.js';
 import { requireAuth } from './ticketUtils.js';
-import { finalizeAdminReview } from './ticketReview.js'; 
+import { finalizeAdminReview } from './ticketReview.js';
 
+/* -------------------- MAIN HANDLER -------------------- */
 export async function handleLifecycleInteractions(interaction, raidInfo, client) {
-    
-    if (raidInfo.isAwaitingCompletion) { 
-        await interaction.reply({ content: "Raid is currently in the completion process.", flags: MessageFlags.Ephemeral });
+
+    /* ---------- AWAITING COMPLETION LOCK ---------- */
+    if (raidInfo?.isAwaitingCompletion) {
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: "The raid closure confirmation is currently active. Please confirm or use the 'Abort' button.",
+                flags: MessageFlags.Ephemeral
+            }).catch(() => {});
+        }
         return;
     }
-    // --- 1. Edit Task Button ---
+
+    /* ---------- AUTH ---------- */
+    if (!await requireAuth(interaction, raidInfo)) return;
+
+    /* ---------- 1. EDIT TASK ---------- */
     if (interaction.customId === "editTask_btn") {
-        if (!await requireAuth(interaction, raidInfo)) return;
-        const modal = getEditTaskModal(raidInfo.task, raidInfo.mapName, raidInfo.mapNumber, raidInfo.server, raidInfo.size, raidInfo.description);
+        const modal = getEditTaskModal(
+            raidInfo.task,
+            raidInfo.mapName,
+            raidInfo.mapNumber,
+            raidInfo.server,
+            raidInfo.size,
+            raidInfo.description
+        );
         await interaction.showModal(modal);
+        return;
     }
 
-    // --- 2. Edit Task Modal Submission ---
+    /* ---------- 2. EDIT TASK MODAL ---------- */
     if (interaction.isModalSubmit() && interaction.customId === "editTaskModal") {
-        if (!await requireAuth(interaction, raidInfo)) return;
-        
         const rawTask = interaction.fields.getTextInputValue('editedTaskInput');
-        const { resolvedTasks, invalidTasks } = validateAndResolveTasks(rawTask, raidInfo.size);
-        
+        const { resolvedTasks, invalidTasks } =
+            validateAndResolveTasks(rawTask, raidInfo.size);
+
         if (invalidTasks.length) {
-            return interaction.reply({ content: `Invalid tasks: ${invalidTasks.join(', ')}`, flags: MessageFlags.Ephemeral });
+            await interaction.reply({
+                content: `Invalid tasks: ${invalidTasks.join(", ")}`,
+                flags: MessageFlags.Ephemeral
+            });
+            return;
         }
 
         const updates = {
-            task: resolvedTasks.join(', '),
+            task: resolvedTasks.join(", "),
             mapName: interaction.fields.getTextInputValue('editedMapInput'),
             mapNumber: interaction.fields.getTextInputValue('editedMapNumberInput'),
             server: interaction.fields.getTextInputValue('editedServerInput'),
-            description: interaction.fields.getTextInputValue('editedDescriptionInput') || "No description."
+            description:
+                interaction.fields.getTextInputValue('editedDescriptionInput') ||
+                "No description."
         };
 
         await updateRaid(interaction.channel.id, updates);
-        await updateRaidLogEmbed(client, interaction.channel.id, { 
+
+        await updateRaidLogEmbed(client, interaction.channel.id, {
             fields: [
-                { name: 'Task(s)', value: updates.task }, 
-                { name: 'Map', value: `${updates.mapName} (${updates.mapNumber})` }
-            ] 
+                { name: "Task(s)", value: updates.task },
+                { name: "Map", value: `${updates.mapName}` },
+                { name: "Server", value: updates.server },
+                { name: "Description", value: updates.description }
+            ]
         });
-        
-        await interaction.reply({ content: "Raid Updated.", flags: MessageFlags.Ephemeral });
+
+        await interaction.reply({
+            content: "Raid updated.",
+            flags: MessageFlags.Ephemeral
+        });
+        return;
     }
 
-    // --- 3. Cancel Raid Flow ---
+    /* ---------- 3. CANCEL RAID ---------- */
     if (interaction.customId === "cancelRaidTicket") {
-        if (!await requireAuth(interaction, raidInfo)) return;
-        
         const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId("confirmCancelRaid").setLabel("Confirm Cancel").setStyle(ButtonStyle.Danger),
-            new ButtonBuilder().setCustomId("abortCancelRaid").setLabel("Abort").setStyle(ButtonStyle.Secondary)
+            new ButtonBuilder()
+                .setCustomId("confirmCancelRaid")
+                .setLabel("Confirm Cancel")
+                .setStyle(ButtonStyle.Danger),
+            new ButtonBuilder()
+                .setCustomId("abortCancelRaid")
+                .setLabel("Abort")
+                .setStyle(ButtonStyle.Secondary)
         );
-        await interaction.reply({ content: "Cancel this raid?", components: [row], flags: MessageFlags.Ephemeral });
+
+        await interaction.reply({
+            content: "Cancel this raid?",
+            components: [row],
+            flags: MessageFlags.Ephemeral
+        });
+        return;
     }
 
     if (interaction.customId === "confirmCancelRaid") {
-        if (!await requireAuth(interaction, raidInfo)) return;
-        await interaction.update({ content: "Raid will now be cancelled.", components: [] });
-        
-        await finalizeAdminReview(client, interaction.channel, raidInfo, {}, interaction.user.id, "cancelled");
+        await interaction.update({
+            content: "Raid will now be cancelled.",
+            components: []
+        });
+
+        await finalizeAdminReview(
+            client,
+            interaction.channel,
+            raidInfo,
+            {},
+            interaction.user.id,
+            "cancelled"
+        );
+        return;
     }
 
     if (interaction.customId === "abortCancelRaid") {
-        await interaction.update({ content: "Aborted.", components: [] });
+        await interaction.update({
+            content: "Cancelled.",
+            components: []
+        });
+        return;
     }
 }
