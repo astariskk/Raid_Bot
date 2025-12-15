@@ -18,8 +18,7 @@ app.listen(port, () => {
 
 
 import { Client, GatewayIntentBits } from 'discord.js';
-import { setupRaidTicketHandler } from './handlers/raidTicketHandler.js';
-import { setupExpLairHandlers } from './handlers/expLairHandler.js';
+import { setupRaidHandlers } from './handlers/raidTickets/index.js';
 import { setupLeaderboardHandlers } from './handlers/leaderboardHandler.js';
 import { setupGeneralCommandsHandler } from './handlers/generalCommandsHandler.js';
 import { setupBackupHandlers } from './handlers/backupHandler.js';
@@ -47,12 +46,11 @@ client.on('ready', async () => { // Make ready event async
         console.log('Database connection established for bot operations.');
 
         // --- Register and Setup Slash Commands ---
-        await registerSlashCommands(client); // Call the new registration function
-        setupSlashCommandsHandler(client);   // Call the new handler setup function
+        await registerSlashCommands(client); 
+        setupSlashCommandsHandler(client);   
 
         // --- Initialize Other Handlers AFTER DB connection ---
-        setupRaidTicketHandler(client);
-        setupExpLairHandlers(client);
+        setupRaidHandlers(client);
         setupLeaderboardHandlers(client);
         setupGeneralCommandsHandler(client);
         setupBackupHandlers(client);
@@ -60,9 +58,8 @@ client.on('ready', async () => { // Make ready event async
 
     } catch (error) {
         console.error('Failed to start bot due to database connection error:', error);
-        // Log the specific error that caused the database connection failure
-        console.error('Error details:', error.stack); // Add stack trace for more info
-        process.exit(1); // Exit if DB connection fails
+        console.error('Error details:', error.stack); 
+        process.exit(1); 
     }
 });
 

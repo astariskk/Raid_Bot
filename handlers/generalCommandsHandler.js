@@ -316,7 +316,8 @@ export function setupGeneralCommandsHandler(client) {
                 await interaction.reply({
                     content:'Below are the list of available tasks and exp values sectioned by their category.\n' +            
                             '* You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n'+
-                            '* You can also use /taskalias [task] for other names you could use for that task, like \`gramiel\` as \`gram\`\n',
+                            '* You can also use /taskalias [task] for other names you could use for that task, like \`gramiel\` as \`gram\`\n'+
+                            '* For multiple runs of the same task, you can append \` x[number]\` to the task name, e.g. \`nerfkitten x3\` to indicate 3 runs of nerfkitten.',
                      embeds: tasksEmbed, ephemeral: true });
                 break;
             
