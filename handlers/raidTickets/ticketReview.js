@@ -17,7 +17,7 @@ import {
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboardCore.js';
-import { requireAuth } from './ticketUtils.js';
+import { requireAuth, isStaff } from './ticketUtils.js';
 
 const COLOR_INFO = 0x0099ff;
 
@@ -46,6 +46,7 @@ export async function finalizeAdminReview(
     await new Promise(r => setTimeout(r, 5000));
 
     /* -------------------- LOCK CHANNEL -------------------- */
+
     await channel.permissionOverwrites.edit(everyoneRole, {
       ViewChannel: false
     }).catch(() => {});
@@ -55,9 +56,8 @@ export async function finalizeAdminReview(
     }).catch(() => {});
 
     if (
-      requesterMember &&
-      !requesterMember.permissions.has(PermissionsBitField.Flags.Administrator)
-    ) {
+      requesterMember && !isStaff(requesterMember))
+     {
       await channel.permissionOverwrites.edit(requesterMember, {
         ViewChannel: false
       }).catch(() => {});
