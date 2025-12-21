@@ -159,7 +159,7 @@ export async function finalizeAdminReview(
           }
           
           // Naughty Nice Event:
-          breakdown += "\n**Event Commands for mods: **\n"
+          breakdown += "\n\n**Event Commands for mods: **\n"
           for (const uid of Object.keys(pointsAwarded)) {
               breakdown += `\`\`\`$give <@${uid}> 10\`\`\`\n`;
           }          
