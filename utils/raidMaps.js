@@ -18,7 +18,7 @@ export function generateRaidMapsEmbed(tasks, mapNumber) {
     const joinLinksWithPoints = expandedTasks
         .flatMap(task => {
             const prefixes = TASK_TO_MAP_PREFIX_MAPPING[task] || [task];
-            return prefixes.map(prefix => `* /join ${prefix}-${finalMapNumber}`);
+            return prefixes.map(prefix => `\`\`\`/join ${prefix}-${finalMapNumber}\`\`\``);
         })
         .join('\n');
 

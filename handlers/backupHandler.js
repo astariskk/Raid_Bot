@@ -6,11 +6,6 @@ import { getCachedLeaderboard } from './leaderboardCore.js';
 // Import the new DB functions you will add to dbOps.js
 import { getLastBackupMessageId, setLastBackupMessageId } from '../utils/dbOps.js';
 
-/**
- * Sends a backup of the current leaderboard data, deleting the previous one.
- * @param {import('discord.js').Client} client The Discord client instance.
- * @returns {Promise<void>}
- */
 export async function sendLeaderboardBackup(client) {
     try {
         const lbBackUpChannel = await client.channels.fetch(LB_BACKUP_CHANNEL_ID);

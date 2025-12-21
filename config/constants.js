@@ -204,8 +204,11 @@ export const TASK_ALIASES = {
 
     // --- templeshrine ---
     'tleft': 'tsleft',
+    'left': 'tsleft',
     'tmid': 'tsmid',
+    'mid': 'tsmid',
     'tright': 'tsright',
+    'right': 'tsright',
     'templeshrineleft': 'tsleft',
     'templeshrinemid': 'tsmid',
     'templeshrineright': 'tsright',

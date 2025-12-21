@@ -72,7 +72,7 @@ export const textGifCommands = {
     'devzesty' : '<@701781514580656228> [**ICHI NII SAN NYAHH**](https://files.catbox.moe/15uiib.gif)',
 
     // --- Lego ---
-    'legowave': '**Hi**[.](https://files.catbox.moe/viekho.gif)',
+    'legowave': '*Hi*[!](https://files.catbox.moe/viekho.gif)',
 
     // --- others --- 	
     'ungyatt': 'UN QUE? [**UN GYATT**](https://imgur.com/a/VT1KU6I)',
