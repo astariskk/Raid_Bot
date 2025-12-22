@@ -1,5 +1,6 @@
 import { Client, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import {
+    GENERAL_CHANNEL_ID,
     RAID_CHANNEL_ID,
     RAID_HELPER_ROLE_ID,
     LEADERBOARD_CHANNEL_ID,
@@ -177,6 +178,9 @@ export function setupGeneralCommandsHandler(client) {
 
         // --- Consolidated Custom GIF Commands Handling (Embeds) ---
         if (gifCommands[commandContent]) {
+
+            if (message.channel.id === GENERAL_CHANNEL_ID) return;
+
             if (lastUsed && (now - lastUsed < GIF_COOLDOWN_DURATION)) {
                 const remaining = (GIF_COOLDOWN_DURATION - (now - lastUsed)) / 1000;
                 const cooldownMessageContent = `Please wait ${remaining.toFixed(1)} seconds before using a GIF command again.`;
@@ -217,6 +221,9 @@ export function setupGeneralCommandsHandler(client) {
 
         // Check for text gif commands (no embeds)
         else if (textGifCommands[commandContent]) {
+            
+            if (message.channel.id === GENERAL_CHANNEL_ID) return;
+            
             // Banned User Check
             const bannedUsers = BANNED_USERS_FOR_COMMANDS[commandContent];
             if (bannedUsers && bannedUsers.includes(userId)) {

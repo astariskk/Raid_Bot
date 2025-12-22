@@ -1,6 +1,7 @@
 // config/constants.js
 
 // --- Channel ID's ---
+export const GENERAL_CHANNEL_ID = '1373045879266873414';
 export const RAID_CHANNEL_ID = '1388854499023519847'; 
 export const EXP_LAIR_CHANNEL_ID = '1388865498065666059'; 
 export const LEADERBOARD_CHANNEL_ID = '1389203721505996903'; 
@@ -19,6 +20,7 @@ export const RECORD_HOLDER_ROLE_ID =  '1274384274333630565'; // Record Holder 13
 
 /* --- my server constants ---
 // --- Channel ID's ---
+export const GENERAL_CHANNEL_ID = '1452643530890809436';
 export const RAID_CHANNEL_ID = '1394877134996242636'; 
 export const EXP_LAIR_CHANNEL_ID = '1394877213081604279'; 
 export const LEADERBOARD_CHANNEL_ID = '1394877657421713478'; 
@@ -37,6 +39,7 @@ export const RECORD_HOLDER_ROLE_ID =  '1274384274333630565'; // Patient Zero  13
 
 /* --- vanaheim constants ---
 // --- Channel ID's ---
+export const GENERAL_CHANNEL_ID = '1373045879266873414';
 export const RAID_CHANNEL_ID = '1388854499023519847'; 
 export const EXP_LAIR_CHANNEL_ID = '1388865498065666059'; 
 export const LEADERBOARD_CHANNEL_ID = '1389203721505996903'; 
