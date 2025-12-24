@@ -58,7 +58,7 @@ export const textGifCommands = {
     'royaltyswag' : `<@201893726535024640> [**SWIGGITY SWOOTY IM COMIN' FO DAT BOOTY**](https://files.catbox.moe/dgg08v.gif)`,
 
     // --- asta ---  745503767935451227
-    //'astadance' : '<@745503767935451227> [**I LOVE GOLDEN!!!**](https://files.catbox.moe/o9sa7o.gif)',
+    'astadance' : '<@745503767935451227> [**I LOVE GOLDEN!!!**](https://files.catbox.moe/o9sa7o.gif)',
 
     // --- wordles --- 252026199667245056
     'sybauwordles' :'<@252026199667245056> [**Bark for me like you mean it**](https://tenor.com/view/rage-rage-bait-baited-rage-baited-angry-dog-gif-2047466162835898859)', 	// wordle 252026199667245056
