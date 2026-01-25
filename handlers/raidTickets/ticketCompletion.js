@@ -67,7 +67,13 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- UPDATE HELPER SELECTION ---------- */
     if (interaction.customId === "closeRaid_SelectHelpers") {
-        const selectedIds = interaction.values;
+        const selectedIds = interaction.values.filter(id => id !== interaction.user.id);
+        
+        // Create the warning message if they tried to select themselves
+        let warningPrefix = "";
+        if (selectedIds.length < interaction.values.length) {
+            warningPrefix = "⚠️ **Note: You cannot select yourself as a helper.**\n\n";
+        }
 
         await updateRaid(interaction.channel.id, {
             pendingHelperIds: selectedIds
@@ -80,8 +86,9 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         const selectRow = createHelperSelectRow(raidInfo, maxHelpers);
         const btnRow = createButtonRow(selectedIds.length > 0, raidInfo.proofImage);
 
+        // This is now the ONLY response to the interaction
         await interaction.update({
-            content: `Selected helpers: ${selectedIds.map(id => `<@${id}>`).join(", ")}`,
+            content: `${warningPrefix}Selected helpers: ${selectedIds.map(id => `<@${id}>`).join(", ") || "None"}`,
             components: [selectRow, btnRow]
         });
         return;
