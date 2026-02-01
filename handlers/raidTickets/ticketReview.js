@@ -158,12 +158,6 @@ export async function finalizeAdminReview(
             breakdown += "No valid tasks were recognized for EXP calculation.";
           }
           
-          // Naughty Nice Event:
-          breakdown += "\n\n**Event Commands for mods: **\n"
-          for (const uid of Object.keys(pointsAwarded)) {
-              breakdown += `\`\`\`$give <@${uid}> 10\`\`\`\n`;
-          }          
-
           if (unknownTasks.length) {
             breakdown +=
               `\n\n⚠️ **Unrecognized Task Entries:**\n` +
