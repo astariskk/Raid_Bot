@@ -33,6 +33,7 @@ export const textGifCommands = {
     // --- kuro --- 719443918621638660
     'kurobike': `<@719443918621638660> [**RIDING JINU'S DIHH**](https://imgur.com/a/wKpRDrw)`, 	
     'kurodance' : `<@719443918621638660> 🗣️ [**SHUT UP AND DANCE WITH ME**](https://files.catbox.moe/l80j6z.gif)`, 	
+    'kurofreak' : `<@719443918621638660> [**YES ZADDY ITS SO YUMMY**](https://files.catbox.moe/v3cqpl.gif)`,
 
     // -- kui --- 713920796913041459
     'kuipunt': `<@713920796913041459> [**MISU BROKE MY HEART LIKE THIS**](https://files.catbox.moe/zhlcsh.gif)`, 	
