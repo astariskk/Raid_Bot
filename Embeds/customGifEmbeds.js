@@ -72,6 +72,10 @@ export const textGifCommands = {
     // --- devil x king --- 701781514580656228
     'devzesty' : '<@701781514580656228> [**ICHI NII SAN NYAHH**](https://files.catbox.moe/15uiib.gif)',
 
+    // --- Sek and Reb --- 430018088033845259 and 502048490688348160
+    'sekfreak' : `<@430018088033845259> <@502048490688348160> [**SAY RIBBIT AGAIN AND I'LL BITE**](https://i.imgur.com/IrOUFR6.gif)`,
+    'rebfreak' : `<@430018088033845259> <@502048490688348160> [**SAY RIBBIT AGAIN AND I'LL BITE**](https://i.imgur.com/IrOUFR6.gif)`,
+
     // --- Lego ---
     'legowave': '*Hi*[!](https://files.catbox.moe/viekho.gif)',
 

@@ -116,7 +116,7 @@ export const POINTS_CONFIG = {
 
 // --- Separate Task Lists for validation and display ---
 export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
-export const WEEKLIES_LIST = ['nulgath', 'drakath', 'dage', 'darkon', 'drago', 'gramiel', 'speaker'];
+export const WEEKLIES_LIST = ['nulgath', 'dage', 'drakath', 'darkon', 'drago', 'speaker', 'gramiel'];
 export const TEMPLESHRINE_LIST = ['tsleft', 'tsmid', 'tsright'];
 export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag'];
 export const OTHERS_FOUR_LIST = ['kala', 'iara']; 
