@@ -9,9 +9,9 @@ import {
     MAX_XP_PER_RAID,
     POINTS_CONFIG,
     TASK_ALIASES,
-} from '../config/constants.js';
-import { getRaidRequestModal } from '../Embeds/raidTicketEmbeds.js';
-import { calculateTaskPointsWithMultiplier } from '../utils/taskCalculations.js'; // Import the new helper
+} from '../../config/constants.js';
+import { getRaidRequestModal } from '../../Embeds/raidTicketEmbeds.js';
+import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js'; // Import the new helper
 
 // Import all necessary embed and button creation functions from the new file
 import {
@@ -26,10 +26,10 @@ import {
     createCustomGifEmbed,
     getCombinedTasksAndPointsEmbed,
     getCommandsEmbed,
-} from '../Embeds/generalCommandsEmbeds.js';
+} from '../../Embeds/generalCommandsEmbeds.js';
 
 // Import GIF command maps
-import { textGifCommands, gifCommands } from '../Embeds/customGifEmbeds.js';
+import { textGifCommands, gifCommands } from '../../Embeds/customGifEmbeds.js';
 
 
 // --- Cooldown management for GIF commands ---

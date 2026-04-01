@@ -16,7 +16,7 @@ import {
 } from '../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
-import { updateLeaderboard } from '../leaderboardCore.js';
+import { updateLeaderboard } from '../leaderboard/core.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
 
 const COLOR_INFO = 0x0099ff;

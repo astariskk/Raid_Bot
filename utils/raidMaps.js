@@ -1,14 +1,15 @@
 import { EmbedBuilder } from 'discord.js';
-import { TASK_MAP_CATEGORIES, TASK_TO_MAP_PREFIX_MAPPING } from '../config/constants.js';
+import { TASK_ALIASES, TASK_GROUPS, getJoinPrefixes } from '../config/constants.js';
 
 export function generateRaidMapsEmbed(tasks, mapNumber) {
     let expandedTasks = [];
     
     for (const task of tasks) {
-        if (TASK_MAP_CATEGORIES[task]) {
-            expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);
+        const resolved = TASK_ALIASES[task] || task;
+        if (TASK_GROUPS[resolved]) {
+            expandedTasks = expandedTasks.concat(TASK_GROUPS[resolved]);
         } else {
-            expandedTasks.push(task);
+            expandedTasks.push(resolved);
         }
     }
 
@@ -17,7 +18,7 @@ export function generateRaidMapsEmbed(tasks, mapNumber) {
 
     const joinLinksWithPoints = expandedTasks
         .flatMap(task => {
-            const prefixes = TASK_TO_MAP_PREFIX_MAPPING[task] || [task];
+            const prefixes = getJoinPrefixes(task);
             return prefixes.map(prefix => `\`\`\`/join ${prefix}-${finalMapNumber}\`\`\``);
         })
         .join('\n');

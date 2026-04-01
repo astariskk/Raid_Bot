@@ -2,7 +2,6 @@ import {
     TASK_ALIASES,
     ALLOWED_TASK_FOUR,
     ALLOWED_TASK_SEVEN,
-    ALLOWED_TASK_NAMES,
     GENERIC_TASKS_LIST,
 } from '../config/constants.js'
 

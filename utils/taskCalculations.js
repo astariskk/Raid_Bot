@@ -5,9 +5,8 @@
 import {
     POINTS_CONFIG,
     MAX_XP_PER_RAID,
-    TASK_MAP_CATEGORIES,
-    ALLOWED_TASK_NAMES,
     TASK_ALIASES,
+    TASK_GROUPS,
 } from '../config/constants.js';
 
 
@@ -37,20 +36,14 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
         let currentEntryPoints = 0;
         let effectiveTasks = new Set();
 
-        // Handle meta categories (e.g., 'daily', 'weekly')
-        if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
-            TASK_MAP_CATEGORIES[taskName].forEach(t => effectiveTasks.add(t));
-        }
-        // Handle direct task names (e.g., 'speaker', 'kathool')
-        else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
-            effectiveTasks.add(taskName);
-        }
-        // Handle aliases (e.g., 'drakath' -> 'drak')
-        else if (TASK_ALIASES.hasOwnProperty(taskName)) {
-            effectiveTasks.add(TASK_ALIASES[taskName]);
-        }
-        // If neither a meta category nor a direct task, mark as unknown
-        else {
+        const resolvedName = TASK_ALIASES[taskName] || taskName;
+
+        // Handle meta categories (e.g., 'dailies', 'weeklies')
+        if (Object.prototype.hasOwnProperty.call(TASK_GROUPS, resolvedName)) {
+            TASK_GROUPS[resolvedName].forEach(t => effectiveTasks.add(t));
+        } else if (Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
+            effectiveTasks.add(resolvedName);
+        } else {
             unknownTasks.push(entry);
             continue;
         }
@@ -59,8 +52,7 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
             if (POINTS_CONFIG.hasOwnProperty(t)) {
                 currentEntryPoints += POINTS_CONFIG[t];
             } else {
-                // This case should ideally not happen if POINTS_CONFIG is comprehensive for all tasks in TASK_MAP_CATEGORIES
-                console.warn(`Task "${t}" from category "${taskName}" not found in POINTS_CONFIG.`);
+                console.warn(`Task "${t}" from "${resolvedName}" not found in POINTS_CONFIG.`);
                 unknownTasks.push(t); // Add specific sub-task if not found
             }
         });
@@ -71,7 +63,7 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
 
         // Add to breakdown for display
         if (taskPoints > 0) {
-            calculatedBreakdown.push(`${taskName}${multiplier > 1 ? `x${multiplier}` : ''}: ${taskPoints} EXP`);
+            calculatedBreakdown.push(`${resolvedName}${multiplier > 1 ? `x${multiplier}` : ''}: ${taskPoints} EXP`);
         }
     }
 
