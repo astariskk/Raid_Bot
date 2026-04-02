@@ -75,7 +75,7 @@ export function getHowToUseEmbed() {
                     'If your task is not listed, use other tasks: \n'+ 
                     '* `simple` - for 7 man rooms and tasks that will take less than 5 minutes \n' +
                     '* `moderate` - for tasks that will take 5-20 minutes \n' +
-                    '* `difficult` - for 1% drop chance farms and tasks that will take more than 60 minutes',
+                    '* `difficult` - for 1% drop chance farms and tasks that will take more than 20 minutes',
                 inline: false,
             },
             {
