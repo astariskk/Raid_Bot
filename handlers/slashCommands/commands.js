@@ -89,6 +89,20 @@ export const commands = [
     description: 'Show raid tasks and EXP values.',
   },
   {
+    name: 'addgif',
+    description: 'Create a new GIF/Text command (staff only).',
+    dm_permission: false,
+    default_member_permissions: PermissionFlagsBits.ManageMessages.toString(),
+    options: [
+      {
+        name: 'command',
+        description: 'New command name (without the slash), e.g. "bonk"',
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+    ],
+  },
+  {
     name: 'editgif',
     description: 'Edit an existing GIF/Text command (staff only).',
     dm_permission: false,

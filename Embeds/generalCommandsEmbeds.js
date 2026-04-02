@@ -283,8 +283,8 @@ export function getModeratorCommandsEmbed() {
 \`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
 
 **GIF/Text command CRUD**
-\`!editgif <triggerword>\`: create/edit a GIF/Text command
-\`/editgif\`: slash version (creates if missing)
+\`!addgif <triggerword>\` / \`/addgif\`: create a new GIF/Text command
+\`!editgif <triggerword>\` / \`/editgif\`: edit an existing GIF/Text command
 Then use the buttons on the preview message: \`Edit\`, \`Change Image\`, \`Delete\`, \`Save and Close\`.
 
 **Charts CRUD**

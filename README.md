@@ -53,6 +53,6 @@ node index.js
 ## GIF/Text commands
 
 - Admin commands:
-  - `!editgif <triggerword>` (creates if missing)
-  - `/editgif command:<triggerword>` (creates if missing)
+  - `!addgif <triggerword>` / `/addgif command:<triggerword>`: create a new GIF/Text command
+  - `!editgif <triggerword>` / `/editgif command:<triggerword>`: edit an existing GIF/Text command
   - Use the buttons on the preview message: `Edit`, `Change Gif`, `Delete`, `Save and Close`.

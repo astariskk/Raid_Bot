@@ -221,10 +221,10 @@ function parseStartCommand(contentRaw) {
   const content = String(contentRaw ?? '').trim();
   const parts = content.split(/\s+/);
   const cmd = parts[0]?.toLowerCase();
-  if (cmd !== '!editgif') return null;
+  if (cmd !== '!addgif' && cmd !== '!editgif') return null;
 
   const command = String(parts[1] ?? '').trim().toLowerCase().replace(/^\//, '');
-  return { command, presetKind: null };
+  return { cmd, command, presetKind: null };
 }
 
 export async function startGifCommandCrudSession({ channel, guild, member, ownerId, command, kind, pingUserIds = undefined }) {
@@ -469,14 +469,19 @@ export async function maybeHandleGifCommandCrudMessage(message) {
   }
 
   if (!parsed.command) {
-    await message.reply({ content: 'Usage: `!editgif <triggerword>`' });
+    await message.reply({ content: 'Usage: `!addgif <triggerword>` or `!editgif <triggerword>`' });
     return true;
   }
 
   const normalized = sanitizeCommandName(parsed.command);
 
   const existing = await getGifCommand(normalized).catch(() => null);
-  if (existing) {
+  if (parsed.cmd === '!editgif') {
+    if (!existing) {
+      await message.reply({ content: `\`/${normalized}\` does not exist yet. Use \`!addgif ${normalized}\` to create it.` });
+      return true;
+    }
+
     await startGifCommandCrudSession({
       channel: message.channel,
       guild: message.guild,
@@ -485,6 +490,12 @@ export async function maybeHandleGifCommandCrudMessage(message) {
       command: normalized,
       kind: existing.kind,
     });
+    return true;
+  }
+
+  // !addgif
+  if (existing) {
+    await message.reply({ content: `\`/${normalized}\` already exists. Use \`!editgif ${normalized}\` to edit it.` });
     return true;
   }
 

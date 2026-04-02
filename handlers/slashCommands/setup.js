@@ -204,6 +204,37 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
+    case 'addgif': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      const raw = interaction.options.getString('command', true);
+      const normalized = String(raw ?? '').trim().replace(/^\//, '').toLowerCase();
+      if (!normalized) {
+        await interaction.reply({ content: 'Please provide a new command name.', flags: MessageFlags.Ephemeral });
+        return;
+      }
+
+      try {
+        const existing = await getGifCommand(normalized).catch(() => null);
+        if (existing) {
+          await interaction.reply({
+            content: `\`/${normalized}\` already exists. Use \`/editgif\` to edit it.`,
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        await startAddGifWizardInteraction(interaction, { command: normalized, presetKind: null });
+      } catch (error) {
+        console.error('Error handling /addgif:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to start GIF creation.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
     case 'editgif': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
 
@@ -217,7 +248,10 @@ export async function handleSlashCommandInteraction(interaction, client) {
       try {
         const existing = await getGifCommand(normalized).catch(() => null);
         if (!existing) {
-          await startAddGifWizardInteraction(interaction, { command: normalized, presetKind: null });
+          await interaction.reply({
+            content: `\`/${normalized}\` does not exist yet. Use \`/addgif\` to create it.`,
+            flags: MessageFlags.Ephemeral,
+          });
           return;
         }
 
