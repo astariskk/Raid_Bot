@@ -135,12 +135,20 @@ execute function public.set_updated_at();
 -- --------------------
 create table if not exists public.charts (
   key text primary key,
+  category text not null default 'general',
   title text not null,
+  triggers text[] not null default '{}'::text[],
+  variants jsonb not null default '[]'::jsonb,
   pages jsonb not null default '[]'::jsonb,
   enabled boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- If you already created the table earlier, run these (safe) alters:
+alter table public.charts add column if not exists category text not null default 'general';
+alter table public.charts add column if not exists triggers text[] not null default '{}'::text[];
+alter table public.charts add column if not exists variants jsonb not null default '[]'::jsonb;
 
 drop trigger if exists trg_charts_updated_at on public.charts;
 create trigger trg_charts_updated_at

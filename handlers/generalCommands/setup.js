@@ -29,10 +29,16 @@ import {
 import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
 import { loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
 import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
-import { handleChartsCrudInteraction, maybeHandleAddChartMessage, maybeHandleEditChartMessage } from './chartsCrud.js';
+import { handleChartsCrudInteraction, maybeHandleEditChartMessage } from './chartsCrud.js';
+import {
+    handleChartShowInteraction,
+    handleChartsBrowseInteraction,
+    handleChartTriggerVariantPickInteraction,
+    maybeHandleChartTriggerMessage,
+    maybeHandleChartsBrowseMessage,
+} from '../charts/charts.js';
 
 import {
-    getChartsEmbed,
     getCombinedTasksAndPointsEmbed,
     getCommandsEmbed,
     getHowToUseEmbed,
@@ -113,8 +119,10 @@ export function setupGeneralCommandsHandler(client) {
 
         const commandContent = message.content.toLowerCase();
 
-        if (await maybeHandleAddChartMessage(message)) return;
         if (await maybeHandleEditChartMessage(message)) return;
+
+        if (await maybeHandleChartsBrowseMessage(message)) return;
+        if (await maybeHandleChartTriggerMessage(message)) return;
 
         if (await maybeHandleGifCommandCrudMessage(message)) return;
 
@@ -133,17 +141,7 @@ export function setupGeneralCommandsHandler(client) {
             }
         }
 
-        // --- Handle the !charts command ---
-        if (commandContent === '!charts') {
-            const chartsEmbed = getChartsEmbed();
-            try {
-                await message.channel.send({ embeds: [chartsEmbed] });
-            } catch (error) {
-                console.error('Error sending !charts embed:', error);
-                await message.channel.send('Failed to display charts. Please try again later.');
-            }
-            return;
-        }
+        // !charts / !chart / chart triggers are handled above.
 
         if (commandContent === '!ping') {
             await message.reply('Pong!');
@@ -231,6 +229,9 @@ export function setupGeneralCommandsHandler(client) {
         if (!interaction.isButton()) return;
 
         if (await handleChartsCrudInteraction(interaction)) return;
+        if (await handleChartShowInteraction(interaction)) return;
+        if (await handleChartTriggerVariantPickInteraction(interaction)) return;
+        if (await handleChartsBrowseInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
 
         if (interaction.customId === 'startRaidWizard_btn') {
@@ -411,6 +412,8 @@ export function setupGeneralCommandsHandler(client) {
         if (!interaction.isStringSelectMenu()) return;
 
         if (await handleChartsCrudInteraction(interaction)) return;
+        if (await handleChartTriggerVariantPickInteraction(interaction)) return;
+        if (await handleChartsBrowseInteraction(interaction)) return;
         // CRUD modal submits land on the same interactionCreate event, but we already handle them above via the button listener.
         if (await handleGifCommandCrudInteraction(interaction)) return;
 

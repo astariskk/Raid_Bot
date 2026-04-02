@@ -46,13 +46,13 @@ node index.js
 ## Environment variables
 
 - `DISCORD_TOKEN` = your bot token
-- `SUPABASE_URL` = Project Settings â†’ API â†’ Project URL
-- `SUPABASE_SERVICE_ROLE_KEY` = Project Settings â†’ API â†’ Service role key (server-side secret)
+- `SUPABASE_URL` = Project Settings -> API -> Project URL
+- `SUPABASE_SERVICE_ROLE_KEY` = Project Settings -> API -> Service role key (server-side secret)
 - `SUPABASE_GIF_BUCKET` = (optional) storage bucket name for GIFs (default: `gif-commands`)
 
 ## GIF/Text commands
 
 - Admin commands:
-  - `!addgif <command>`
-  - `!addgif <triggerword>` (then choose GIF/Text type)
-  - Use the buttons on the preview message: `Edit`, `Change Gif`, `Delete`, `Close`.
+  - `!editgif <triggerword>` (creates if missing)
+  - `/editgif command:<triggerword>` (creates if missing)
+  - Use the buttons on the preview message: `Edit`, `Change Gif`, `Delete`, `Save and Close`.

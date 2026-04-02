@@ -1,5 +1,5 @@
 // handlers/slashCommands/commands.js
-import { ApplicationCommandOptionType } from 'discord.js';
+import { ApplicationCommandOptionType, PermissionFlagsBits } from 'discord.js';
 
 export const commands = [
   {
@@ -89,20 +89,10 @@ export const commands = [
     description: 'Show raid tasks and EXP values.',
   },
   {
-    name: 'addgif',
-    description: 'Create/manage a GIF embed command (staff only).',
-    options: [
-      {
-        name: 'command',
-        description: 'Command name (without the slash), e.g. "bonk"',
-        type: ApplicationCommandOptionType.String,
-        required: false,
-      },
-    ],
-  },
-  {
     name: 'editgif',
     description: 'Edit an existing GIF/Text command (staff only).',
+    dm_permission: false,
+    default_member_permissions: PermissionFlagsBits.ManageMessages.toString(),
     options: [
       {
         name: 'command',
@@ -113,11 +103,13 @@ export const commands = [
     ],
   },
   {
-    name: 'addchart',
-    description: 'Create/manage chart image pages (staff only).',
-  },
-  {
     name: 'editchart',
     description: 'Edit/remove existing chart pages (staff only).',
+    dm_permission: false,
+    default_member_permissions: PermissionFlagsBits.ManageMessages.toString(),
+  },
+  {
+    name: 'chart',
+    description: 'Browse charts by category.',
   },
 ];

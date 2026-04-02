@@ -7,9 +7,10 @@ import { updateLeaderboard } from '../leaderboard/core.js';
 import { sendLeaderboardCheckResults, sendLeaderboardResults } from '../leaderboard/setup.js';
 import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
 import { getCombinedTasksAndPointsEmbed } from '../../Embeds/generalCommandsEmbeds.js';
-import { startAddGifTriggerModal, startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
+import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
 import { getGifCommand } from '../../utils/gifCommandsStore.js';
-import { startAddChartFlowInteraction, startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
+import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
+import { startChartBrowseInteraction } from '../charts/charts.js';
 
 function getMentionedUserIds(usersString = '') {
   return [...usersString.matchAll(/<@!?(\d+)>/g)].map((match) => match[1]);
@@ -203,38 +204,6 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
-    case 'addgif': {
-      if (!isAdmin(interaction)) return replyNoPermission(interaction);
-
-      const raw = interaction.options.getString('command', false);
-      const normalized = raw ? String(raw ?? '').trim().replace(/^\//, '').toLowerCase() : '';
-
-      try {
-        if (!normalized) {
-          await startAddGifTriggerModal(interaction);
-          return;
-        }
-
-        const existing = await getGifCommand(normalized).catch(() => null);
-        if (existing) {
-          await interaction.reply({
-            content: `\`/${normalized}\` already exists. Use \`/editgif\` to edit it.`,
-            flags: MessageFlags.Ephemeral,
-          });
-          return;
-        }
-
-        await startAddGifWizardInteraction(interaction, { command: normalized, presetKind: null });
-      } catch (error) {
-        console.error(`Error handling /${interaction.commandName}:`, error);
-        await interaction.reply({
-          content: error?.message || 'Failed to start GIF command editor. Please try again later.',
-          flags: MessageFlags.Ephemeral,
-        }).catch(() => {});
-      }
-      return;
-    }
-
     case 'editgif': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
 
@@ -248,7 +217,7 @@ export async function handleSlashCommandInteraction(interaction, client) {
       try {
         const existing = await getGifCommand(normalized).catch(() => null);
         if (!existing) {
-          await interaction.reply({ content: `\`/${normalized}\` does not exist. Use \`/addgif\` to create it.`, flags: MessageFlags.Ephemeral });
+          await startAddGifWizardInteraction(interaction, { command: normalized, presetKind: null });
           return;
         }
 
@@ -275,20 +244,6 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
-    case 'addchart': {
-      if (!isAdmin(interaction)) return replyNoPermission(interaction);
-      try {
-        await startAddChartFlowInteraction(interaction);
-      } catch (error) {
-        console.error('Error handling /addchart:', error);
-        await interaction.reply({
-          content: error?.message || 'Failed to start chart editor.',
-          flags: MessageFlags.Ephemeral,
-        }).catch(() => {});
-      }
-      return;
-    }
-
     case 'editchart': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
       try {
@@ -297,6 +252,19 @@ export async function handleSlashCommandInteraction(interaction, client) {
         console.error('Error handling /editchart:', error);
         await interaction.reply({
           content: error?.message || 'Failed to start chart editor.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'chart': {
+      try {
+        await startChartBrowseInteraction(interaction);
+      } catch (error) {
+        console.error('Error handling /chart:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to browse charts.',
           flags: MessageFlags.Ephemeral,
         }).catch(() => {});
       }

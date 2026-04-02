@@ -143,7 +143,7 @@ function isAdminMember(member) {
 }
 
 function buildPreviewEmbed({ command, kind, row }) {
-  const embed = new EmbedBuilder().setColor(EMBED_COLOR).setTitle(`/${command}`);
+  const embed = new EmbedBuilder().setColor(EMBED_COLOR).setTitle(`${command}`);
 
   if (kind === 'text') {
     const pingIds = Array.isArray(row?.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [];
@@ -167,7 +167,7 @@ function buildPreviewEmbed({ command, kind, row }) {
     return embed;
   }
 
-  embed.setTitle(row?.title ? String(row.title) : `/${command}`);
+  embed.setTitle(row?.title ? String(row.title) : `${command}`);
   if (row?.footer) embed.setFooter({ text: String(row.footer) });
 
   if (row?.asset_path || row?.image_path) {
@@ -221,13 +221,10 @@ function parseStartCommand(contentRaw) {
   const content = String(contentRaw ?? '').trim();
   const parts = content.split(/\s+/);
   const cmd = parts[0]?.toLowerCase();
-  if (cmd !== '!addgif' && cmd !== '!addtextgif') return null;
+  if (cmd !== '!editgif') return null;
 
-  const presetKind = cmd === '!addtextgif' ? 'text' : null;
-  const name = cmd === '!addtextgif' ? parts[1] : parts[1];
-  const command = String(name ?? '').trim().toLowerCase().replace(/^\//, '');
-
-  return { command, presetKind };
+  const command = String(parts[1] ?? '').trim().toLowerCase().replace(/^\//, '');
+  return { command, presetKind: null };
 }
 
 export async function startGifCommandCrudSession({ channel, guild, member, ownerId, command, kind, pingUserIds = undefined }) {
@@ -323,7 +320,7 @@ function buildPingsWizardEmbed({ command, pingUserIds = [] } = {}) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle('Create Text Command')
-    .setDescription(`Trigger word: \`/${command}\`\nSelect user(s) to ping when the command is used.`);
+    .setDescription(`Trigger word: \`${command}\`\nSelect user(s) to ping when the command is used.`);
 
   if (pingUserIds.length) {
     embed.addFields({
@@ -472,7 +469,7 @@ export async function maybeHandleGifCommandCrudMessage(message) {
   }
 
   if (!parsed.command) {
-    await message.reply({ content: 'Usage: `!addgif <triggerword>`' });
+    await message.reply({ content: 'Usage: `!editgif <triggerword>`' });
     return true;
   }
 
@@ -480,7 +477,14 @@ export async function maybeHandleGifCommandCrudMessage(message) {
 
   const existing = await getGifCommand(normalized).catch(() => null);
   if (existing) {
-    await message.reply({ content: `\`/${normalized}\` already exists. Use \`/editgif\` to edit it.` });
+    await startGifCommandCrudSession({
+      channel: message.channel,
+      guild: message.guild,
+      member: message.member,
+      ownerId: message.author.id,
+      command: normalized,
+      kind: existing.kind,
+    });
     return true;
   }
 
@@ -488,14 +492,14 @@ export async function maybeHandleGifCommandCrudMessage(message) {
   createWizards.set(sessionId, {
     ownerId: message.author.id,
     command: normalized,
-    kind: parsed.presetKind,
+    kind: null,
     step: 'type',
     pingUserIds: [],
   });
 
   await message.channel.send({
-    embeds: [buildTypeWizardEmbed({ command: normalized, kind: parsed.presetKind })],
-    components: buildTypeWizardComponents(sessionId, { kind: parsed.presetKind }),
+    embeds: [buildTypeWizardEmbed({ command: normalized, kind: null })],
+    components: buildTypeWizardComponents(sessionId, { kind: null }),
   });
   return true;
 }

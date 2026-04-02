@@ -62,8 +62,8 @@ export function setupRaidHandlers(client) {
             return;
         }
 
-        // Commands (Maps, Charts)
-        if (interaction.customId.includes('raidmaps') || interaction.customId.includes('chart_')) {
+        // Commands (Maps)
+        if (interaction.customId.includes('raidmaps')) {
             const fullRaidInfo = await getRaidInfo(interaction.channel?.id);
             await handleCommandInteractions(interaction, fullRaidInfo ?? raidInfo);
             return;
