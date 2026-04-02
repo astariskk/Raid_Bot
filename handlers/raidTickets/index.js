@@ -44,7 +44,10 @@ export function setupRaidHandlers(client) {
         }
 
         // Completion Flow (Close, Helpers, Proof)
-        if (['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid'].includes(interaction.customId)) {
+        if (
+            ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid', 'partialHelper_btn'].includes(interaction.customId) ||
+            interaction.customId.startsWith('partialHelper_')
+        ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;
         }

@@ -142,13 +142,28 @@ export async function handleRaidCreation(interaction) {
             size: raidType,
             proofImage: null,
             isAwaitingCompletion: false,
+            partialHelpers: [],
             originalName: baseName
         });
 
-        await interaction.reply({
-            content: `Raid ticket created: <#${ticketChannel.id}>`,
-            flags: MessageFlags.Ephemeral
-        });
+        const createdContent = `Raid ticket created: <#${ticketChannel.id}>`;
+        const createdEmbed = new EmbedBuilder()
+            .setColor(EMBED_COLOR)
+            .setTitle('Ticket Created')
+            .setDescription(createdContent);
+
+        try {
+            if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
+                await interaction.update({ content: null, embeds: [createdEmbed], components: [] });
+            } else {
+                await interaction.reply({ content: createdContent, flags: MessageFlags.Ephemeral });
+            }
+        } catch (err) {
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: createdContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
+            console.error('Failed to update raid wizard message after creation:', err);
+        }
 
     } catch (error) {
         console.error("Raid Creation Error:", error);

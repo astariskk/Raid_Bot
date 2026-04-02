@@ -276,7 +276,24 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             ],
         });
 
-        await interaction.reply({ content: 'Raid updated.', flags: MessageFlags.Ephemeral });
+        const updatedContent = 'Raid updated.';
+        const updatedEmbed = new EmbedBuilder()
+            .setColor(EMBED_COLOR)
+            .setTitle('Edit Raid')
+            .setDescription(updatedContent);
+
+        try {
+            if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
+                await interaction.update({ content: null, embeds: [updatedEmbed], components: [] });
+            } else {
+                await interaction.reply({ content: updatedContent, flags: MessageFlags.Ephemeral });
+            }
+        } catch (err) {
+            if (!interaction.replied && !interaction.deferred) {
+                await interaction.reply({ content: updatedContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
+            console.error('Failed to update edit wizard message after modal submit:', err);
+        }
         return;
     }
 

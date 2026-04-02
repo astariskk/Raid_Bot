@@ -25,6 +25,8 @@ export const closeTicketButton = new ButtonBuilder()
     .setLabel('🔒 Close Raid')
     .setStyle(ButtonStyle.Danger);
 
+
+
 // Button to edit the tasks associated with a raid.
 export const editTaskButton = new ButtonBuilder()
     .setCustomId("editTask_btn")
@@ -79,7 +81,7 @@ export function getRaidRequestModal(raidType) {
 
     const mapNumberInput = new TextInputBuilder()
         .setCustomId('mapNumberInput')
-        .setLabel("Map Number (e.g., 99999)")
+        .setLabel("Map Number:")
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder('e.g., 2323, 1212');
@@ -140,7 +142,7 @@ function buildRaidWizardDetailsModal({ customId, title, mapNameRequired, default
         .setLabel(mapNameRequired ? 'Map Name:' : 'Map Name (optional):')
         .setStyle(TextInputStyle.Short)
         .setRequired(mapNameRequired)
-        .setPlaceholder('Leave blank if maps are based on the selected task(s).')
+        .setPlaceholder('If you have a specific order in mind or need to specify a map.')
         .setValue(defaults.mapName ?? '');
 
     const mapNumberInput = new TextInputBuilder()
@@ -216,6 +218,8 @@ export function getRaidWizardCategorySelectRow(sessionId, selectedCategoryKeys =
                 default: selectedSet.has(c.key),
             })),
         );
+
+        
 
     return new ActionRowBuilder().addComponents(categorySelectMenu);
 }

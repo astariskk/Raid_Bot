@@ -16,6 +16,8 @@ Run these once in the right channels so members can use the bot:
 
 - `Start Raid` button = guided raid ticket creation (pick room type + tasks, then fill map/server in a modal)
 
+- In raid tickets: use `Partial Helper` to assign a helper to specific tasks (partial EXP), then `Close Raid` to award points
+
 - `!modcommands` = shows the commands for mods, exp management and such
 
 - `!lbcommands` = shows the leaderboard commands
