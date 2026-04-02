@@ -1,4 +1,4 @@
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { MessageFlags } from 'discord.js';
 import { EMBED_COLOR } from '../../config/constants.js';
 import { MAX_XP_PER_RAID } from '../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
@@ -6,6 +6,10 @@ import { sendLeaderboardBackup } from '../backup/index.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
 import { sendLeaderboardCheckResults, sendLeaderboardResults } from '../leaderboard/setup.js';
 import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
+import { getCombinedTasksAndPointsEmbed } from '../../Embeds/generalCommandsEmbeds.js';
+import { startAddGifTriggerModal, startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
+import { getGifCommand } from '../../utils/gifCommandsStore.js';
+import { startAddChartFlowInteraction, startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
 
 function getMentionedUserIds(usersString = '') {
   return [...usersString.matchAll(/<@!?(\d+)>/g)].map((match) => match[1]);
@@ -177,6 +181,124 @@ export async function handleSlashCommandInteraction(interaction, client) {
           content: 'Failed to calculate task points. Please try again later.',
           flags: MessageFlags.Ephemeral,
         });
+      }
+      return;
+    }
+
+    case 'raidtasks': {
+      try {
+        const embeds = getCombinedTasksAndPointsEmbed();
+        await interaction.reply({
+          content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
+          embeds,
+          flags: MessageFlags.Ephemeral,
+        });
+      } catch (error) {
+        console.error('Error sending /raidtasks:', error);
+        await interaction.reply({
+          content: 'Failed to display raid tasks. Please try again later.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'addgif': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      const raw = interaction.options.getString('command', false);
+      const normalized = raw ? String(raw ?? '').trim().replace(/^\//, '').toLowerCase() : '';
+
+      try {
+        if (!normalized) {
+          await startAddGifTriggerModal(interaction);
+          return;
+        }
+
+        const existing = await getGifCommand(normalized).catch(() => null);
+        if (existing) {
+          await interaction.reply({
+            content: `\`/${normalized}\` already exists. Use \`/editgif\` to edit it.`,
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        await startAddGifWizardInteraction(interaction, { command: normalized, presetKind: null });
+      } catch (error) {
+        console.error(`Error handling /${interaction.commandName}:`, error);
+        await interaction.reply({
+          content: error?.message || 'Failed to start GIF command editor. Please try again later.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'editgif': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      const raw = interaction.options.getString('command', true);
+      const normalized = String(raw ?? '').trim().replace(/^\//, '').toLowerCase();
+      if (!normalized) {
+        await interaction.reply({ content: 'Please provide an existing command name.', flags: MessageFlags.Ephemeral });
+        return;
+      }
+
+      try {
+        const existing = await getGifCommand(normalized).catch(() => null);
+        if (!existing) {
+          await interaction.reply({ content: `\`/${normalized}\` does not exist. Use \`/addgif\` to create it.`, flags: MessageFlags.Ephemeral });
+          return;
+        }
+
+        const sent = await startGifCommandCrudSession({
+          channel: interaction.channel,
+          guild: interaction.guild,
+          member: interaction.member,
+          ownerId: interaction.user.id,
+          command: normalized,
+          kind: existing.kind,
+        });
+
+        await interaction.reply({
+          content: `Opened editor for \`/${normalized}\`. ${sent?.url ? `Open: ${sent.url}` : ''}`.trim(),
+          flags: MessageFlags.Ephemeral,
+        });
+      } catch (error) {
+        console.error('Error handling /editgif:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to open GIF editor.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'addchart': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+      try {
+        await startAddChartFlowInteraction(interaction);
+      } catch (error) {
+        console.error('Error handling /addchart:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to start chart editor.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'editchart': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+      try {
+        await startEditChartFlowInteraction(interaction);
+      } catch (error) {
+        console.error('Error handling /editchart:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to start chart editor.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
       }
       return;
     }

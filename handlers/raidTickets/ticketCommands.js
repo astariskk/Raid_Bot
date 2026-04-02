@@ -1,4 +1,4 @@
-import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder } from 'discord.js';
+import { EmbedBuilder, ButtonBuilder, ButtonStyle, ActionRowBuilder, MessageFlags } from 'discord.js';
 import { updateRaidStatus } from '../../activeRaidState.js';
 import { generateRaidMapsEmbed, parseRaidTasks } from '../../utils/raidMaps.js';
 import { RAID_CHARTS, twoManEmbeds, threeManEmbeds, scamChartEmbeds } from '../../Embeds/raidChartsEmbeds.js';
@@ -65,7 +65,7 @@ function createNavRow(type, uid, ts, disabled = false) {
 // --- Interaction Handler for Charts/Maps ---
 export async function handleCommandInteractions(interaction, raidInfo) {
     if (interaction.customId === 'raidmapsButton') {
-        if (!raidInfo.mapNumber) return interaction.reply({ content: "No map number set. Use `!raidmaps <number>`.", ephemeral: true });
+        if (!raidInfo.mapNumber) return interaction.reply({ content: "No map number set. Use `!raidmaps <number>`.", flags: MessageFlags.Ephemeral });
         const embed = generateRaidMapsEmbed(parseRaidTasks(raidInfo.task), raidInfo.mapNumber);
         return interaction.reply({ embeds: [embed] });
     }
@@ -76,7 +76,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
         const session = activeChartSessions.get(interaction.message.id);
         
         if (!session || interaction.user.id !== parts[3]) {
-            return interaction.reply({ content: "Session expired or not yours.", ephemeral: true });
+            return interaction.reply({ content: "Session expired or not yours.", flags: MessageFlags.Ephemeral });
         }
 
         session.currentPage += (parts[2] === 'next' ? 1 : -1);

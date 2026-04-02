@@ -1,4 +1,4 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, MessageFlags } from 'discord.js';
 
 import {
     EMBED_COLOR,
@@ -29,6 +29,7 @@ import {
 import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
 import { loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
 import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
+import { handleChartsCrudInteraction, maybeHandleAddChartMessage, maybeHandleEditChartMessage } from './chartsCrud.js';
 
 import {
     getChartsEmbed,
@@ -112,6 +113,9 @@ export function setupGeneralCommandsHandler(client) {
 
         const commandContent = message.content.toLowerCase();
 
+        if (await maybeHandleAddChartMessage(message)) return;
+        if (await maybeHandleEditChartMessage(message)) return;
+
         if (await maybeHandleGifCommandCrudMessage(message)) return;
 
         if (await maybeHandleGifTextCommands(message)) return;
@@ -155,6 +159,21 @@ export function setupGeneralCommandsHandler(client) {
             } catch (error) {
                 console.error('Error sending !raidrules embed:', error);
                 await message.channel.send('Failed to display raid rules. Please try again later.');
+            }
+            return;
+        }
+
+        // --- Handle the !raidtasks command ---
+        if (commandContent === '!raidtasks' && message.channel.id === RAID_CHANNEL_ID) {
+            const tasksEmbed = getCombinedTasksAndPointsEmbed();
+            try {
+                await message.channel.send({
+                    content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
+                    embeds: tasksEmbed,
+                });
+            } catch (error) {
+                console.error('Error sending !raidtasks embed:', error);
+                await message.channel.send('Failed to display raid tasks. Please try again later.');
             }
             return;
         }
@@ -211,13 +230,14 @@ export function setupGeneralCommandsHandler(client) {
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
 
+        if (await handleChartsCrudInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
 
         if (interaction.customId === 'startRaidWizard_btn') {
             if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                 await interaction.reply({
                     content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Click 'ðŸ“£ Get Help Role' first.`,
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
                 return;
             }
@@ -230,7 +250,7 @@ export function setupGeneralCommandsHandler(client) {
                     getRaidWizardCategorySelectRow(sessionId, []),
                     getRaidWizardNavRow(sessionId, { step: 'category', canContinue: false }),
                 ],
-                ephemeral: true,
+                flags: MessageFlags.Ephemeral,
             });
             return;
         }
@@ -247,7 +267,7 @@ export function setupGeneralCommandsHandler(client) {
 
             const session = getRaidWizardSession(sessionId);
             if (!session || session.userId !== interaction.user.id) {
-                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', ephemeral: true });
+                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', flags: MessageFlags.Ephemeral });
                 return;
             }
 
@@ -272,13 +292,13 @@ export function setupGeneralCommandsHandler(client) {
             if (continueSessionId) {
                 if (session.step === 'category') {
                     if (!session.categoryKeys?.length) {
-                        await interaction.reply({ content: 'Select at least one category first.', ephemeral: true });
+                        await interaction.reply({ content: 'Select at least one category first.', flags: MessageFlags.Ephemeral });
                         return;
                     }
 
                     const optionCount = getRaidWizardTaskOptionsCount(session.categoryKeys);
                     if (optionCount > 25) {
-                        await interaction.reply({ content: 'Too many tasks selected. Pick fewer categories (max 25 options).', ephemeral: true });
+                        await interaction.reply({ content: 'Too many tasks selected. Pick fewer categories (max 25 options).', flags: MessageFlags.Ephemeral });
                         return;
                     }
 
@@ -295,7 +315,7 @@ export function setupGeneralCommandsHandler(client) {
                 }
 
                 if (!session.tasks?.length) {
-                    await interaction.reply({ content: 'Select at least one task first.', ephemeral: true });
+                    await interaction.reply({ content: 'Select at least one task first.', flags: MessageFlags.Ephemeral });
                     return;
                 }
 
@@ -314,7 +334,7 @@ export function setupGeneralCommandsHandler(client) {
                 const member = interaction.member;
 
                 if (!guild) {
-                    await interaction.reply({ content: 'This command can only be used in a server.', ephemeral: true });
+                    await interaction.reply({ content: 'This command can only be used in a server.', flags: MessageFlags.Ephemeral });
                     return;
                 }
 
@@ -322,17 +342,17 @@ export function setupGeneralCommandsHandler(client) {
                     const role = await guild.roles.fetch(RAID_HELPER_ROLE_ID);
 
                     if (!role) {
-                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', ephemeral: true });
+                        await interaction.reply({ content: 'The specified helper role was not found. Please contact an administrator.', flags: MessageFlags.Ephemeral });
                         return;
                     }
 
                     const botMember = await guild.members.fetch(client.user.id);
                     if (!botMember.permissions.has('ManageRoles')) {
-                        await interaction.reply({ content: 'I do not have the necessary permissions (`Manage Roles`) to assign roles. Please ask an administrator to grant me this permission.', ephemeral: true });
+                        await interaction.reply({ content: 'I do not have the necessary permissions (`Manage Roles`) to assign roles. Please ask an administrator to grant me this permission.', flags: MessageFlags.Ephemeral });
                         return;
                     }
                     if (botMember.roles.highest.position <= role.position) {
-                        await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the Raid Helper role in the server settings.`, ephemeral: true });
+                        await interaction.reply({ content: `My role is not high enough to assign the \`${role.name}\` role. Please ensure my role is above the Raid Helper role in the server settings.`, flags: MessageFlags.Ephemeral });
                         return;
                     }
 
@@ -343,7 +363,7 @@ export function setupGeneralCommandsHandler(client) {
                             .setColor(EMBED_COLOR)
                             .setDescription(`<@&${RAID_HELPER_ROLE_ID}> role has been removed.`);
 
-                        await interaction.reply({ embeds: [embed], ephemeral: true });
+                        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
                     } else {
                         await member.roles.add(RAID_HELPER_ROLE_ID, 'Requested via Get Help Role button');
 
@@ -351,11 +371,11 @@ export function setupGeneralCommandsHandler(client) {
                             .setColor(EMBED_COLOR)
                             .setDescription(`<@&${RAID_HELPER_ROLE_ID}> role has been added`);
 
-                        await interaction.reply({ embeds: [embed], ephemeral: true });
+                        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
                     }
                 } catch (error) {
                     console.error('Error assigning help role:', error);
-                    await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', ephemeral: true });
+                    await interaction.reply({ content: 'There was an error trying to assign you the role. Please ensure I have `Manage Roles` permission and my role is above the Raid Helper role.', flags: MessageFlags.Ephemeral });
                 }
                 break;
             }
@@ -365,14 +385,14 @@ export function setupGeneralCommandsHandler(client) {
                 await interaction.reply({
                     content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
                     embeds: tasksEmbed,
-                    ephemeral: true,
+                    flags: MessageFlags.Ephemeral,
                 });
                 break;
             }
 
             case 'showAllCommands_btn': {
                 const commandsEmbed = getCommandsEmbed();
-                await interaction.reply({ embeds: [commandsEmbed], ephemeral: true });
+                await interaction.reply({ embeds: [commandsEmbed], flags: MessageFlags.Ephemeral });
                 break;
             }
 
@@ -383,12 +403,14 @@ export function setupGeneralCommandsHandler(client) {
 
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isModalSubmit()) return;
+        if (await handleChartsCrudInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
     });
 
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
 
+        if (await handleChartsCrudInteraction(interaction)) return;
         // CRUD modal submits land on the same interactionCreate event, but we already handle them above via the button listener.
         if (await handleGifCommandCrudInteraction(interaction)) return;
 
@@ -396,7 +418,7 @@ export function setupGeneralCommandsHandler(client) {
             const sessionId = interaction.customId.slice('raidWizard_category_'.length);
             const session = getRaidWizardSession(sessionId);
             if (!session || session.userId !== interaction.user.id) {
-                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', ephemeral: true });
+                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', flags: MessageFlags.Ephemeral });
                 return;
             }
 
@@ -429,7 +451,7 @@ export function setupGeneralCommandsHandler(client) {
             const sessionId = interaction.customId.slice('raidWizard_tasks_'.length);
             const session = getRaidWizardSession(sessionId);
             if (!session || session.userId !== interaction.user.id) {
-                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', ephemeral: true });
+                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', flags: MessageFlags.Ephemeral });
                 return;
             }
 
@@ -460,5 +482,11 @@ export function setupGeneralCommandsHandler(client) {
                 ],
             });
         }
+    });
+
+    client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isUserSelectMenu()) return;
+        if (await handleChartsCrudInteraction(interaction)) return;
+        if (await handleGifCommandCrudInteraction(interaction)) return;
     });
 }

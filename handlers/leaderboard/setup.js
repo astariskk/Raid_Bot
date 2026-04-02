@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from 'discord.js';
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
 import {
@@ -149,10 +149,10 @@ function extractLbCheckRange(content, message) {
 
 function getDisabledPaginationRow(prefix, timestamp) {
     return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(`${prefix}_start_disabled_${timestamp}`).setLabel('<<').setStyle(ButtonStyle.Primary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`${prefix}_prev_disabled_${timestamp}`).setLabel('<').setStyle(ButtonStyle.Primary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`${prefix}_next_disabled_${timestamp}`).setLabel('>').setStyle(ButtonStyle.Primary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`${prefix}_end_disabled_${timestamp}`).setLabel('>>').setStyle(ButtonStyle.Primary).setDisabled(true),
+        new ButtonBuilder().setCustomId(`${prefix}_start_disabled_${timestamp}`).setLabel('<<').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId(`${prefix}_prev_disabled_${timestamp}`).setLabel('<').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId(`${prefix}_next_disabled_${timestamp}`).setLabel('>').setStyle(ButtonStyle.Secondary).setDisabled(true),
+        new ButtonBuilder().setCustomId(`${prefix}_end_disabled_${timestamp}`).setLabel('>>').setStyle(ButtonStyle.Secondary).setDisabled(true),
     );
 }
 
@@ -513,12 +513,12 @@ export async function handleLeaderboardButtonInteraction(interaction, client) {
         activePaginationSessions.delete(sessionKey);
 
         await interaction.update({ components: [getDisabledPaginationRow('expired', timestamp)] }).catch(() => {});
-        await interaction.followUp({ content: 'This session has expired. Please run the command again.', ephemeral: true });
+        await interaction.followUp({ content: 'This session has expired. Please run the command again.', flags: MessageFlags.Ephemeral });
         return;
     }
 
     if (interaction.user.id !== sessionData.originalRequesterId) {
-        await interaction.reply({ content: 'You can only navigate your own command results!', ephemeral: true });
+        await interaction.reply({ content: 'You can only navigate your own command results!', flags: MessageFlags.Ephemeral });
         return;
     }
 

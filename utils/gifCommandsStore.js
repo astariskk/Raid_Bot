@@ -1,5 +1,5 @@
-import { EMBED_COLOR } from '../config/constants.js';
 import { getSupabase } from './supabaseClient.js';
+import { EMBED_COLOR } from '../config/constants.js';
 
 const cache = {
   loadedAtMs: 0,
@@ -12,7 +12,7 @@ export async function loadGifCommandsCache() {
 
   const { data, error } = await supabase
     .from('gif_commands')
-    .select('command,kind,title,footer,image_path,text_content,color,enabled')
+    .select('command,kind,title,footer,asset_path,image_path,ping_user_ids,text_label,text_description,text_content,color,enabled')
     .eq('enabled', true);
 
   if (error) throw error;
@@ -27,14 +27,33 @@ export async function loadGifCommandsCache() {
     if (!cmd) continue;
 
     if (row.kind === 'text') {
-      if (row.text_content) textGifCommands[cmd] = String(row.text_content);
+      const maybePath = row.asset_path || row.image_path;
+      let url = null;
+      if (maybePath) {
+        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(String(maybePath));
+        url = publicData?.publicUrl ?? null;
+      }
+
+      const pingIds = Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [];
+      const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
+      const description = String(row.text_description ?? '').trim();
+      const label = String(row.text_label ?? '').trim();
+
+      if (url && label) {
+        const prefix = mentions ? `${mentions} ` : '';
+        const mid = description ? `${description} ` : '';
+        textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${url})`.trim();
+      } else if (row.text_content) {
+        textGifCommands[cmd] = String(row.text_content);
+      }
       continue;
     }
 
     if (row.kind === 'gif') {
       let image = null;
-      if (row.image_path) {
-        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(String(row.image_path));
+      const maybePath = row.asset_path || row.image_path;
+      if (maybePath) {
+        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(String(maybePath));
         image = publicData?.publicUrl ?? null;
       }
 
@@ -71,7 +90,7 @@ export async function getGifCommand(command) {
 
   const { data, error } = await supabase
     .from('gif_commands')
-    .select('command,kind,title,footer,image_path,text_content,color,enabled')
+    .select('command,kind,title,footer,asset_path,image_path,ping_user_ids,text_label,text_description,text_content,color,enabled')
     .eq('command', cmd)
     .maybeSingle();
 
@@ -86,6 +105,10 @@ export async function upsertGifCommand({
   footer,
   textContent,
   imagePath,
+  assetPath,
+  pingUserIds,
+  textLabel,
+  textDescription,
   color,
   enabled = true,
 }) {
@@ -93,18 +116,30 @@ export async function upsertGifCommand({
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const row = {
-    command: cmd,
-    kind,
-    title: title ?? null,
-    footer: footer ?? null,
-    text_content: textContent ?? null,
-    image_path: imagePath ?? null,
-    color: color ?? null,
-    enabled,
-  };
+  const row = { command: cmd, enabled };
+  if (kind !== undefined) row.kind = kind;
+  if (title !== undefined) row.title = title;
+  if (footer !== undefined) row.footer = footer;
+  if (textContent !== undefined) row.text_content = textContent;
+  if (imagePath !== undefined) row.image_path = imagePath;
+  if (assetPath !== undefined) row.asset_path = assetPath;
+  if (pingUserIds !== undefined) row.ping_user_ids = pingUserIds;
+  if (textLabel !== undefined) row.text_label = textLabel;
+  if (textDescription !== undefined) row.text_description = textDescription;
+  if (color !== undefined) row.color = color;
 
   const { error } = await supabase.from('gif_commands').upsert(row, { onConflict: 'command' });
+  if (error) throw error;
+
+  await loadGifCommandsCache();
+}
+
+export async function updateGifCommand(command, patch = {}) {
+  const supabase = getSupabase();
+  const cmd = String(command ?? '').trim().toLowerCase();
+  if (!cmd) throw new Error('command is required');
+
+  const { error } = await supabase.from('gif_commands').update(patch).eq('command', cmd);
   if (error) throw error;
 
   await loadGifCommandsCache();
@@ -126,7 +161,7 @@ export async function updateGifCommandImage(command, imagePath) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const { error } = await supabase.from('gif_commands').update({ image_path: imagePath }).eq('command', cmd);
+  const { error } = await supabase.from('gif_commands').update({ asset_path: imagePath, image_path: imagePath }).eq('command', cmd);
   if (error) throw error;
 
   await loadGifCommandsCache();

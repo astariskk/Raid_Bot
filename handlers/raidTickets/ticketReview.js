@@ -4,7 +4,8 @@ import {
   ButtonStyle,
   ActionRowBuilder,
   ChannelType,
-  PermissionsBitField
+  PermissionsBitField,
+  MessageFlags
 } from 'discord.js';
 
 import {
@@ -265,7 +266,7 @@ export async function handleReviewInteractions(interaction, raidInfo) {
   if (interaction.customId !== "deleteFinalizedRaidChannel") return;
   if (!await requireAuth(interaction, raidInfo, "staff")) return;
 
-  await interaction.reply({ content: "Deleting channel…", ephemeral: true });
+  await interaction.reply({ content: "Deleting channel…", flags: MessageFlags.Ephemeral });
   await deleteRaid(interaction.channel.id);
   await interaction.channel.delete().catch(() => {});
 }

@@ -38,7 +38,7 @@ export function getCommandsEmbed() {
                 name: 'General',
                 value:
                     `• \`!raidtasks\` — lists raid tasks by category\n` +
-                    `• \`/raidtasks\` — slash version of raid tasks` +                    
+                    `• \`/raidtasks\` — slash version of raid tasks\n` +                    
                     `• \`!calculatetask <task1> + <task2>...\` — calculate EXP for tasks\n` +
                     `• \`/calculatetask\` — slash version of task calculation`,
                 inline: false,
@@ -243,15 +243,22 @@ export function getLeaderboardCommandsEmbed() {
     return new EmbedBuilder()
         .setColor(EMBED_COLOR)
         .setTitle('Leaderboard Commands List')
-        .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
+        .setDescription('Shown using `!lbcommands`. Commands to check raid experience and rankings:')
         .addFields(
             {
-                name: 'Leaderboard & Points Check',
+                name: 'Leaderboard',
                 value: `
-\`!leaderboard\` or \`!lb\`: Displays the current top 10 players by total EXP.
-\`!lbcheck [@user] [today/yesterday/day# |-MM-DD | from <start> to <end>]\`: Shows EXP gained on a specific day or date range (overall or for specific user(s)).
-**Example: \`!lbcheck @user1 @user2 from 10 to 15\`**
+\`!leaderboard\` / \`!lb\` - show the leaderboard (paginated)
+\`/lb\` - slash version of leaderboard / EXP check
 `
+            },
+            {
+                name: 'EXP Check (1-3 days max)',
+                value: `
+\`!lbcheck [@user...] [today|yesterday|YYYY-MM-DD|from <start> to <end>]\`
+\`/lb range:<input> users:<mentions>\` or \`/lb from:<YYYY-MM-DD> to:<YYYY-MM-DD>\`
+**Example:** \`!lbcheck @user1 @user2 from 2026-04-01 to 2026-04-02\`
+`,
             }
         )
         .setTimestamp()
@@ -276,9 +283,12 @@ export function getModeratorCommandsEmbed() {
 \`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
 
 **GIF/Text command CRUD**
-\`!addgif <command>\`: Create/manage a GIF embed command
-\`!addtextgif <command>\`: Create/manage a text-only command
-Then use the buttons on the preview message: \`Edit\`, \`Change Gif\`, \`Delete\`, \`Close\`.
+\`!addgif <triggerword>\`: starts the GIF/Text command creator
+\`/addgif\`: slash version
+Then use the buttons on the preview message: \`Edit\`, \`Change Image\`, \`Delete\`, \`Save and Close\`.
+
+**Charts CRUD**
+\`!addchart\` or \`/addchart\`: create/manage multi-page chart images
 `
             }
         )
@@ -311,10 +321,18 @@ export function getSecretCommandsEmbed(gifCommands, textGifCommands) {
 }
 
 export function createCustomGifEmbed(gifInfo) {
-    return new EmbedBuilder()
-        .setColor(gifInfo.color ?? EMBED_COLOR)
-        .setTitle(gifInfo.title)
-        .setImage(gifInfo.image)
-        .setFooter({ text: gifInfo.footer });
+    const embed = new EmbedBuilder()
+        .setColor(gifInfo.color ?? EMBED_COLOR);
+
+    const title = String(gifInfo.title ?? '').trim();
+    if (title) embed.setTitle(title);
+
+    const image = String(gifInfo.image ?? '').trim();
+    if (image) embed.setImage(image);
+
+    const footer = String(gifInfo.footer ?? '').trim();
+    if (footer) embed.setFooter({ text: footer });
+
+    return embed;
 }
 

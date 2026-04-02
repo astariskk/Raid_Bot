@@ -102,7 +102,15 @@ create table if not exists public.gif_commands (
   kind text not null check (kind in ('gif','text')),
   title text null,
   footer text null,
+  -- Main storage object for this command (bucket path).
+  -- The bot treats this as the authoritative file to delete when the command is deleted.
+  asset_path text null,
+  -- Legacy (kept for backwards compatibility with older rows)
   image_path text null,
+  -- Text-only command structure (supports: @mentions + optional description + bold outlined link)
+  ping_user_ids text[] null,
+  text_label text null,
+  text_description text null,
   text_content text null,
   color integer null,
   enabled boolean not null default true,
@@ -110,8 +118,32 @@ create table if not exists public.gif_commands (
   updated_at timestamptz not null default now()
 );
 
+-- If you already created the table earlier, run these (safe) alters:
+alter table public.gif_commands add column if not exists asset_path text null;
+alter table public.gif_commands add column if not exists ping_user_ids text[] null;
+alter table public.gif_commands add column if not exists text_label text null;
+alter table public.gif_commands add column if not exists text_description text null;
+
 drop trigger if exists trg_gif_commands_updated_at on public.gif_commands;
 create trigger trg_gif_commands_updated_at
 before update on public.gif_commands
+for each row
+execute function public.set_updated_at();
+
+-- --------------------
+-- Custom Charts (multi-page image sets)
+-- --------------------
+create table if not exists public.charts (
+  key text primary key,
+  title text not null,
+  pages jsonb not null default '[]'::jsonb,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_charts_updated_at on public.charts;
+create trigger trg_charts_updated_at
+before update on public.charts
 for each row
 execute function public.set_updated_at();

@@ -84,4 +84,40 @@ export const commands = [
       },
     ],
   },
+  {
+    name: 'raidtasks',
+    description: 'Show raid tasks and EXP values.',
+  },
+  {
+    name: 'addgif',
+    description: 'Create/manage a GIF embed command (staff only).',
+    options: [
+      {
+        name: 'command',
+        description: 'Command name (without the slash), e.g. "bonk"',
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+    ],
+  },
+  {
+    name: 'editgif',
+    description: 'Edit an existing GIF/Text command (staff only).',
+    options: [
+      {
+        name: 'command',
+        description: 'Existing command name (without the slash), e.g. "bonk"',
+        type: ApplicationCommandOptionType.String,
+        required: true,
+      },
+    ],
+  },
+  {
+    name: 'addchart',
+    description: 'Create/manage chart image pages (staff only).',
+  },
+  {
+    name: 'editchart',
+    description: 'Edit/remove existing chart pages (staff only).',
+  },
 ];
