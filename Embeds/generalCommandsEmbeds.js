@@ -67,16 +67,13 @@ export function getHowToUseEmbed() {
     return new EmbedBuilder()
         .setTitle('How to Use the Raid Helper Bot')
         .setDescription(
-            `**1. Get Help Role:** Get the <@&${RAID_HELPER_ROLE_ID}> Role using the \`ðŸ“£ Get Help Role\` button to have access to raid content**. You can press it again to remove the role\n\n` +
-            `**2. Request a Raid:** Click \`Start Raid\` and select the room type + tasks (no typing needed). ` +
-            `For tasks not on the list, you can use generic tasks:\n` +
-            ` â€¢ \`simple\`: Raids expected to take less than 5 to 10 minutes and 7 man rooms.\n` +
-            ` â€¢ \`moderate\`: Raids expected to take less than 30 minutes.\n` +
-            ` â€¢ \`hard\`: Raids expected to take 30 minutes or more which includes 1% drop chance farms and learning ultra boss mechanics .\n\n` +
-            `**3. Raid Coordination:** A dedicated ticket will be created for your raid. Within this ticket, you can use ticket-only commands, update your raid's status or edit your request.\n\n` +
-            `**4. Complete Raid:** Click the \`ðŸ”’ Close Raid\` button in your ticket and Mention the Helpers to close. If someone left during the raid, mention what task they helped with in the ticket if you want them to get rewarded.\n\n` +
-            `**5. Leaderboard Points:** Check your points and rank using \`!leaderboard\` or \`!lb\` in the <#${LEADERBOARD_CHANNEL_ID}> channel. A maximum of \`${MAX_XP_PER_RAID} EXP\` can be earned per raid.\n All <@&${RECORD_HOLDER_ROLE_ID}> will receive \`10000\` points for every reacord each month as long as their record is not broken.\n\n` +
-            `**Press the buttons below to interact with the bot and get more details:**`
+            `1. Get Help Role: Press \`Get Help Role\` to toggle the <@&${RAID_HELPER_ROLE_ID}> role.\n\n` +
+            `2. Start Raid: Press \`Start Raid\`, pick categories + tasks, then fill in the details modal.\n` +
+            `If your task isn't listed, use generic tasks: \`simple\`, \`moderate\`, \`hard\`.\n\n` +
+            `3. During the raid: In the ticket you can type \`!waiting\`, \`!ongoing\`, or \`!full\`.\n\n` +
+            `4. Closing & points: Press \`Close Raid\`, select helpers, and (optional) use \`Partial Helper\` to assign helpers to specific tasks for partial EXP.\n Max \`${MAX_XP_PER_RAID} EXP\` per raid. \n\n` +
+            `5. Leaderboard: Use \`!leaderboard\` or \`!lb\` in <#${LEADERBOARD_CHANNEL_ID}>.\n\n` +
+            `Press the buttons below for more info.`
         )
         .setColor(EMBED_COLOR);
 }

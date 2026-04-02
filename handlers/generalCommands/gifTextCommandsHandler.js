@@ -1,6 +1,6 @@
 import { GENERAL_CHANNEL_ID, AQW_CHANNEL_ID } from '../../config/constants.js';
 import { getSecretCommandsEmbed, createCustomGifEmbed } from '../../Embeds/generalCommandsEmbeds.js';
-import { textGifCommands, gifCommands } from '../../Embeds/customGifEmbeds.js';
+import { getGifCommandsCache } from '../../utils/gifCommandsStore.js';
 
 const GIF_COOLDOWN_DURATION = 10 * 1000;
 
@@ -48,6 +48,7 @@ async function handleCooldown({ message, userId }) {
 }
 
 export async function maybeHandleGifTextCommands(message) {
+  const { gifCommands, textGifCommands } = getGifCommandsCache();
   const commandContent = message.content.toLowerCase();
   const userId = message.author.id;
 

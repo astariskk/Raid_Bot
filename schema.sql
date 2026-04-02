@@ -93,3 +93,25 @@ begin
     set points = public.leaderboard_daily_points.points + excluded.points;
 end;
 $$;
+
+-- --------------------
+-- Custom GIF/Text commands (public bucket recommended)
+-- --------------------
+create table if not exists public.gif_commands (
+  command text primary key,
+  kind text not null check (kind in ('gif','text')),
+  title text null,
+  footer text null,
+  image_path text null,
+  text_content text null,
+  color integer null,
+  enabled boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_gif_commands_updated_at on public.gif_commands;
+create trigger trg_gif_commands_updated_at
+before update on public.gif_commands
+for each row
+execute function public.set_updated_at();

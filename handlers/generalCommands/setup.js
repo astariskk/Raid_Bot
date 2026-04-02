@@ -27,6 +27,8 @@ import {
 } from '../raidTickets/raidWizardSession.js';
 
 import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
+import { loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
+import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
 
 import {
     getChartsEmbed,
@@ -92,10 +94,14 @@ function inferRaidTypeFromCategoryKeys(categoryKeys) {
 }
 
 export function setupGeneralCommandsHandler(client) {
+    loadGifCommandsCache().catch((err) => console.error('Failed to load gif/text commands cache:', err));
+
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 
         const commandContent = message.content.toLowerCase();
+
+        if (await maybeHandleGifCommandCrudMessage(message)) return;
 
         if (await maybeHandleGifTextCommands(message)) return;
 
@@ -193,6 +199,8 @@ export function setupGeneralCommandsHandler(client) {
 
     client.on('interactionCreate', async (interaction) => {
         if (!interaction.isButton()) return;
+
+        if (await handleGifCommandCrudInteraction(interaction)) return;
 
         if (interaction.customId === 'startRaidWizard_btn') {
             if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
@@ -344,10 +352,7 @@ export function setupGeneralCommandsHandler(client) {
             case 'seeRaidTasks_btn': {
                 const tasksEmbed = getCombinedTasksAndPointsEmbed();
                 await interaction.reply({
-                    content: 'Below are the list of available tasks and exp values sectioned by their category.\n' +
-                        '* You can use the following names for combined multiple tasks: `dailies` or `daily`, `weeklies` or `weekly`, `templeshrine`, `originul`, `legion`\n' +
-                        '* You can also use /taskalias [task] for other names you could use for that task, like `gramiel` as `gram`\n' +
-                        '* For multiple runs of the same task, you can append ` x[number]` to the task name, e.g. `nerfkitten x3` to indicate 3 runs of nerfkitten.',
+                    content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
                     embeds: tasksEmbed,
                     ephemeral: true,
                 });
@@ -366,7 +371,15 @@ export function setupGeneralCommandsHandler(client) {
     });
 
     client.on('interactionCreate', async (interaction) => {
+        if (!interaction.isModalSubmit()) return;
+        if (await handleGifCommandCrudInteraction(interaction)) return;
+    });
+
+    client.on('interactionCreate', async (interaction) => {
         if (!interaction.isStringSelectMenu()) return;
+
+        // CRUD modal submits land on the same interactionCreate event, but we already handle them above via the button listener.
+        if (await handleGifCommandCrudInteraction(interaction)) return;
 
         if (interaction.customId.startsWith('raidWizard_category_')) {
             const sessionId = interaction.customId.slice('raidWizard_category_'.length);

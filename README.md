@@ -48,7 +48,17 @@ node index.js
 - `DISCORD_TOKEN` = your bot token
 - `SUPABASE_URL` = Project Settings â†’ API â†’ Project URL
 - `SUPABASE_SERVICE_ROLE_KEY` = Project Settings â†’ API â†’ Service role key (server-side secret)
+- `SUPABASE_GIF_BUCKET` = (optional) storage bucket name for GIFs (default: `gif-commands`)
 
 Notes:
 - `SUPABASE_PASSWORD` is not used by this bot (that password is for direct Postgres connections).
 - You can remove `MONGODB_URI` after migrating to Supabase.
+
+## GIF/Text commands (Supabase)
+
+- Create the `gif_commands` table from `schema.sql`.
+- Create a Supabase Storage bucket (recommended name: `gif-commands`) and make it **public** (or adjust to signed URLs).
+- Admin commands:
+  - `!addgif <command>`
+  - `!addtextgif <command>`
+  - Use the buttons on the preview message: `Edit`, `Change Gif`, `Delete`, `Close`.
