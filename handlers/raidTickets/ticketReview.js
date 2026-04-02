@@ -219,9 +219,6 @@ export async function finalizeAdminReview(
       `**Original Task(s):** ${raidInfo.task}`
     ];
 
-    const partialBlock = formatPartialHelpersBlock(raidInfo);
-    if (partialBlock) desc.push(partialBlock);
-
     if (notes) desc.push(`**Notes:** ${notes}`);
     if (reason === "completed") {
       desc.push(`**EXP Lair Post:** ${expLairMessageLink}`);

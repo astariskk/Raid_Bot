@@ -72,7 +72,10 @@ export function getHowToUseEmbed() {
                 name: '2) Start Raid',
                 value:
                     'Press `Start Raid`, pick categories + tasks, then fill in the details modal.\n' +
-                    'If your task is not listed, use other tasks: `simple`, `moderate`, `difficult`.',
+                    'If your task is not listed, use other tasks: '+ 
+                    '`simple` - for 7 man rooms and tasks that will take less than 5 minutes' +
+                    '`moderate` - for tasks that will take 5-20 minutes' +
+                    '`difficult` - for 1% drop chance farms and tasks that will take more than 60 minutes',
                 inline: false,
             },
             {

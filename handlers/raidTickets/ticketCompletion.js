@@ -105,6 +105,37 @@ async function refreshCloseMessageIfPossible({ channel, parentMessageId }) {
     }
 }
 
+async function safeDeferUpdate(interaction) {
+    try {
+        if (!interaction.deferred && !interaction.replied) {
+            await interaction.deferUpdate();
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+async function safeEditComponentMessage(interaction, payload) {
+    try {
+        if (interaction.deferred || interaction.replied) {
+            await interaction.editReply(payload);
+            return true;
+        }
+
+        await interaction.update(payload);
+        return true;
+    } catch (err) {
+        if (interaction.message?.edit) {
+            await interaction.message.edit(payload).catch(() => {});
+            return true;
+        }
+
+        console.error('Failed to update component message:', err);
+        return false;
+    }
+}
+
 /* -------------------- PARTIAL HELPER UI HELPERS -------------------- */
 function getUniqueRaidTaskKeys(raidInfo) {
     const tokens = parseRaidTasks(raidInfo?.task || '')
@@ -281,6 +312,7 @@ function buildPartialHelperNavRow(sessionId, { step, canNext, canSave, canRemove
 
 /* -------------------- MAIN HANDLER -------------------- */
 export async function handleCompletionInteractions(interaction, raidInfo, client) {
+    try {
     /* ---------- AUTH ---------- */
     if (!await requireAuth(interaction, raidInfo)) return;
 
@@ -490,19 +522,20 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         }
 
         if (saveId) {
+            await safeDeferUpdate(interaction);
             if (session.step !== 'user') return;
             if (!session.selectedHelperIds?.length) {
-                await interaction.reply({ content: 'Select at least one helper first.', flags: MessageFlags.Ephemeral });
+                await interaction.followUp({ content: 'Select at least one helper first.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 return;
             }
             if (!session.selectedTasks?.length) {
-                await interaction.reply({ content: 'Select at least one task first.', flags: MessageFlags.Ephemeral });
+                await interaction.followUp({ content: 'Select at least one task first.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 return;
             }
 
             const helperIds = [...new Set(session.selectedHelperIds.map(String))].filter(Boolean);
             if (helperIds.includes(freshRaidInfo.requesterId)) {
-                await interaction.reply({ content: 'The raid requester cannot be added as a helper.', flags: MessageFlags.Ephemeral });
+                await interaction.followUp({ content: 'The raid requester cannot be added as a helper.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 return;
             }
 
@@ -512,10 +545,10 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                 if (!member || !member.roles.cache.has(RAID_HELPER_ROLE_ID)) invalidIds.push(hid);
             }
             if (invalidIds.length) {
-                await interaction.reply({
+                await interaction.followUp({
                     content: `These users must have the <@&${RAID_HELPER_ROLE_ID}> role: ${invalidIds.map((id) => `<@${id}>`).join(', ')}`,
                     flags: MessageFlags.Ephemeral,
-                });
+                }).catch(() => {});
                 return;
             }
 
@@ -533,7 +566,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             await refreshCloseMessageIfPossible({ channel: interaction.channel, parentMessageId: session.parentMessageId });
             consumePartialHelperSession(sessionId);
 
-            await interaction.update({
+            await safeEditComponentMessage(interaction, {
                 embeds: [
                     new EmbedBuilder()
                         .setColor(EMBED_COLOR)
@@ -643,6 +676,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- UPDATE HELPER SELECTION ---------- */
     if (interaction.customId === 'closeRaid_SelectHelpers') {
+        await safeDeferUpdate(interaction);
         const selectedIds = interaction.values.filter((id) => id !== interaction.user.id);
 
         let warningPrefix = '';
@@ -656,7 +690,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         const selectRow = createHelperSelectRow(maxHelpers);
         const btnRow = createCloseButtonsRow({ isConfirmEnabled: selectedIds.length > 0, proofImageUrl: raidInfo.proofImage });
 
-        await interaction.update({
+        await interaction.message.edit({
             content:
                 `${warningPrefix}` +
                 `**Selected helpers**: ${selectedIds.map((id) => `<@${id}>`).join(', ') || 'None'}\n` +
@@ -763,8 +797,9 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- ABORT ---------- */
     if (interaction.customId === 'abortCloseRaid') {
-        await updateRaid(interaction.channel.id, { isAwaitingCompletion: false, pendingHelperIds: null });
-        await interaction.update({ content: 'Closing aborted.', components: [] });
+        await safeDeferUpdate(interaction);
+        await updateRaid(interaction.channel.id, { isAwaitingCompletion: false, pendingHelperIds: null, awaitingCompletionRequesterId: null });
+        await interaction.message.edit({ content: 'Closing aborted.', components: [] }).catch(() => {});
         return;
     }
 
@@ -779,5 +814,14 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             content: payload.content,
             components: payload.components,
         });
+    }
+    } catch (err) {
+        console.error('handleCompletionInteractions error:', err);
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: 'Something went wrong handling that interaction. Please try again.',
+                flags: MessageFlags.Ephemeral,
+            }).catch(() => {});
+        }
     }
 }

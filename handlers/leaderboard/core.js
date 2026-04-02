@@ -108,8 +108,10 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   if (usersOnPage.length === 0) {
     embed.setDescription(`${resetInfo}\n\nThe leaderboard is empty. Start earning some EXP!`);
   } else {
-    const rows = [];
-    const NAME_WIDTH = 22;
+    const ranks = [];
+    const names = [];
+    const points = [];
+    const NAME_MAX = 22;
 
     for (let index = 0; index < usersOnPage.length; index += 1) {
       const player = usersOnPage[index];
@@ -127,18 +129,19 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
         }
       }
 
-      const rank = String(startIndex + index + 1).padStart(2, ' ');
-      const nameCell = String(userName).replace(/\s+/g, ' ').slice(0, NAME_WIDTH).padEnd(NAME_WIDTH, ' ');
-      const expCell = String(player.totalExp).padStart(8, ' ');
-      rows.push(`${rank}  ${nameCell}  ${expCell}`);
+      const safeName = String(userName).replace(/\s+/g, ' ').trim();
+      ranks.push(String(startIndex + index + 1));
+      names.push(safeName.length > NAME_MAX ? `${safeName.slice(0, Math.max(0, NAME_MAX - 1))}…` : safeName);
+      points.push(String(player.totalExp));
     }
 
-    const table =
-      `#   Name${' '.repeat(Math.max(0, NAME_WIDTH - 4))}  EXP\n` +
-      `${'-'.repeat(2)}  ${'-'.repeat(NAME_WIDTH)}  ${'-'.repeat(8)}\n` +
-      `${rows.join('\n')}`;
-
-    embed.setDescription(`${resetInfo}\n\n\`\`\`\n${table}\n\`\`\``);
+    embed
+      .setDescription(resetInfo || null)
+      .addFields(
+        { name: '#', value: ranks.join('\n').slice(0, 1024) || '\u200b', inline: true },
+        { name: 'Name', value: names.join('\n').slice(0, 1024) || '\u200b', inline: true },
+        { name: 'EXP', value: points.join('\n').slice(0, 1024) || '\u200b', inline: true },
+      );
   }
 
   if (originalRequesterId === 'scheduled_reset') {
