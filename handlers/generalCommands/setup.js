@@ -334,7 +334,7 @@ export function setupGeneralCommandsHandler(client) {
         if (interaction.customId === 'startRaidWizard_btn') {
             if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
                 await interaction.reply({
-                    content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Click 'ðŸ“£ Get Help Role' first.`,
+                    content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to start a raid. Click 'Get Help Role' first.`,
                     flags: MessageFlags.Ephemeral,
                 });
                 return;
