@@ -42,3 +42,13 @@ nodemon index.js
 or
 
 node index.js
+
+## Environment variables
+
+- `DISCORD_TOKEN` = your bot token
+- `SUPABASE_URL` = Project Settings â†’ API â†’ Project URL
+- `SUPABASE_SERVICE_ROLE_KEY` = Project Settings â†’ API â†’ Service role key (server-side secret)
+
+Notes:
+- `SUPABASE_PASSWORD` is not used by this bot (that password is for direct Postgres connections).
+- You can remove `MONGODB_URI` after migrating to Supabase.

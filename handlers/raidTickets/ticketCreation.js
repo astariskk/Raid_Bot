@@ -138,8 +138,6 @@ export async function handleRaidCreation(interaction) {
             server,
             description,
             status: 'active',
-            color: COLOR_WAITING,
-            size: raidType,
             proofImage: null,
             isAwaitingCompletion: false,
             partialHelpers: [],

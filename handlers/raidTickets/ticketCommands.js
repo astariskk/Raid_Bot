@@ -14,11 +14,11 @@ export async function handleTicketMessages(message, client, raidInfo) {
     const content = message.content.toLowerCase().trim();
 
     // 1. Status Updates
-    const statusMap = { '!waiting': ['Waiting', COLORS.WAITING], '!full': ['Full', COLORS.FULL], '!ongoing': ['Ongoing', COLORS.ONGOING] };
+    const statusMap = { '!waiting': ['Waiting'], '!full': ['Full'], '!ongoing': ['Ongoing'] };
     if (statusMap[content]) {
         if (['awaiting_completion', 'completed'].includes(raidInfo.status)) return;
         try {
-            await updateRaidStatus(client, message.channel.id, statusMap[content][0], statusMap[content][1]);
+            await updateRaidStatus(client, message.channel.id, statusMap[content][0]);
             await message.react('👍');
         } catch (e) { console.error(e); }
         return;

@@ -1,0 +1,62 @@
+0 verbose cli C:\Program Files\nodejs\node.exe C:\Program Files\nodejs\node_modules\npm\bin\npm-cli.js
+1 info using npm@11.7.0
+2 info using node@v25.4.0
+3 silly config load:file:C:\Program Files\nodejs\node_modules\npm\npmrc
+4 silly config load:file:C:\Users\ADMIN\OneDrive\Astariskk\GitHub\Raid_Bot\.npmrc
+5 silly config load:file:C:\Users\ADMIN\.npmrc
+6 silly config load:file:C:\Users\ADMIN\AppData\Roaming\npm\etc\npmrc
+7 verbose title npm install
+8 verbose argv "install" "--cache" ".npm-cache" "--no-audit" "--no-fund"
+9 verbose logfile logs-max:10 dir:C:\Users\ADMIN\OneDrive\Astariskk\GitHub\Raid_Bot\.npm-cache\_logs\2026-04-02T08_57_02_809Z-
+10 verbose logfile C:\Users\ADMIN\OneDrive\Astariskk\GitHub\Raid_Bot\.npm-cache\_logs\2026-04-02T08_57_02_809Z-debug-0.log
+11 silly logfile done cleaning log files
+12 silly packumentCache heap:4496293888 maxSize:1124073472 maxEntrySize:562036736
+13 http fetch GET https://registry.npmjs.org/npm attempt 1 failed with EACCES
+14 silly idealTree buildDeps
+15 silly fetch manifest @supabase/supabase-js@^2.57.0
+16 silly packumentCache full:https://registry.npmjs.org/@supabase%2fsupabase-js cache-miss
+17 http fetch GET https://registry.npmjs.org/@supabase%2fsupabase-js attempt 1 failed with EACCES
+18 http fetch GET https://registry.npmjs.org/npm attempt 2 failed with EACCES
+19 http fetch GET https://registry.npmjs.org/@supabase%2fsupabase-js attempt 2 failed with EACCES
+20 http fetch GET https://registry.npmjs.org/npm attempt 3 failed with EACCES
+21 http fetch GET https://registry.npmjs.org/@supabase%2fsupabase-js attempt 3 failed with EACCES
+22 silly placeDep ROOT @supabase/supabase-js@ OK for: raid_bot@1.0.0 want: ^2.57.0
+23 verbose type system
+24 verbose stack FetchError: request to https://registry.npmjs.org/@supabase%2fsupabase-js failed, reason: 
+24 verbose stack     at ClientRequest.<anonymous> (C:\Program Files\nodejs\node_modules\npm\node_modules\minipass-fetch\lib\index.js:130:14)
+24 verbose stack     at ClientRequest.emit (node:events:508:20)
+24 verbose stack     at emitErrorEvent (node:_http_client:108:11)
+24 verbose stack     at _destroy (node:_http_client:963:9)
+24 verbose stack     at onSocketNT (node:_http_client:983:5)
+24 verbose stack     at process.processTicksAndRejections (node:internal/process/task_queues:91:21)
+25 error code EACCES
+26 error errno EACCES
+27 error FetchError: request to https://registry.npmjs.org/@supabase%2fsupabase-js failed, reason: 
+27 error     at ClientRequest.<anonymous> (C:\Program Files\nodejs\node_modules\npm\node_modules\minipass-fetch\lib\index.js:130:14)
+27 error     at ClientRequest.emit (node:events:508:20)
+27 error     at emitErrorEvent (node:_http_client:108:11)
+27 error     at _destroy (node:_http_client:963:9)
+27 error     at onSocketNT (node:_http_client:983:5)
+27 error     at process.processTicksAndRejections (node:internal/process/task_queues:91:21) {
+27 error   code: 'EACCES',
+27 error   errno: 'EACCES',
+27 error   type: 'system',
+27 error   requiredBy: '.'
+27 error }
+28 error
+28 error The operation was rejected by your operating system.
+28 error It's possible that the file was already in use (by a text editor or antivirus),
+28 error or that you lack permissions to access it.
+28 error
+28 error If you believe this might be a permissions issue, please double-check the
+28 error permissions of the file and its containing directories, or try running
+28 error the command again as root/Administrator.
+29 silly unfinished npm timer reify 1775120223119
+30 silly unfinished npm timer reify:loadTrees 1775120223120
+31 verbose cwd C:\Users\ADMIN\OneDrive\Astariskk\GitHub\Raid_Bot
+32 verbose os Windows_NT 10.0.26200
+33 verbose node v25.4.0
+34 verbose npm  v11.7.0
+35 verbose exit 1
+36 verbose code 1
+37 error A complete log of this run can be found in: C:\Users\ADMIN\OneDrive\Astariskk\GitHub\Raid_Bot\.npm-cache\_logs\2026-04-02T08_57_02_809Z-debug-0.log

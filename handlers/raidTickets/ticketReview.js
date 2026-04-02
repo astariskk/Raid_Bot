@@ -22,6 +22,31 @@ import { requireAuth, isStaff } from './ticketUtils.js';
 
 const COLOR_INFO = EMBED_COLOR;
 
+function normalizePartialHelpers(raidInfo) {
+  const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
+  return raw
+    .map((e) => ({
+      helperId: e?.helperId ? String(e.helperId) : null,
+      tasks: Array.isArray(e?.tasks) ? e.tasks.map((t) => String(t).toLowerCase()).filter(Boolean) : [],
+    }))
+    .filter((e) => e.helperId);
+}
+
+function formatPartialHelpersBlock(raidInfo) {
+  const partial = normalizePartialHelpers(raidInfo);
+  if (!partial.length) return null;
+
+  const lines = partial
+    .map((e) => {
+      const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No tasks';
+      return `- <@${e.helperId}>: ${tasks}`;
+    })
+    .join('\n')
+    .slice(0, 1000);
+
+  return `**Partial Helpers:**\n${lines}`;
+}
+
 export async function finalizeAdminReview(
   client, channel,
   raidInfo,
@@ -77,17 +102,18 @@ export async function finalizeAdminReview(
     await channel.setName("Pending-raid-review").catch(() => {});
 
     /* -------------------- EXP LAIR POST -------------------- */
-    let expLairMessageLink = "N/A (no post)";
+          let expLairMessageLink = "N/A (no post)";
 
     if (reason === "completed") {
       try {
         const expLairChannel = await client.channels.fetch(EXP_LAIR_CHANNEL_ID);
 
         if (expLairChannel?.type === ChannelType.GuildText) {
-            const helpers =
-            Object.keys(pointsAwarded).length > 0
-              ? Object.keys(pointsAwarded).map(id => `<@${id}>`).join(", ")
-              : "None";
+          const helperIds = Object.keys(pointsAwarded);
+          const partialHelperIds = normalizePartialHelpers(raidInfo).map((e) => e.helperId);
+          const allHelpers = [...new Set([...helperIds, ...partialHelperIds])];
+
+          const helpers = allHelpers.length > 0 ? allHelpers.map((id) => `<@${id}>`).join(', ') : 'None';
 
           const expEmbed = new EmbedBuilder()
             .setColor(COLOR_INFO)
@@ -145,11 +171,20 @@ export async function finalizeAdminReview(
               ? ` / ${originalTotalCalculatedPoints} EXP \n The Points were capped.`
               : ""
           }\n\n**Points awarded to Helpers:**\n`;
-          
+
+          const partialHelpers = normalizePartialHelpers(raidInfo);
+          const partialMap = new Map(partialHelpers.map((e) => [e.helperId, e.tasks]));
+
           for (const uid of Object.keys(pointsAwarded)) {
             const member = await guild.members.fetch(uid).catch(() => null);
-            breakdown += `* ${member?.displayName ?? `<@${uid}>`}: ${pointsAwarded[uid]} EXP\n`; 
-          }           
+            const displayName = member?.displayName ?? `<@${uid}>`;
+            breakdown += `${displayName}: ${pointsAwarded[uid]} EXP\n`;
+
+            const tasks = partialMap.get(uid) ?? null;
+            if (tasks && tasks.length) {
+              breakdown += `* Tasks: ${tasks.join(', ')}\n`;
+            }
+          }
 
           if (calculatedBreakdown.length) {
             breakdown += "\n**Task EXP Breakdown:**\n";
@@ -179,6 +214,9 @@ export async function finalizeAdminReview(
       `**Requester:** <@${raidInfo.requesterId}>`,
       `**Original Task(s):** ${raidInfo.task}`
     ];
+
+    const partialBlock = formatPartialHelpersBlock(raidInfo);
+    if (partialBlock) desc.push(partialBlock);
 
     if (notes) desc.push(`**Notes:** ${notes}`);
     if (reason === "completed") {

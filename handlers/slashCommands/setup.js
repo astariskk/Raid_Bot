@@ -76,6 +76,14 @@ export async function handleSlashCommandInteraction(interaction, client) {
         const usersString = interaction.options.getString('users');
         const userIds = getMentionedUserIds(usersString);
 
+        if (!userIds.length) {
+          await interaction.reply({
+            content: 'Please mention at least one user in the `users` field (e.g. `<@123> <@456>`).',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
         for (const id of userIds) {
           await updateLeaderboard(id, amount);
         }
@@ -100,6 +108,14 @@ export async function handleSlashCommandInteraction(interaction, client) {
       try {
         const usersString = interaction.options.getString('users');
         const userIds = getMentionedUserIds(usersString);
+
+        if (!userIds.length) {
+          await interaction.reply({
+            content: 'Please mention at least one user in the `users` field (e.g. `<@123> <@456>`).',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
 
         for (const id of userIds) {
           await updateLeaderboard(id, -amount);

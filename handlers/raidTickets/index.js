@@ -1,5 +1,5 @@
 import { ChannelType } from 'discord.js';
-import { getRaidInfo } from '../../activeRaidState.js';
+import { getRaidInfo, getRaidInfoMinimal } from '../../activeRaidState.js';
 import { RAID_CATEGORY_ID } from '../../config/constants.js';
 
 import { handleRaidCreation } from './ticketCreation.js';
@@ -28,7 +28,7 @@ export function setupRaidHandlers(client) {
     client.on("interactionCreate", async (interaction) => {
         if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isUserSelectMenu() && !interaction.isStringSelectMenu()) return;
 
-        const raidInfo = await getRaidInfo(interaction.channel?.id);
+        const raidInfo = await getRaidInfoMinimal(interaction.channel?.id);
         if (!raidInfo) {
             // Check for Creation Modal (which happens before raidInfo exists)
             if (interaction.customId.startsWith('raidRequestModal') || interaction.customId.startsWith('raidWizardDetailsModal_')) {
@@ -64,7 +64,8 @@ export function setupRaidHandlers(client) {
 
         // Commands (Maps, Charts)
         if (interaction.customId.includes('raidmaps') || interaction.customId.includes('chart_')) {
-            await handleCommandInteractions(interaction, raidInfo);
+            const fullRaidInfo = await getRaidInfo(interaction.channel?.id);
+            await handleCommandInteractions(interaction, fullRaidInfo ?? raidInfo);
             return;
         }
     });

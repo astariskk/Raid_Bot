@@ -59,9 +59,7 @@ function createCloseButtonsRow({ isConfirmEnabled, proofImageUrl }) {
     );
 }
 
-function getMaxHelpersForRaidSize(raidSize) {
-    return raidSize === '4-man' ? 3 : raidSize === '7-man' ? 6 : 10;
-}
+const MAX_HELPERS = 10;
 
 function formatPartialHelpersForClose(raidInfo) {
     const partialHelpers = normalizePartialHelpers(raidInfo);
@@ -70,25 +68,25 @@ function formatPartialHelpersForClose(raidInfo) {
     const lines = partialHelpers
         .map((e) => {
             const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No tasks';
-            return `<@${e.helperId}>: ${tasks}`;
+            return `* <@${e.helperId}>: ${tasks}`;
         })
         .join('\n')
         .slice(0, 1500);
 
-    return `Partial Helpers:\n${lines}\n\n`;
+    return `**Partial Helpers**:\n${lines}\n`;
 }
 
 function buildCloseMessagePayload(raidInfo) {
     const selectedIds = Array.isArray(raidInfo?.pendingHelperIds) ? raidInfo.pendingHelperIds : [];
-    const maxHelpers = getMaxHelpersForRaidSize(raidInfo?.size);
+    const maxHelpers = MAX_HELPERS;
     const selectRow = createHelperSelectRow(maxHelpers);
     const btnRow = createCloseButtonsRow({ isConfirmEnabled: selectedIds.length > 0, proofImageUrl: raidInfo?.proofImage });
 
     return {
         content:
+            `**Selected helper${selectedIds.length === 1 ? '' : 's'}**: ${selectedIds.map((id) => `<@${id}>`).join(', ') || 'None'}\n` +
             `${formatPartialHelpersForClose(raidInfo)}` +
-            `Select the helpers who helped in this raid:\n` +
-            `Selected helpers: ${selectedIds.map((id) => `<@${id}>`).join(', ') || 'None'}`,
+            `Select the helpers who helped in this raid:`,
         components: [selectRow, btnRow],
     };
 }
@@ -286,6 +284,10 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     /* ---------- AUTH ---------- */
     if (!await requireAuth(interaction, raidInfo)) return;
 
+    // Load full raid info after auth (minimal raidInfo is passed from the router)
+    const fullRaidInfo = await getRaidInfo(interaction.channel.id);
+    if (fullRaidInfo) raidInfo = fullRaidInfo;
+
     /* ---------- HARD LOCK: ADMIN REVIEW ---------- */
     if (raidInfo?.status === 'admin_review') {
         if (!interaction.replied && !interaction.deferred) {
@@ -479,7 +481,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                 await interaction.update({
                     embeds: [buildPartialHelperEmbed({ step: 'user', partialHelpers, selectedTasks: updated.selectedTasks })],
                     components: [
-                        buildPartialHelperUserRow(sessionId, { maxValues: getMaxHelpersForRaidSize(freshRaidInfo.size) }),
+                        buildPartialHelperUserRow(sessionId, { maxValues: MAX_HELPERS }),
                         buildPartialHelperNavRow(sessionId, { step: 'user', canSave: (updated.selectedHelperIds?.length ?? 0) > 0 }),
                     ],
                 });
@@ -632,7 +634,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         await interaction.update({
             embeds: [buildPartialHelperEmbed({ step: 'user', partialHelpers, selectedTasks: updated.selectedTasks })],
             components: [
-                buildPartialHelperUserRow(sessionId, { maxValues: getMaxHelpersForRaidSize(freshRaidInfo.size) }),
+                buildPartialHelperUserRow(sessionId, { maxValues: MAX_HELPERS }),
                 buildPartialHelperNavRow(sessionId, { step: 'user', canSave: (updated.selectedHelperIds?.length ?? 0) > 0 }),
             ],
         });
@@ -650,16 +652,16 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
         await updateRaid(interaction.channel.id, { pendingHelperIds: selectedIds });
 
-        const maxHelpers = getMaxHelpersForRaidSize(raidInfo.size);
+        const maxHelpers = MAX_HELPERS;
         const selectRow = createHelperSelectRow(maxHelpers);
         const btnRow = createCloseButtonsRow({ isConfirmEnabled: selectedIds.length > 0, proofImageUrl: raidInfo.proofImage });
 
         await interaction.update({
             content:
-                `${formatPartialHelpersForClose(raidInfo)}` +
                 `${warningPrefix}` +
-                `Select the helpers who helped in this raid:\n` +
-                `Selected helpers: ${selectedIds.map((id) => `<@${id}>`).join(', ') || 'None'}`,
+                `**Selected helpers**: ${selectedIds.map((id) => `<@${id}>`).join(', ') || 'None'}\n` +
+                `${formatPartialHelpersForClose(raidInfo)}\n` +
+                `Select the helpers who helped in this raid:`,                
             components: [selectRow, btnRow],
         });
         return;
@@ -699,13 +701,21 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     if (interaction.customId === 'confirmCloseSelection') {
         const currentRaidInfo = await getRaidInfo(interaction.channel.id);
         const selectedIds = currentRaidInfo.pendingHelperIds || [];
+        const partialHelpers = normalizePartialHelpers(currentRaidInfo);
+        const partialIds = partialHelpers.map((e) => e.helperId);
+        const allHelperIds = [...new Set([...selectedIds, ...partialIds])]
+            .filter(Boolean)
+            .filter((id) => id !== currentRaidInfo.requesterId);
 
         await interaction.update({
-            content: `Selected Raid Helpers: ${selectedIds.map((id) => `<@${id}>`).join(', ')}\nRaid marked for completion.`,
+            content: 
+                `**Selected helper${selectedIds.length === 1 ? '' : 's'}**: ${selectedIds.map((id) => `<@${id}>`).join(', ') || 'None'}\n` +
+                `${formatPartialHelpersForClose(currentRaidInfo)}` +
+                `Raid marked for completion.`,
             components: [],
         });
 
-        if (!selectedIds.length) {
+        if (!allHelperIds.length) {
             if (!interaction.replied && !interaction.deferred) {
                 await interaction.reply({ content: 'No helpers selected.', flags: MessageFlags.Ephemeral });
             }
@@ -713,10 +723,9 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         }
 
         const { originalTotalCalculatedPoints } = calculateTaskPointsWithMultiplier(currentRaidInfo.task);
-        const partialHelpers = normalizePartialHelpers(currentRaidInfo);
 
         const pointsMap = {};
-        for (const uid of selectedIds) {
+        for (const uid of allHelperIds) {
             const partial = partialHelpers.find((e) => e.helperId === uid);
             if (partial?.tasks?.length) {
                 const subset = partial.tasks.join(', ');
@@ -748,13 +757,12 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     if (interaction.customId === 'closeRaidTicket') {
         await updateRaid(interaction.channel.id, { isAwaitingCompletion: true, pendingHelperIds: [] });
 
-        const maxHelpers = getMaxHelpersForRaidSize(raidInfo.size);
-        const selectRow = createHelperSelectRow(maxHelpers);
-        const btnRow = createCloseButtonsRow({ isConfirmEnabled: false, proofImageUrl: raidInfo.proofImage });
+        const updatedRaidInfo = await getRaidInfo(interaction.channel.id);
+        const payload = buildCloseMessagePayload(updatedRaidInfo ?? raidInfo);
 
         await interaction.reply({
-            content: `${formatPartialHelpersForClose(raidInfo)}Select the helpers who helped in this raid:`,
-            components: [selectRow, btnRow],
+            content: payload.content,
+            components: payload.components,
         });
     }
 }

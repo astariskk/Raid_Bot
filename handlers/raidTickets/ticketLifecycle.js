@@ -8,7 +8,8 @@ import {
 
 import {
     updateRaid,
-    updateRaidLogEmbed
+    updateRaidLogEmbed,
+    getRaidInfo
 } from '../../activeRaidState.js';
 
 import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, OTHERS_FOUR_LIST, OTHERS_SEVEN_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
@@ -35,6 +36,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
     /* ---------- AUTH ---------- */
     if (!await requireAuth(interaction, raidInfo)) return;
+
+    // Load full raid info after auth (minimal raidInfo is passed from the router)
+    const fullRaidInfo = await getRaidInfo(interaction.channel.id);
+    if (fullRaidInfo) raidInfo = fullRaidInfo;
 
     /* ---------- 1. EDIT TASK ---------- */
     if (interaction.customId === "editTask_btn") {
@@ -203,7 +208,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 return 'other';
             };
 
-            const raidType = inferRaidType(session.categoryKeys) ?? raidInfo.size ?? 'other';
+            const raidType = inferRaidType(session.categoryKeys) ?? 'other';
             const mapNameRequired = session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
             const defaults = session.defaults ?? {};
 
@@ -260,7 +265,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             mapNumber,
             server,
             description,
-            size: raidType,
         };
 
         await updateRaid(interaction.channel.id, updates);
@@ -373,7 +377,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
     if (interaction.isModalSubmit() && interaction.customId === "editTaskModal") {
         const rawTask = interaction.fields.getTextInputValue('editedTaskInput');
         const { resolvedTasks, invalidTasks } =
-            validateAndResolveTasks(rawTask, raidInfo.size);
+            validateAndResolveTasks(rawTask, 'any');
 
         if (invalidTasks.length) {
             await interaction.reply({
