@@ -669,17 +669,32 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- PROVIDE PROOF ---------- */
     if (interaction.customId === 'provideProof') {
-        await interaction.reply({ content: 'Send the proof image in the next message.', flags: MessageFlags.Ephemeral });
+        const extractProofUrlFromMessage = (m) => {
+            const attachment = m?.attachments?.first?.();
+            if (attachment?.url) return String(attachment.url);
+
+            const embedWithImage = Array.isArray(m?.embeds) ? m.embeds.find((e) => e?.image?.url || e?.thumbnail?.url) : null;
+            const embedUrl = embedWithImage?.image?.url || embedWithImage?.thumbnail?.url;
+            if (embedUrl) return String(embedUrl);
+
+            const content = String(m?.content ?? '');
+            const match = content.match(/https?:\/\/\S+/i);
+            if (!match) return null;
+            return match[0].replace(/[)>.,]+$/, '');
+        };
+
+        await interaction.reply({ content: 'Send the proof image in the next message (you have 2 minutes).', flags: MessageFlags.Ephemeral });
 
         try {
             const collected = await interaction.channel.awaitMessages({
-                filter: (m) => m.author.id === interaction.user.id && m.attachments.size > 0,
+                filter: (m) => m.author.id === interaction.user.id && Boolean(extractProofUrlFromMessage(m)),
                 max: 1,
-                time: 30000,
+                time: 120000,
                 errors: ['time'],
             });
 
-            const proofUrl = collected.first().attachments.first().url;
+            const proofUrl = extractProofUrlFromMessage(collected.first());
+            if (!proofUrl) throw new Error('No proof image found.');
             await updateRaid(interaction.channel.id, { proofImage: proofUrl });
 
             const updatedRaid = await getRaidInfo(interaction.channel.id);

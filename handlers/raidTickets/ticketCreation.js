@@ -1,11 +1,9 @@
 import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST } from '../../config/constants.js';
+import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTasks, validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { threadActionRow } from '../../Embeds/raidTicketEmbeds.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
-
-const COLOR_WAITING = 0x2596be;
 
 function inferRaidTypeFromCategoryKeys(categoryKeys) {
     const keys = (categoryKeys || []).filter(Boolean);
@@ -102,7 +100,7 @@ export async function handleRaidCreation(interaction) {
 
         // Build Embed
         const embed = new EmbedBuilder()
-            .setColor(COLOR_WAITING)
+            .setColor(STATUS_COLORS?.Waiting ?? EMBED_COLOR)
             .setTitle(`${raidType} Raid Request`)
             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
             .addFields(

@@ -11,6 +11,7 @@ import {
 import {
   EXP_LAIR_CHANNEL_ID,
   EMBED_COLOR,
+  EXP_EMBED_COLOR,
   MODERATOR_ROLE_ID,
   OFFICER_ROLE_ID,
   RAID_MANAGER_ROLE_ID,
@@ -22,6 +23,7 @@ import { updateLeaderboard } from '../leaderboard/core.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
 
 const COLOR_INFO = EMBED_COLOR;
+const COLOR_EXP_LAIR = EXP_EMBED_COLOR;
 
 function normalizePartialHelpers(raidInfo) {
   const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
@@ -40,7 +42,8 @@ function formatPartialHelpersBlock(raidInfo) {
   const lines = partial
     .map((e) => {
       const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No tasks';
-      return `- <@${e.helperId}>: ${tasks}`;
+      // Avoid pinging partial helpers in the admin review embed.
+      return `- \`${e.helperId}\`: ${tasks}`;
     })
     .join('\n')
     .slice(0, 1000);
@@ -117,7 +120,7 @@ export async function finalizeAdminReview(
           const helpers = allHelpers.length > 0 ? allHelpers.map((id) => `<@${id}>`).join(', ') : 'None';
 
           const expEmbed = new EmbedBuilder()
-            .setColor(COLOR_INFO)
+            .setColor(COLOR_EXP_LAIR)
             .setTitle("Raid Completed")
             .setDescription(
               `**Raid requested by:** ${requesterMember ?? `<@${raidInfo.requesterId}>`}\n` +

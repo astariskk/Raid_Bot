@@ -1,6 +1,7 @@
 // activeRaidState.js
 
 import { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
+import { EMBED_COLOR, STATUS_COLORS } from './config/constants.js';
 import { createRaidState, deleteRaidState, getRaidState, getRaidStateMinimal, updateRaidState } from './utils/dbOps.js';
 
 // Cache for active raid tickets to reduce database reads.
@@ -110,8 +111,7 @@ export async function updateRaidStatus(client, channelId, newStatus) {
             return;
         }
 
-        const STATUS_COLORS = { Waiting: 0x2596be, Full: 0xdd2e44, Ongoing: 0x78b159 };
-        const nextColor = STATUS_COLORS[newStatus] ?? EMBED_COLOR;
+        const nextColor = STATUS_COLORS?.[newStatus] ?? EMBED_COLOR;
 
         const updatedEmbed = new EmbedBuilder(originalEmbed.data)
             .setFields(
