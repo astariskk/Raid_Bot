@@ -1,29 +1,87 @@
 import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
+import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
-import { validateAndResolveTasks } from '../../utils/allowedTasks.js';
+import { validateAndResolveTasks, validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { threadActionRow } from '../../Embeds/raidTicketEmbeds.js';
+import { consumeRaidWizardSession } from './raidWizardSession.js';
 
-const COLOR_WAITING = 0x0099ff;
+const COLOR_WAITING = EMBED_COLOR;
+
+function inferRaidTypeFromCategoryKeys(categoryKeys) {
+    const keys = (categoryKeys || []).filter(Boolean);
+    if (!keys.length) return 'other';
+
+    const typeSet = new Set();
+    for (const key of keys) {
+        if (['dailies', 'weeklies', 'templeshrine', 'other_four'].includes(key)) typeSet.add('4-man');
+        else if (['originul', 'legion', 'other_seven'].includes(key)) typeSet.add('7-man');
+        else typeSet.add('other');
+    }
+
+    if (typeSet.size === 1) return [...typeSet][0];
+    return 'other';
+}
 
 export async function handleRaidCreation(interaction) {
-    if (!interaction.isModalSubmit() || !interaction.customId.startsWith('raidRequestModal')) return;
+    if (!interaction.isModalSubmit()) return;
 
-    const rawTasksInput = interaction.fields.getTextInputValue('taskInput');
-    const raidType = interaction.customId.split('_')[1]; // e.g., '4-man'
+    let raidType;
+    let resolvedTasks;
+
+    if (interaction.customId.startsWith('raidWizardDetailsModal_')) {
+        const sessionId = interaction.customId.slice('raidWizardDetailsModal_'.length);
+        const session = consumeRaidWizardSession(sessionId);
+
+        if (!session || session.userId !== interaction.user.id) {
+            await interaction.reply({
+                content: 'This raid creation session expired. Please press Start Raid again.',
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys);
+        const { resolvedTasks: tasks, invalidTasks } = validateAndResolveTaskList(session.tasks, 'any');
+
+        if (invalidTasks.length > 0) {
+            await interaction.reply({
+                content: `Invalid task(s): ${invalidTasks.join(', ')}`,
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        resolvedTasks = tasks;
+    } else if (interaction.customId.startsWith('raidRequestModal')) {
+        const rawTasksInput = interaction.fields.getTextInputValue('taskInput');
+        raidType = interaction.customId.split('_')[1]; // e.g., '4-man'
+
+        const { resolvedTasks: tasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
+        if (invalidTasks.length > 0) {
+            await interaction.reply({
+                content: `Task(s) not allowed in a ${raidType} room: ${invalidTasks.join(', ')}`,
+                flags: MessageFlags.Ephemeral
+            });
+            return;
+        }
+
+        resolvedTasks = tasks;
+    } else {
+        return;
+    }
+
     const mapName = interaction.fields.getTextInputValue('mapNameInput');
     const mapNumber = interaction.fields.getTextInputValue('mapNumberInput');
     const server = interaction.fields.getTextInputValue('serverInput');
     const description = interaction.fields.getTextInputValue('descriptionInput');
 
-    // Validate Tasks
-    const { resolvedTasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
-
-    if (invalidTasks.length > 0) {
-        return interaction.reply({
-            content: `Task(s) not allowed in a ${raidType} room: ${invalidTasks.join(', ')}`,
+    const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
+    if (isMapNameRequired && !String(mapName ?? '').trim()) {
+        await interaction.reply({
+            content: 'Map Name is required for generic tasks (`simple`, `moderate`, `hard`).',
             flags: MessageFlags.Ephemeral
         });
+        return;
     }
 
     try {
@@ -49,7 +107,7 @@ export async function handleRaidCreation(interaction) {
             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
             .addFields(
                 { name: 'Task(s)', value: resolvedTasks.join(', '), inline: false },
-                { name: 'Map', value: `${mapName}`, inline: false},
+                { name: 'Map', value: `${mapName || 'Auto (based on task)'}`, inline: false},
                 { name: 'Room Number', value: `${mapNumber}`, inline: true },
                 { name: 'Server', value: server, inline: true },
                 { name: 'Status', value: 'Waiting', inline: true },
@@ -75,7 +133,10 @@ export async function handleRaidCreation(interaction) {
             originalChannelId: ticketChannel.id,
             task: resolvedTasks.join(', '),
             requesterId: interaction.user.id,
-            mapName, mapNumber, server, description,
+            mapName: mapName || 'Auto (based on task)',
+            mapNumber,
+            server,
+            description,
             status: 'active',
             color: COLOR_WAITING,
             size: raidType,

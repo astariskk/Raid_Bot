@@ -9,6 +9,7 @@ import {
 
 import {
   EXP_LAIR_CHANNEL_ID,
+  EMBED_COLOR,
   MODERATOR_ROLE_ID,
   OFFICER_ROLE_ID,
   RAID_MANAGER_ROLE_ID,
@@ -19,7 +20,7 @@ import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
 
-const COLOR_INFO = 0x0099ff;
+const COLOR_INFO = EMBED_COLOR;
 
 export async function finalizeAdminReview(
   client, channel,

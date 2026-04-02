@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
+import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
 import {
     createLbCheckResponse,
@@ -36,7 +36,7 @@ function createXpEmbed(action, amount, userIds) {
     const xpString = isPositive ? `added ${amount} EXP to` : `removed ${amount} EXP from`;
 
     return new EmbedBuilder()
-        .setColor(isPositive ? 0x0099ff : 0xff0000)
+        .setColor(isPositive ? EMBED_COLOR : 0xff0000)
         .setTitle(isPositive ? 'EXP Added' : 'EXP Removed')
         .setDescription(`${xpString} \n${userIds.map((id) => `<@${id}>`).join(', ')}`);
 }

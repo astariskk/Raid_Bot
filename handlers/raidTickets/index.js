@@ -26,12 +26,12 @@ export function setupRaidHandlers(client) {
 
     // 2. Interaction Listener (Buttons/Modals)
     client.on("interactionCreate", async (interaction) => {
-        if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isUserSelectMenu()) return;
+        if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isUserSelectMenu() && !interaction.isStringSelectMenu()) return;
 
         const raidInfo = await getRaidInfo(interaction.channel?.id);
         if (!raidInfo) {
             // Check for Creation Modal (which happens before raidInfo exists)
-            if (interaction.customId.startsWith('raidRequestModal')) {
+            if (interaction.customId.startsWith('raidRequestModal') || interaction.customId.startsWith('raidWizardDetailsModal_')) {
                 await handleRaidCreation(interaction);
             }
             return;
@@ -50,7 +50,11 @@ export function setupRaidHandlers(client) {
         }
 
         // Lifecycle (Edit, Cancel)
-        if (['editTask_btn', 'editTaskModal', 'cancelRaidTicket', 'confirmCancelRaid'].includes(interaction.customId)) {
+        if (
+            ['editTask_btn', 'editTaskModal', 'cancelRaidTicket', 'confirmCancelRaid'].includes(interaction.customId) ||
+            interaction.customId.startsWith('raidWizardEdit_') ||
+            interaction.customId.startsWith('raidWizardEditDetailsModal_')
+        ) {
             await handleLifecycleInteractions(interaction, raidInfo, client);
             return;
         }

@@ -7,6 +7,13 @@ import { createDiscordClient } from './bootstrap/discordClient.js';
 import { registerBotReadyHandler } from './bootstrap/botReady.js';
 import { registerProcessHandlers } from './bootstrap/processHandlers.js';
 
+import dns from "dns";
+
+dns.setServers([
+  "8.8.8.8",
+  "8.8.4.4"
+]);
+
 startHealthServer();
 
 export const client = createDiscordClient();

@@ -1,15 +1,26 @@
 # Raid_Bot
 Vanaheim raid discord bot
 
-List of useful commands to show the usable commands
+## Setup (in Discord)
+Run these once in the right channels so members can use the bot:
 
-!raidcommands = shows the commands for raid stuff
+- In the raid channel: `!raidinfo` (posts the main help embed + buttons, including `Start Raid`)
+- In the raid channel: `!raidrules` (posts raid rules)
+- Anywhere: `!charts` (posts available charts)
 
-!modcommands = shows the commands for mods, exp management and such
+## Useful commands
 
-!lbcommands = shows the leaderboard commands
+- `!raidrules` = shows the raid rules
 
-!secretcommands = commands for secret sussy gifs
+- `!raidinfo` = shows the main raid info embed + buttons
+
+- `Start Raid` button = guided raid ticket creation (pick room type + tasks, then fill map/server in a modal)
+
+- `!modcommands` = shows the commands for mods, exp management and such
+
+- `!lbcommands` = shows the leaderboard commands
+
+- `!secretcommands` = commands for secret sussy gifs
 
 
 # debugging issues:

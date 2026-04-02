@@ -4,7 +4,9 @@ import { generateRaidMapsEmbed, parseRaidTasks } from '../../utils/raidMaps.js';
 import { RAID_CHARTS, twoManEmbeds, threeManEmbeds, scamChartEmbeds } from '../../Embeds/raidChartsEmbeds.js';
 
 // --- Constants ---
-const COLORS = { WAITING: 0x0099ff, FULL: 0xdd2e44, ONGOING: 0x78b159 };
+import { EMBED_COLOR } from '../../config/constants.js';
+
+const COLORS = { WAITING: EMBED_COLOR, FULL: 0xdd2e44, ONGOING: 0x78b159 };
 const activeChartSessions = new Map();
 
 // --- Main Message Handler ---

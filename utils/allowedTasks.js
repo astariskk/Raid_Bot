@@ -5,35 +5,43 @@ import {
     GENERIC_TASKS_LIST,
 } from '../config/constants.js'
 
-export function validateAndResolveTasks(rawInput, raidType) {
-    // Split and clean input
-    let tasks = rawInput
-        .split(/\s*[+,]\s*/)
-        .map(t => t.trim().toLowerCase())
-        .map(t => TASK_ALIASES[t] || t); // replace aliases
+function resolveTaskTokens(taskTokens) {
+    let tasks = taskTokens
+        .map((t) => String(t ?? '').trim().toLowerCase())
+        .filter(Boolean)
+        .map((t) => TASK_ALIASES[t] || t); // replace aliases
 
-    // Remove duplicates
+    // Remove duplicates while preserving order
     tasks = [...new Set(tasks)];
+    return tasks;
+}
 
-    // Determine allowed tasks
-    let allowed;
-    switch(raidType) {
+function getAllowedTasksForType(raidType) {
+    switch (raidType) {
         case '4-man':
-            allowed = ALLOWED_TASK_FOUR;
-            break;
+            return ALLOWED_TASK_FOUR;
         case '7-man':
-            allowed = ALLOWED_TASK_SEVEN;
-            break;
+            return ALLOWED_TASK_SEVEN;
+        case 'any':
+            return [...new Set([...ALLOWED_TASK_FOUR, ...ALLOWED_TASK_SEVEN])];
         default:
-            allowed = [...GENERIC_TASKS_LIST];
+            return [...GENERIC_TASKS_LIST];
     }
+}
 
-    // Identify invalid tasks
-    const invalid = tasks.filter(t => !allowed.includes(t));
+export function validateAndResolveTaskList(taskList, raidType) {
+    const tasks = resolveTaskTokens(taskList);
+    const allowed = getAllowedTasksForType(raidType);
+    const invalid = tasks.filter((t) => !allowed.includes(t));
 
     return {
         resolvedTasks: tasks,
         invalidTasks: invalid,
-        allowedTasks: allowed
+        allowedTasks: allowed,
     };
+}
+
+export function validateAndResolveTasks(rawInput, raidType) {
+    const tokens = String(rawInput ?? '').split(/\s*[+,]\s*/);
+    return validateAndResolveTaskList(tokens, raidType);
 }

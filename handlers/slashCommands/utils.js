@@ -1,6 +1,6 @@
 // handlers/slashCommands/utils.js
 import { EmbedBuilder, MessageFlags } from 'discord.js';
-import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
+import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 
 export function isAdmin(interaction) {
   if (!interaction.member) {
@@ -25,7 +25,7 @@ export function createXpEmbed(action, amount, userIds) {
   const isPositive = action === 'add';
   const xpString = isPositive ? `added ${amount} EXP to` : `removed ${amount} EXP from`;
   const title = isPositive ? 'EXP Added' : 'EXP Removed';
-  const color = isPositive ? 0x0099ff : 0xff0000;
+  const color = isPositive ? EMBED_COLOR : 0xff0000;
 
   const userMentions = userIds.map((id) => `<@${id}>`).join(', ');
 

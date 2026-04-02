@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { TASK_ALIASES, TASK_GROUPS, getJoinPrefixes } from '../config/constants.js';
+import { EMBED_COLOR, TASK_ALIASES, TASK_GROUPS, getJoinPrefixes } from '../config/constants.js';
 
 export function generateRaidMapsEmbed(tasks, mapNumber) {
     let expandedTasks = [];
@@ -25,7 +25,7 @@ export function generateRaidMapsEmbed(tasks, mapNumber) {
 
 
     return new EmbedBuilder()
-        .setColor(0x0099FF)
+        .setColor(EMBED_COLOR)
         .setTitle(`Raid Maps for this raid:`)
         .setDescription(`${joinLinksWithPoints}`)
 }

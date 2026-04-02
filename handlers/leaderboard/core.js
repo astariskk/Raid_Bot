@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { LEADERBOARD_CHANNEL_ID } from '../../config/constants.js';
+import { EMBED_COLOR } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
 import {
   connectDB,
@@ -94,7 +95,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   const usersOnPage = usersData.slice(startIndex, endIndex);
 
   const embed = new EmbedBuilder()
-    .setColor(0x0099ff)
+    .setColor(EMBED_COLOR)
     .setTitle('Raid Leaderboard')
     .setDescription(`${resetInfo}\n\n`)
     .setTimestamp()
@@ -145,7 +146,7 @@ export async function createLbCheckResponse(sessionData) {
   const usersOnPage = usersData.slice(startIndex, endIndex);
 
   const embed = new EmbedBuilder()
-    .setColor(0x0099ff)
+    .setColor(EMBED_COLOR)
     .setTitle(`EXP Check ${dateInfo.description}`)
     .setTimestamp()
     .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Helper Bot | EXP Breakdown` });

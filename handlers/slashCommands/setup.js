@@ -1,4 +1,5 @@
 import { EmbedBuilder, MessageFlags } from 'discord.js';
+import { EMBED_COLOR } from '../../config/constants.js';
 import { MAX_XP_PER_RAID, TASK_ALIASES } from '../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
@@ -172,7 +173,7 @@ export async function handleSlashCommandInteraction(interaction, client) {
         }
       }
 
-      const embed = new EmbedBuilder().setColor(0x0099ff).setTitle('Task Aliases').setDescription(descriptionText);
+      const embed = new EmbedBuilder().setColor(EMBED_COLOR).setTitle('Task Aliases').setDescription(descriptionText);
       await interaction.reply({ embeds: [embed] });
       return;
     }
