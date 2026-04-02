@@ -4,8 +4,11 @@ import {
     EMBED_COLOR,
     LEADERBOARD_CHANNEL_ID,
     MAX_XP_PER_RAID,
+    MODERATOR_ROLE_ID,
+    OFFICER_ROLE_ID,
     RAID_CHANNEL_ID,
     RAID_HELPER_ROLE_ID,
+    RAID_MANAGER_ROLE_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
 } from '../../config/constants.js';
 
@@ -47,6 +50,65 @@ import {
     getModeratorCommandsEmbed,
     getRaidRulesEmbed,
 } from '../../Embeds/generalCommandsEmbeds.js';
+
+import { getSupabase } from '../../utils/supabaseClient.js';
+import { invalidateLeaderboardCache } from '../leaderboard/core.js';
+
+function isStaffMember(member) {
+    if (!member) return false;
+    return (
+        member.roles.cache.has(MODERATOR_ROLE_ID) ||
+        member.roles.cache.has(OFFICER_ROLE_ID) ||
+        member.roles.cache.has(RAID_MANAGER_ROLE_ID)
+    );
+}
+
+function tryParseUserPointsJson(textRaw) {
+    const text = String(textRaw ?? '').trim();
+    if (!text) throw new Error('Empty file.');
+
+    const candidates = [text];
+    if (!text.startsWith('{')) candidates.push(`{\n${text}\n}`);
+
+    for (const cand of candidates) {
+        try {
+            const cleaned = cand.replace(/,\\s*([}\\]])/g, '$1'); // trailing commas
+            const parsed = JSON.parse(cleaned);
+            if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Not an object.');
+            return parsed;
+        } catch {
+            // try next candidate
+        }
+    }
+
+    throw new Error('Invalid JSON format.');
+}
+
+async function applyLeaderboardBackupObject(obj) {
+    const normalizeUserIdKey = (raw) => String(raw ?? '')
+        .replace(/^\uFEFF/, '') // strip UTF-8 BOM if present
+        .trim()
+        .replace(/\s+/g, '');
+
+    const entries = Object.entries(obj || {})
+        .map(([userId, points]) => [normalizeUserIdKey(userId), Number(points)])
+        .filter(([userId, points]) => userId && !userId.startsWith('_') && /^\d+$/.test(userId) && Number.isFinite(points) && points > 0);
+
+    if (!entries.length) return { updated: 0, scanned: Object.keys(obj || {}).length };
+
+    const rows = entries.map(([userId, points]) => ({ user_id: userId, total_exp: Math.floor(points) }));
+    const supabase = getSupabase();
+
+    const chunkSize = 500;
+    for (let i = 0; i < rows.length; i += chunkSize) {
+        const chunk = rows.slice(i, i + chunkSize);
+        const { error } = await supabase.from('leaderboard_users').upsert(chunk, { onConflict: 'user_id' });
+        if (error) throw error;
+    }
+
+    invalidateLeaderboardCache();
+    return { updated: rows.length, scanned: Object.keys(obj || {}).length };
+}
 
 function getWizardCategoryEmbed({ categoryKeys = [] } = {}) {
     const categories = (categoryKeys || []).map(getRaidWizardCategoryDef).filter(Boolean);
@@ -210,6 +272,41 @@ export function setupGeneralCommandsHandler(client) {
                 console.error('Error sending !lbcommands embed:', error);
                 await message.channel.send('Failed to display leaderboard commands. Please try again later.');
             }
+        }
+
+        // --- Handle the !restorelb command (restore from JSON) ---
+        if (commandContent === '!restorelb') {
+            if (!message.guild) return;
+            if (!isStaffMember(message.member)) {
+                await message.reply({ content: 'You do not have permission to restore the leaderboard.' });
+                return;
+            }
+
+            await message.reply('Upload the leaderboard JSON file in your next message (2 minutes).');
+
+            try {
+                const collected = await message.channel.awaitMessages({
+                    filter: (m) => m.author.id === message.author.id && (m.attachments?.size ?? 0) > 0,
+                    max: 1,
+                    time: 120000,
+                    errors: ['time'],
+                });
+
+                const nextMsg = collected.first();
+                const attachment = nextMsg?.attachments?.first?.();
+                const url = attachment?.url ? String(attachment.url) : '';
+                if (!url) throw new Error('No attachment url.');
+
+                const res = await fetch(url);
+                const text = await res.text();
+                const parsed = tryParseUserPointsJson(text);
+                const { updated, scanned } = await applyLeaderboardBackupObject(parsed);
+
+                await message.reply(`Leaderboard restored. Updated **${updated}** user(s) out of **${scanned ?? 0}** row(s). (Ignored 0-point rows.)`);
+            } catch {
+                await message.reply('Timed out or no attachment received.');
+            }
+            return;
         }
 
         // --- handle the moderator commands ---

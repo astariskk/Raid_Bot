@@ -229,7 +229,7 @@ export async function sendLeaderboardCheckResults({ client, guild, requesterId, 
             } catch {
                 try {
                     const user = await client.users.fetch(userId);
-                    userDisplayName = user.username;
+                    userDisplayName = user.globalName || user.username;
                 } catch (error) {
                     console.error(`Could not resolve user ID ${userId}:`, error);
                 }

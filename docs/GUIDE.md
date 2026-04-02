@@ -7,8 +7,8 @@
 2. Create a `.env` file (or set env vars in your host):
    - `DISCORD_TOKEN` = your bot token
    - `GUILD_ID` = guild/server ID where slash commands are registered
-   - `SUPABASE_URL` = Supabase Project Settings → API → Project URL
-   - `SUPABASE_SERVICE_ROLE_KEY` = Supabase Project Settings → API → Service role key
+   - `SUPABASE_URL` = Supabase Project Settings -> API -> Project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` = Supabase Project Settings -> API -> Service role key
    - `SUPABASE_GIF_BUCKET` (optional) = `gif-commands`
    - `PORT` (optional) = health server port (defaults to `3000`)
 3. Run:
@@ -50,7 +50,7 @@ Key exports:
 Task -> `/join` mapping lives in:
 - `config/constants/maps.js`
 
-Use this when a task’s join prefix is not the same as its canonical key (example: `drakath` uses `championdrakath`).
+Use this when a task's join prefix is not the same as its canonical key (example: `drakath` uses `championdrakath`).
 
 ## Handlers Layout
 
@@ -83,3 +83,10 @@ Handlers are organized like the raid ticket handler:
 - `/addxp users:<mentions> amount:<int>`
 - `/removexp users:<mentions> amount:<int>`
 - `/calculatetask tasks:<string>`
+
+### Staff (restore leaderboard totals)
+- `!restorelb`
+  - The bot will ask for a JSON file; upload it as your next message (within 2 minutes).
+  - JSON format: an object mapping `"user_id": points`.
+  - Rows with `0` are ignored (example: `"402460188638052355": 0`).
+  - This restores `leaderboard_users.total_exp` only (daily history is not restored).

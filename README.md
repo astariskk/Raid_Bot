@@ -24,6 +24,8 @@ Run these once in the right channels so members can use the bot:
 
 - `!secretcommands` = commands for secret sussy gifs
 
+- `!restorelb` = staff-only restore of leaderboard totals from a JSON file (the bot will prompt you to upload the file next)
+
 
 # debugging issues:
 
@@ -56,3 +58,14 @@ node index.js
   - `!addgif <triggerword>` / `/addgif command:<triggerword>`: create a new GIF/Text command
   - `!editgif <triggerword>` / `/editgif command:<triggerword>`: edit an existing GIF/Text command
   - Use the buttons on the preview message: `Edit`, `Change Gif`, `Delete`, `Save and Close`.
+
+## Leaderboard restore (`!restorelb`)
+
+- Staff only (moderator/officer/raid manager roles).
+- Usage:
+  1. Send `!restorelb`
+  2. Upload the JSON file as your next message (within 2 minutes)
+- JSON file format (object mapping user ID -> points):
+  - `"330781632103710741": 0,`
+  - `"327400347381399554": 5000`
+- Rows with `0` are ignored.

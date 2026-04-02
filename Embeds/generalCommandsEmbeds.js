@@ -279,15 +279,14 @@ export function getModeratorCommandsEmbed() {
 \`!removexp @user @user <amount>\`: Manually remove EXP to user(s).
 \`/removexp\`: slash command version
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
-\`!lbackup\`: Forces the bot to upload a new leaderboard backup and replace the old one.
-\`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
+\`!restorelb\`: Restore leaderboard totals from a JSON backup (staff only). Then upload the JSON file as your next message.
 
-**GIF/Text command CRUD**
+**GIF/Text command**
 \`!addgif <triggerword>\` / \`/addgif\`: create a new GIF/Text command
 \`!editgif <triggerword>\` / \`/editgif\`: edit an existing GIF/Text command
 Then use the buttons on the preview message: \`Edit\`, \`Change Image\`, \`Delete\`, \`Save and Close\`.
 
-**Charts CRUD**
+**Charts**
 \`!editchart\` or \`/editchart\`: create/edit multi-page chart images
 `
             }

@@ -14,6 +14,11 @@ const CACHE_LIFETIME_MS = 5 * 60 * 1000;
 let leaderboardCache = null;
 let lastCacheTime = 0;
 
+export function invalidateLeaderboardCache() {
+  leaderboardCache = null;
+  lastCacheTime = 0;
+}
+
 export async function getCachedLeaderboard() {
   const now = Date.now();
   if (leaderboardCache && now - lastCacheTime < CACHE_LIFETIME_MS) {
@@ -116,7 +121,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
       } catch {
         try {
           const user = await client.users.fetch(player.userId);
-          userName = user.username;
+          userName = user.globalName || user.username;
         } catch (error) {
           console.error(`Could not resolve user ID ${player.userId}:`, error);
         }

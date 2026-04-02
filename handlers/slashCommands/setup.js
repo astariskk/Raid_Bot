@@ -13,7 +13,19 @@ import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js'
 import { startChartBrowseInteraction } from '../charts/charts.js';
 
 function getMentionedUserIds(usersString = '') {
-  return [...usersString.matchAll(/<@!?(\d+)>/g)].map((match) => match[1]);
+  const input = String(usersString ?? '');
+  const ids = new Set();
+
+  for (const match of input.matchAll(/<@!?(\d+)>/g)) {
+    if (match[1]) ids.add(match[1]);
+  }
+
+  // Allow raw IDs (17-20 digits) in addition to mentions.
+  for (const match of input.matchAll(/\b(\d{17,20})\b/g)) {
+    if (match[1]) ids.add(match[1]);
+  }
+
+  return [...ids];
 }
 
 export async function handleSlashCommandInteraction(interaction, client) {
@@ -28,23 +40,24 @@ export async function handleSlashCommandInteraction(interaction, client) {
       const targetUserIds = getMentionedUserIds(usersInput);
 
       try {
+        // /lb can take longer than Discord's 3s interaction window; defer immediately.
+        await interaction.deferReply().catch(() => {});
+
         const send = async (payload) => {
-          await interaction.reply(payload);
+          await interaction.editReply(payload);
           return interaction.fetchReply();
         };
 
         const usingFromTo = Boolean(fromOption || toOption);
         if (usingFromTo && (!fromOption || !toOption)) {
-          await interaction.reply({
+          await interaction.editReply({
             content: 'If you use `from`, you must also provide `to` (and vice versa).',
-            flags: MessageFlags.Ephemeral,
           });
           return;
         }
         if (usingFromTo && rangeOption) {
-          await interaction.reply({
+          await interaction.editReply({
             content: 'Use either `range` or (`from` + `to`), not both.',
-            flags: MessageFlags.Ephemeral,
           });
           return;
         }
@@ -69,10 +82,12 @@ export async function handleSlashCommandInteraction(interaction, client) {
           });
         }
       } catch (error) {
-        await interaction.reply({
-          content: error.message || 'Failed to load leaderboard data. Please try again later.',
-          flags: MessageFlags.Ephemeral,
-        });
+        const msg = error?.message || 'Failed to load leaderboard data. Please try again later.';
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content: msg }).catch(() => {});
+        } else {
+          await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
       }
       return;
     }
