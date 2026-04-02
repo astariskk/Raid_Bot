@@ -255,7 +255,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
         const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
         if (isMapNameRequired && !String(mapName ?? '').trim()) {
-            await interaction.reply({ content: 'Map Name is required for generic tasks (`simple`, `moderate`, `hard`).', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).', flags: MessageFlags.Ephemeral });
             return;
         }
 

@@ -110,7 +110,7 @@ export async function updateRaidStatus(client, channelId, newStatus) {
             return;
         }
 
-        const STATUS_COLORS = { Waiting: EMBED_COLOR, Full: 0xdd2e44, Ongoing: 0x78b159 };
+        const STATUS_COLORS = { Waiting: 0x2596be, Full: 0xdd2e44, Ongoing: 0x78b159 };
         const nextColor = STATUS_COLORS[newStatus] ?? EMBED_COLOR;
 
         const updatedEmbed = new EmbedBuilder(originalEmbed.data)

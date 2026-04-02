@@ -72,7 +72,7 @@ export function getHowToUseEmbed() {
                 name: '2) Start Raid',
                 value:
                     'Press `Start Raid`, pick categories + tasks, then fill in the details modal.\n' +
-                    'If your task is not listed, use generic tasks: `simple`, `moderate`, `hard`.',
+                    'If your task is not listed, use other tasks: `simple`, `moderate`, `difficult`.',
                 inline: false,
             },
             {
@@ -174,7 +174,7 @@ export function getCombinedTasksAndPointsEmbed() {
     // -----------------------------------------------------------
     const embedGeneric = new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('Generic Tasks')
+        .setTitle('Other Tasks')
         .setDescription('Use these when your task is not in the list.')
         .addFields({
             name: '\u200B',

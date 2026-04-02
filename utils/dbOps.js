@@ -168,11 +168,11 @@ export async function getRaidState(channelId) {
 
     return {
         id: data.id,
-        messageId: data.message_id ?? null,
-        originalChannelId: data.original_channel_id ?? null,
-        requesterId: data.requester_id ?? null,
+        messageId: data.message_id ?? request.messageId ?? request.message_id ?? closing.messageId ?? closing.message_id ?? null,
+        originalChannelId: data.original_channel_id ?? request.originalChannelId ?? request.original_channel_id ?? closing.originalChannelId ?? closing.original_channel_id ?? null,
+        requesterId: data.requester_id ?? request.requesterId ?? request.requester_id ?? closing.requesterId ?? closing.requester_id ?? null,
         status: data.status ?? null,
-        originalName: data.original_name ?? null,
+        originalName: data.original_name ?? closing.originalName ?? closing.original_name ?? request.originalName ?? request.original_name ?? null,
         // request (kept as flattened fields for existing code)
         task: request.tasks ?? request.task ?? '',
         mapName: request.mapName ?? request.map_name ?? '',
@@ -180,7 +180,7 @@ export async function getRaidState(channelId) {
         server: request.server ?? '',
         description: request.description ?? '',
         // closing (flattened)
-        isAwaitingCompletion: Boolean(data.is_awaiting_completion ?? false),
+        isAwaitingCompletion: Boolean((data.is_awaiting_completion ?? closing.isAwaitingCompletion ?? closing.is_awaiting_completion) ?? false),
         pendingHelperIds: closing.pendingHelperIds ?? closing.pending_helper_ids ?? null,
         proofImage: closing.proofImage ?? closing.proof_image ?? null,
         partialHelpers: closing.partialHelpers ?? closing.partial_helpers ?? [],

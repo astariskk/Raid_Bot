@@ -75,6 +75,17 @@ function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
         inline: false,
     });
 
+    if ((categoryKeys || []).includes('generic')) {
+        embed.addFields({
+            name: 'Other Tasks (Time Guide)',
+            value:
+                `• \`simple\` — 7-man, ~1–5 minutes 1000 EXP\n ` +
+                `• \`moderate\` — ~5–20 minutes 5000 EXP\n` +
+                `• \`difficult\` — ~20–60 minutes 10000 EXP`,
+            inline: false,
+        });
+    }
+
     return embed;
 }
 
@@ -288,7 +299,7 @@ export function setupGeneralCommandsHandler(client) {
                     return;
                 }
 
-                const includesGeneric = session.tasks?.some((t) => ['simple', 'moderate', 'hard'].includes(t)) ?? false;
+                const includesGeneric = session.tasks?.some((t) => ['simple', 'moderate', 'difficult'].includes(t)) ?? false;
                 const raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys);
                 const mapNameRequired = includesGeneric;
 

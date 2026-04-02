@@ -51,7 +51,7 @@ export function getRaidRequestModal(raidType) {
         .setCustomId(`raidRequestModal_${raidType}`) // Store type in ID
         .setTitle(`Raid Assistance Request ${raidType}`);
     
-    let taskPlaceHolder = ("Simple, Moderate, Hard, be specific in the description.");
+    let taskPlaceHolder = ("Simple, Moderate, Difficult, be specific in the description.");
     let mapPlaceHolder = ("hydrachallenge-1212, deleuzethundra-3434, etc.");
     switch(raidType) {
         case '4-man':
@@ -187,7 +187,7 @@ const CATEGORY_DEFS = [
     { key: 'legion', label: 'Legion', tasks: LEGION_LIST, raidType: '7-man' },
     { key: 'other_four', label: 'Other 4-man', tasks: OTHERS_FOUR_LIST, raidType: '4-man' },
     { key: 'other_seven', label: 'Other 7-man', tasks: OTHERS_SEVEN_LIST, raidType: '7-man' },
-    { key: 'generic', label: 'Generic', tasks: GENERIC_TASKS_LIST, raidType: 'other' },
+    { key: 'generic', label: 'Other Tasks', tasks: GENERIC_TASKS_LIST, raidType: 'other' },
 ];
 
 export function getRaidWizardCategoryDef(categoryKey) {

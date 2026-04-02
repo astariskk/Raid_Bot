@@ -67,22 +67,22 @@ function createPaginationRow(prefix, currentPage, totalPages, originalRequesterI
     new ButtonBuilder()
       .setCustomId(`${prefix}_start_${originalRequesterId}_${timestamp}`)
       .setLabel('<<')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Secondary)
       .setDisabled(currentPage === 1),
     new ButtonBuilder()
       .setCustomId(`${prefix}_prev_${originalRequesterId}_${timestamp}`)
       .setLabel('<')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Secondary)
       .setDisabled(currentPage === 1),
     new ButtonBuilder()
       .setCustomId(`${prefix}_next_${originalRequesterId}_${timestamp}`)
       .setLabel('>')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Secondary)
       .setDisabled(currentPage === totalPages),
     new ButtonBuilder()
       .setCustomId(`${prefix}_end_${originalRequesterId}_${timestamp}`)
       .setLabel('>>')
-      .setStyle(ButtonStyle.Primary)
+      .setStyle(ButtonStyle.Secondary)
       .setDisabled(currentPage === totalPages),
   );
 }

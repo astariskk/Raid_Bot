@@ -14,7 +14,7 @@ function resolveTaskTokens(taskTokens) {
 
 function getAllowedTasksForType(raidType) {
     // Task allow-listing is disabled. Keep this helper for backwards compatibility.
-    // For unknown tasks, users can use generic tasks (`simple`, `moderate`, `hard`) plus a description.
+    // For unknown tasks, users can use generic tasks (`simple`, `moderate`, `difficult`) plus a description.
     if (raidType === 'any' || raidType === '4-man' || raidType === '7-man') return null;
     return [...GENERIC_TASKS_LIST];
 }

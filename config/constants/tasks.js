@@ -47,7 +47,7 @@ export const POINTS_CONFIG = {
   // --- generic tasks ---
   simple: 1000,
   moderate: 5000,
-  hard: 10000,
+  difficult: 10000,
 
   // --- legion ---
   deimos: 500,
@@ -71,7 +71,7 @@ export const OTHERS_SEVEN_LIST = [
   'vamem',
   'vanonmem',
 ];
-export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
+export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'difficult'];
 export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
 // --- Task groups (used for expanding meta tasks like "dailies") ---

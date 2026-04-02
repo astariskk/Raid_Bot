@@ -5,7 +5,7 @@ import { validateAndResolveTasks, validateAndResolveTaskList } from '../../utils
 import { threadActionRow } from '../../Embeds/raidTicketEmbeds.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
 
-const COLOR_WAITING = EMBED_COLOR;
+const COLOR_WAITING = 0x2596be;
 
 function inferRaidTypeFromCategoryKeys(categoryKeys) {
     const keys = (categoryKeys || []).filter(Boolean);
@@ -78,7 +78,7 @@ export async function handleRaidCreation(interaction) {
     const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
     if (isMapNameRequired && !String(mapName ?? '').trim()) {
         await interaction.reply({
-            content: 'Map Name is required for generic tasks (`simple`, `moderate`, `hard`).',
+            content: 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).',
             flags: MessageFlags.Ephemeral
         });
         return;
@@ -137,7 +137,7 @@ export async function handleRaidCreation(interaction) {
             mapNumber,
             server,
             description,
-            status: 'active',
+            status: 'Waiting',
             proofImage: null,
             isAwaitingCompletion: false,
             partialHelpers: [],
