@@ -5,7 +5,6 @@
 import {
     POINTS_CONFIG,
     MAX_XP_PER_RAID,
-    TASK_ALIASES,
     TASK_GROUPS,
 } from '../config/constants.js';
 
@@ -36,7 +35,7 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
         let currentEntryPoints = 0;
         let effectiveTasks = new Set();
 
-        const resolvedName = TASK_ALIASES[taskName] || taskName;
+        const resolvedName = taskName;
 
         // Handle meta categories (e.g., 'dailies', 'weeklies')
         if (Object.prototype.hasOwnProperty.call(TASK_GROUPS, resolvedName)) {

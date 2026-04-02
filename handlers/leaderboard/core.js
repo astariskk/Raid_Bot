@@ -97,13 +97,15 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle('Raid Leaderboard')
-    .setDescription(`${resetInfo}\n\n`)
     .setTimestamp()
     .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Leaderboard Rankings` });
 
   if (usersOnPage.length === 0) {
-    embed.addFields({ name: 'No Data Yet', value: 'The leaderboard is empty. Start earning some EXP!' });
+    embed.setDescription(`${resetInfo}\n\nThe leaderboard is empty. Start earning some EXP!`);
   } else {
+    const rows = [];
+    const NAME_WIDTH = 22;
+
     for (let index = 0; index < usersOnPage.length; index += 1) {
       const player = usersOnPage[index];
       let userName = `<@${player.userId}>`;
@@ -120,12 +122,18 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
         }
       }
 
-      embed.addFields({
-        name: `${startIndex + index + 1}. ${userName}`,
-        value: `${player.totalExp} EXP`,
-        inline: false,
-      });
+      const rank = String(startIndex + index + 1).padStart(2, ' ');
+      const nameCell = String(userName).replace(/\s+/g, ' ').slice(0, NAME_WIDTH).padEnd(NAME_WIDTH, ' ');
+      const expCell = String(player.totalExp).padStart(8, ' ');
+      rows.push(`${rank}  ${nameCell}  ${expCell}`);
     }
+
+    const table =
+      `#   Name${' '.repeat(Math.max(0, NAME_WIDTH - 4))}  EXP\n` +
+      `${'-'.repeat(2)}  ${'-'.repeat(NAME_WIDTH)}  ${'-'.repeat(8)}\n` +
+      `${rows.join('\n')}`;
+
+    embed.setDescription(`${resetInfo}\n\n\`\`\`\n${table}\n\`\`\``);
   }
 
   if (originalRequesterId === 'scheduled_reset') {

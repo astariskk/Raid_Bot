@@ -7,7 +7,9 @@
 2. Create a `.env` file (or set env vars in your host):
    - `DISCORD_TOKEN` = your bot token
    - `GUILD_ID` = guild/server ID where slash commands are registered
-   - `MONGODB_URI` = Mongo connection string
+   - `SUPABASE_URL` = Supabase Project Settings → API → Project URL
+   - `SUPABASE_SERVICE_ROLE_KEY` = Supabase Project Settings → API → Service role key
+   - `SUPABASE_GIF_BUCKET` (optional) = `gif-commands`
    - `PORT` (optional) = health server port (defaults to `3000`)
 3. Run:
    - `npm start`
@@ -40,9 +42,7 @@ Task points + allowed task inputs live in:
 
 Key exports:
 - `POINTS_CONFIG` task EXP values
-- `TASK_ALIASES` synonyms (e.g. `ultradage` -> `dage`, `daily` -> `dailies`)
 - `TASK_GROUPS` meta tasks that expand to multiple tasks (`dailies`, `weeklies`, etc.)
-- `ALLOWED_TASK_FOUR` and `ALLOWED_TASK_SEVEN` input validation lists
 - `MAX_XP_PER_RAID` raid EXP cap
 
 ## Map Join Prefixes
@@ -83,4 +83,3 @@ Handlers are organized like the raid ticket handler:
 - `/addxp users:<mentions> amount:<int>`
 - `/removexp users:<mentions> amount:<int>`
 - `/calculatetask tasks:<string>`
-- `/taskalias tasks:<comma-separated>`

@@ -1,6 +1,6 @@
 import { EmbedBuilder, MessageFlags } from 'discord.js';
 import { EMBED_COLOR } from '../../config/constants.js';
-import { MAX_XP_PER_RAID, TASK_ALIASES } from '../../config/constants.js';
+import { MAX_XP_PER_RAID } from '../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
@@ -16,7 +16,9 @@ export async function handleSlashCommandInteraction(interaction, client) {
 
   switch (interaction.commandName) {
     case 'lb': {
-      const rangeInput = interaction.options.getString('range') || '';
+      const rangeOption = interaction.options.getString('range') || '';
+      const fromOption = interaction.options.getString('from') || '';
+      const toOption = interaction.options.getString('to') || '';
       const usersInput = interaction.options.getString('users') || '';
       const targetUserIds = getMentionedUserIds(usersInput);
 
@@ -25,6 +27,24 @@ export async function handleSlashCommandInteraction(interaction, client) {
           await interaction.reply(payload);
           return interaction.fetchReply();
         };
+
+        const usingFromTo = Boolean(fromOption || toOption);
+        if (usingFromTo && (!fromOption || !toOption)) {
+          await interaction.reply({
+            content: 'If you use `from`, you must also provide `to` (and vice versa).',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        if (usingFromTo && rangeOption) {
+          await interaction.reply({
+            content: 'Use either `range` or (`from` + `to`), not both.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+
+        const rangeInput = usingFromTo ? `from ${fromOption} to ${toOption}` : rangeOption;
 
         if (!rangeInput && targetUserIds.length === 0) {
           await sendLeaderboardResults({
@@ -158,39 +178,6 @@ export async function handleSlashCommandInteraction(interaction, client) {
           flags: MessageFlags.Ephemeral,
         });
       }
-      return;
-    }
-
-    case 'taskalias': {
-      const tasksInput = interaction.options.getString('tasks').toLowerCase();
-      const taskNames = tasksInput.split(',').map((task) => task.trim()).filter(Boolean);
-
-      if (!taskNames.length) {
-        await interaction.reply({
-          content: 'Please provide at least one task.',
-          flags: MessageFlags.Ephemeral,
-        });
-        return;
-      }
-
-      let descriptionText = '';
-
-      for (const inputTask of taskNames) {
-        const baseTask = TASK_ALIASES[inputTask] || inputTask;
-        const matchingAliases = Object.entries(TASK_ALIASES)
-          .filter(([, mappedTask]) => mappedTask === baseTask)
-          .map(([alias]) => alias);
-
-        if (!matchingAliases.length && !TASK_ALIASES[inputTask]) {
-          descriptionText += `**${inputTask}**\nNo aliases found.\n\n`;
-        } else {
-          const aliasList = matchingAliases.length ? matchingAliases.map((alias) => `\`${alias}\``).join(', ') : '(none)';
-          descriptionText += `**${baseTask}**\n * ${aliasList}\n`;
-        }
-      }
-
-      const embed = new EmbedBuilder().setColor(EMBED_COLOR).setTitle('Task Aliases').setDescription(descriptionText);
-      await interaction.reply({ embeds: [embed] });
       return;
     }
 

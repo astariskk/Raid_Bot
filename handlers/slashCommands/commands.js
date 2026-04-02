@@ -13,6 +13,18 @@ export const commands = [
         required: false,
       },
       {
+        name: 'from',
+        description: 'Optional start date (YYYY-MM-DD) for a range',
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
+        name: 'to',
+        description: 'Optional end date (YYYY-MM-DD) for a range',
+        type: ApplicationCommandOptionType.String,
+        required: false,
+      },
+      {
         name: 'users',
         description: 'Optional mentions, e.g. <@123> <@456>',
         type: ApplicationCommandOptionType.String,
@@ -67,18 +79,6 @@ export const commands = [
       {
         name: 'tasks',
         description: 'e.g. "kathool, voidnerfkitten x5 + voidxyfrag"',
-        type: ApplicationCommandOptionType.String,
-        required: true,
-      },
-    ],
-  },
-  {
-    name: 'taskalias',
-    description: 'Show aliases for one or more tasks.',
-    options: [
-      {
-        name: 'tasks',
-        description: 'Comma-separated task names (e.g. "speaker, dage, darkon")',
         type: ApplicationCommandOptionType.String,
         required: true,
       },

@@ -45,6 +45,7 @@ export function getDateRangeFromInput(input = '') {
     const now = new Date();
     const getUtcMidnight = (date) => new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
     const parts = input.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    const MAX_RANGE_DAYS = 3;
 
     let startDate = null;
     let endDate = null;
@@ -61,16 +62,36 @@ export function getDateRangeFromInput(input = '') {
         endDate = getUtcMidnight(yesterday);
         description = 'Yesterday';
     } else if (parts[0] === 'from' && parts[1] && parts[2] === 'to' && parts[3]) {
-        const startDay = parseInt(parts[1], 10);
-        const endDay = parseInt(parts[3], 10);
+        const startToken = parts[1];
+        const endToken = parts[3];
 
-        if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31 || startDay > endDay) {
-            return { error: 'Invalid date range. Use `from <day> to <day>`.' };
+        const isIso = (t) => /^\d{4}-\d{2}-\d{2}$/.test(t);
+
+        if (isIso(startToken) && isIso(endToken)) {
+            const [sy, sm, sd] = startToken.split('-').map((v) => parseInt(v, 10));
+            const [ey, em, ed] = endToken.split('-').map((v) => parseInt(v, 10));
+            const sDate = new Date(sy, sm - 1, sd);
+            const eDate = new Date(ey, em - 1, ed);
+
+            if (isNaN(sDate.getTime()) || isNaN(eDate.getTime()) || sDate.getTime() > eDate.getTime()) {
+                return { error: 'Invalid date range. Use `from YYYY-MM-DD to YYYY-MM-DD`.' };
+            }
+
+            startDate = getUtcMidnight(sDate);
+            endDate = getUtcMidnight(eDate);
+            description = `From ${startToken} to ${endToken}`;
+        } else {
+            const startDay = parseInt(startToken, 10);
+            const endDay = parseInt(endToken, 10);
+
+            if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || startDay > 31 || endDay < 1 || endDay > 31 || startDay > endDay) {
+                return { error: 'Invalid date range. Use `from <day> to <day>` or `from YYYY-MM-DD to YYYY-MM-DD`.' };
+            }
+
+            startDate = getUtcMidnight(new Date(now.getFullYear(), now.getMonth(), startDay));
+            endDate = getUtcMidnight(new Date(now.getFullYear(), now.getMonth(), endDay));
+            description = `From Day ${startDay} to Day ${endDay} of this month`;
         }
-
-        startDate = getUtcMidnight(new Date(now.getFullYear(), now.getMonth(), startDay));
-        endDate = getUtcMidnight(new Date(now.getFullYear(), now.getMonth(), endDay));
-        description = `From Day ${startDay} to Day ${endDay} of this month`;
     } else if (parts.length === 1 && !isNaN(parseInt(parts[0], 10))) {
         const day = parseInt(parts[0], 10);
         if (day < 1 || day > 31) {
@@ -96,6 +117,15 @@ export function getDateRangeFromInput(input = '') {
         description = `On ${parts[0]}`;
     } else {
         return { error: 'Invalid usage. Use `today`, `yesterday`, `<day>`, `from <start> to <end>`, or `YYYY-MM-DD`.' };
+    }
+
+    // Clamp lb check ranges to at most 3 days to keep it readable.
+    const daysSpan = Math.floor((endDate.getTime() - startDate.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+    if (daysSpan > MAX_RANGE_DAYS) {
+        const clampedEnd = new Date(startDate);
+        clampedEnd.setUTCDate(clampedEnd.getUTCDate() + (MAX_RANGE_DAYS - 1));
+        endDate = getUtcMidnight(clampedEnd);
+        description = `${description} (showing max ${MAX_RANGE_DAYS} days)`;
     }
 
     const formatToISO = (date) => date.toISOString().split('T')[0];

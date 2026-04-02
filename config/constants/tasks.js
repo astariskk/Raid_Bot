@@ -75,7 +75,6 @@ export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'hard'];
 export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
 // --- Task groups (used for expanding meta tasks like "dailies") ---
-// Note: aliases like "daily" -> "dailies" are handled by TASK_ALIASES.
 export const TASK_GROUPS = {
   dailies: DAILIES_LIST,
   weeklies: WEEKLIES_LIST,
@@ -84,140 +83,7 @@ export const TASK_GROUPS = {
   legion: LEGION_LIST,
 };
 
-export const ALLOWED_TASK_FOUR = [
-  ...DAILIES_LIST,
-  ...WEEKLIES_LIST,
-  ...TEMPLESHRINE_LIST,
-  'dailies',
-  'weeklies',
-  'templeshrine',
-  ...OTHERS_FOUR_LIST,
-  ...GENERIC_TASKS_LIST,
-];
-
-export const ALLOWED_TASK_SEVEN = [
-  ...ORIGINUL_LIST,
-  'originul',
-  ...OTHERS_SEVEN_LIST,
-  ...GENERIC_TASKS_LIST,
-  ...LEGION_LIST,
-  'legion',
-];
-
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(
   ([task, points]) => `${task} = ${points} EXP`,
 );
-
-// --- Aliases & synonyms ---
-export const TASK_ALIASES = {
-  // --- Meta tasks ---
-  daily: 'dailies',
-  dailies: 'dailies',
-  weekly: 'weeklies',
-  weeklies: 'weeklies',
-  tshrine: 'templeshrine',
-  shrine: 'templeshrine',
-  templeshrine: 'templeshrine',
-
-  // --- weeklies ---
-  ultradage: 'dage',
-  dave: 'dage',
-  david: 'dage',
-
-  ultraspeaker: 'speaker',
-  malgor: 'speaker',
-  malgae: 'speaker',
-  malg: 'speaker',
-  spika: 'speaker',
-  yapper: 'speaker',
-
-  championdrakath: 'drakath',
-  drak: 'drakath',
-  drakky: 'drakath',
-
-  ultranulgath: 'nulgath',
-  nully: 'nulgath',
-  nul: 'nulgath',
-  nulg: 'nulgath',
-  nugget: 'nulgath',
-
-  ultradarkon: 'darkon',
-  dark: 'darkon',
-
-  ultradrago: 'drago',
-  drag: 'drago',
-
-  ultragramiel: 'gramiel',
-  gram: 'gramiel',
-  grammy: 'gramiel',
-
-  // --- dailies ---
-  ultraezrajal: 'ezrajal',
-  ezra: 'ezrajal',
-  ultrawarden: 'warden',
-  ward: 'warden',
-  ultraengineer: 'engineer',
-  engi: 'engineer',
-  ultratyndarius: 'tyndarius',
-  tyn: 'tyndarius',
-  tynd: 'tyndarius',
-  thundarius: 'tyndarius',
-
-  // --- templeshrine ---
-  tleft: 'tsleft',
-  left: 'tsleft',
-  tmid: 'tsmid',
-  mid: 'tsmid',
-  tright: 'tsright',
-  right: 'tsright',
-  templeshrineleft: 'tsleft',
-  templeshrinemid: 'tsmid',
-  templeshrineright: 'tsright',
-
-  // --- others four ---
-  ultrakala: 'kala',
-  pregnantman: 'kala',
-  ultraiara: 'iara',
-  ariel: 'iara',
-
-  // --- legion ---
-  sevencircleswar: 'beast',
-  mrbeast: 'beast',
-  lich: 'lichlord',
-
-  // --- originul ---
-  flibbi: 'voidflibbi',
-  nightbane: 'voidnightbane',
-  xyfrag: 'voidxyfrag',
-
-  // --- other seven ---
-  grimchallenge: 'mechabinky',
-  grim: 'mechabinky',
-  grimchal: 'mechabinky',
-  stupidhorse: 'mechabinky',
-  dabinky: 'mechabinky',
-  binky: 'mechabinky',
-
-  kathooldepths: 'kathool',
-  kathy: 'kathool',
-  kath: 'kathool',
-  katherine: 'kathool',
-  takoyaki: 'kathool',
-
-  nerfkitten: 'voidnerfkitten',
-  astral: 'astralshrine',
-  lava: 'lavarockshore',
-  lavarock: 'lavarockshore',
-  rockshore: 'lavarockshore',
-  apex: 'apexazalith',
-
-  // --- VA daily ---
-  vam: 'vamem',
-  vanm: 'vanonmem',
-
-  // --- generic ---
-  easy: 'simple',
-  medium: 'moderate',
-  difficult: 'hard',
-};
 

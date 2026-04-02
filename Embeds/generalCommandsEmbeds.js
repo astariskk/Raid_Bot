@@ -31,68 +31,97 @@ function formatTasksForEmbed(taskList, pointsConfig) {
 export function getCommandsEmbed() {
     return new EmbedBuilder()
         .setColor(EMBED_COLOR)
+        .setTitle('Commands')
         .setDescription('Here are the commands you can use with the Raid Helper Bot:')
         .addFields(
             {
-                name: 'General Raid & Status Commands',
-                value: `
-\`!raidtasks\`: Lists all available raid tasks **by category**.
-\`!calculatetask <task1> [xN] + <task2> [xN] + ...\`: Calculates total points for specified tasks.
-\`/taskalias <tasks>\`: Show aliases for one or more tasks. \n
-`
+                name: 'General',
+                value:
+                    `• \`!raidtasks\` — lists raid tasks by category\n` +
+                    `• \`/raidtasks\` — slash version of raid tasks` +                    
+                    `• \`!calculatetask <task1> + <task2>...\` — calculate EXP for tasks\n` +
+                    `• \`/calculatetask\` — slash version of task calculation`,
+                inline: false,
             },
             {
-                name: 'Commands Inside Raid Tickets',
-                value: `
-\`!raidmaps [number]\` or \`!maps [number]\`: Displays the map's specified in the raid to make joining maps easier.
-\`!raidsite\`: Sends a website for making joining maps easier, made by Neru.
-\`!waiting\`: Set the raid status to 'Waiting (requester only)'.
-\`!ongoing\`: Set the raid status to 'Ongoing (requester only)'.
-\`!full\`: Set the raid status to 'Full (requester only)'.
-\`!charts\`: Displays all available charts.
-\`!1man\`: Displays the 1-man taunt chart for ultraspeaker.
-\`!2man\`: Displays the 2-man taunt chart for ultraspeaker.
-\`!3man\`: Displays the 3-man taunt chart for ultraspeaker.
-\`!4man\`: Displays the 4-man taunt chart for ultraspeaker.
-\`!lpchart\`: Displays the chart for
-\`!gramielchart\` or \`!gramiel\`: Displays the chart for ultragramiel.
-`
+                name: 'Inside Raid Tickets',
+                value:
+                    `• \`!waiting\` / \`!ongoing\` / \`!full\` — update raid status (requester/staff)\n` +
+                    `• \`!raidmaps <number>\` or \`!maps <number>\` — show join maps for this ticket\n` +
+                    `• \`!charts\` — show available charts\n` +
+                    `• \`!1man\` \`!2man\` \`!3man\` \`!4man\` — ultraspeaker charts\n` +
+                    `• \`!lpchart\` \`!gramielchart\` \`!gramiel\` — additional charts`,
+                inline: false,
             },
         )
         .setTimestamp()
-        .setFooter({ text: 'Bot Commands' });
+        .setFooter({ text: 'Raid Helper Bot | Commands' });
 }
 
 export function getHowToUseEmbed() {
     return new EmbedBuilder()
+        .setColor(EMBED_COLOR)
         .setTitle('How to Use the Raid Helper Bot')
-        .setDescription(
-            `1. Get Help Role: Press \`Get Help Role\` to toggle the <@&${RAID_HELPER_ROLE_ID}> role.\n\n` +
-            `2. Start Raid: Press \`Start Raid\`, pick categories + tasks, then fill in the details modal.\n` +
-            `If your task isn't listed, use generic tasks: \`simple\`, \`moderate\`, \`hard\`.\n\n` +
-            `3. During the raid: In the ticket you can type \`!waiting\`, \`!ongoing\`, or \`!full\`.\n\n` +
-            `4. Closing & points: Press \`Close Raid\`, select helpers, and (optional) use \`Partial Helper\` to assign helpers to specific tasks for partial EXP.\n Max \`${MAX_XP_PER_RAID} EXP\` per raid. \n\n` +
-            `5. Leaderboard: Use \`!leaderboard\` or \`!lb\` in <#${LEADERBOARD_CHANNEL_ID}>.\n\n` +
-            `Press the buttons below for more info.`
-        )
-        .setColor(EMBED_COLOR);
+        .addFields(
+            {
+                name: '1) Get Help Role',
+                value: `Press \`Get Help Role\` to toggle the <@&${RAID_HELPER_ROLE_ID}> role.`,
+                inline: false,
+            },
+            {
+                name: '2) Start Raid',
+                value:
+                    'Press `Start Raid`, pick categories + tasks, then fill in the details modal.\n' +
+                    'If your task is not listed, use generic tasks: `simple`, `moderate`, `hard`.',
+                inline: false,
+            },
+            {
+                name: '3) During the Raid',
+                value: 'In the ticket you can type `!waiting`, `!ongoing`, or `!full`.',
+                inline: false,
+            },
+            {
+                name: '4) Closing & Points',
+                value:
+                    'Press `Close Raid`, select helpers, and (optional) use `Partial Helper` to assign helpers to specific tasks for partial EXP.\n' +
+                    `Max \`${MAX_XP_PER_RAID} EXP\` per player per raid.`,
+                inline: false,
+            },
+            {
+                name: '5) Leaderboard',
+                value: `Use \`!leaderboard\` / \`!lb\` in <#${LEADERBOARD_CHANNEL_ID}>.`,
+                inline: false,
+            },
+        );
 }
 
 export function getRaidRulesEmbed() {
     return new EmbedBuilder()
+        .setColor(EMBED_COLOR)
         .setTitle('Raid Rules')
-        .setDescription(
-            `**Welcome to Vanaheim's Raid Channel** \n\n` +
-            'Rules for using the channel. \n' +
-            '1. Only 1 request to be made at a time. \n' +
-            '2. You cannot make a request for another person.\n' +
-            `3. Serious abuse of the channel - excessive pinging of <@&${RAID_HELPER_ROLE_ID}>, <@&${OFFICER_ROLE_ID}> and <@&${MODERATOR_ROLE_ID}> and multiple tickets made within an hour can result in an indefinite ban from the use of the raid assistance channel. \n` +
-            `4. If no one comes to the raid after 30 minutes - you can re-ping <@&${RAID_HELPER_ROLE_ID}> once. If no one still comes, close the ticket and try again later. \n` +
-            '5. Alts can be used to help with raids, but the raid requester can request the alt to be removed from the raid if they want. \n' +
-            `6. All <@&${MODERATOR_ROLE_ID}> and <@&${OFFICER_ROLE_ID}> have the right to issue warnings and bans as they see fit base on misuse and player misconduct during raids. \n` +
-            '7. Follow the instructions below for opening and closing the ticket - improper way of doing so can result of a warning which may eventually lead to a ban. \n'
-        )
-        .setColor(EMBED_COLOR);
+        .addFields(
+            { name: '1) One Request At A Time', value: 'Only 1 request may be active per requester.', inline: false },
+            { name: '2) No Proxy Requests', value: 'You cannot request a raid for another person.', inline: false },
+            {
+                name: '3) No Abuse / Spam',
+                value:
+                    `Do not spam or excessively ping <@&${RAID_HELPER_ROLE_ID}>, <@&${OFFICER_ROLE_ID}>, or <@&${MODERATOR_ROLE_ID}>.\n` +
+                    'Excessive spam or repeated tickets may result in a ban.',
+                inline: false,
+            },
+            {
+                name: '4) Re-ping Rule',
+                value: `If no one comes after 30 minutes, you may re-ping <@&${RAID_HELPER_ROLE_ID}> **once**. If still no one comes, close the ticket and try later.`,
+                inline: false,
+            },
+            { name: '5) Alts', value: 'Alts can help, but the requester may ask for an alt to be removed if needed.', inline: false },
+            {
+                name: '6) Staff Discretion',
+                value: `All <@&${MODERATOR_ROLE_ID}> and <@&${OFFICER_ROLE_ID}> may issue warnings/bans for misuse or misconduct.`,
+                inline: false,
+            },
+            { name: '7) Follow Ticket Flow', value: 'Open/close tickets using the buttons and follow instructions.', inline: false },
+        );
 }
 
 export function getCombinedTasksAndPointsEmbed() {
@@ -112,11 +141,12 @@ export function getCombinedTasksAndPointsEmbed() {
     };
 
     // -----------------------------------------------------------
-    // ðŸ“˜ EMBED 1 — 4-MAN TASKS
+    // EMBED 1 — 4-MAN TASKS
     // -----------------------------------------------------------
     const embed4Man = new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('=== 4-Man Tasks ===');
+        .setTitle('4-Man Tasks')
+        .setDescription('Use these task keys in `Start Raid` or in calculations.');
 
     addThreeColumnFields(embed4Man, '`Daily` / `Dailies`', DAILIES_LIST);
     addThreeColumnFields(embed4Man, ' Other 4-Man Tasks', OTHERS_FOUR_LIST);
@@ -126,24 +156,26 @@ export function getCombinedTasksAndPointsEmbed() {
     embeds.push(embed4Man);
 
     // -----------------------------------------------------------
-    // ðŸ“™ EMBED 2 — 7-MAN TASKS
+    // EMBED 2 — 7-MAN TASKS
     // -----------------------------------------------------------
     const embed7Man = new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('=== 7-Man Tasks ===');
+        .setTitle('7-Man Tasks')
+        .setDescription('Use these task keys in `Start Raid` or in calculations.');
 
-    addThreeColumnFields(embed7Man, 'ðŸŒŒ `Originul` Raids', ORIGINUL_LIST);
-    addThreeColumnFields(embed7Man, 'ðŸ’€ `Legion` Daily Tasks', LEGION_LIST);
-    addThreeColumnFields(embed7Man, 'ðŸ—ºï¸ Other 7-Man Tasks', OTHERS_SEVEN_LIST);
+    addThreeColumnFields(embed7Man, '`Originul` Raids', ORIGINUL_LIST);
+    addThreeColumnFields(embed7Man, '`Legion` Daily Tasks', LEGION_LIST);
+    addThreeColumnFields(embed7Man, '`Other 7-Man Tasks`', OTHERS_SEVEN_LIST);
 
     embeds.push(embed7Man);
 
     // -----------------------------------------------------------
-    // ðŸ“— EMBED 3 — GENERIC TASKS
+    // EMBED 3 — GENERIC TASKS
     // -----------------------------------------------------------
     const embedGeneric = new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('=== Generic Tasks ===')
+        .setTitle('Generic Tasks')
+        .setDescription('Use these when your task is not in the list.')
         .addFields({
             name: '\u200B',
             value: formatTasksForEmbed(GENERIC_TASKS_LIST, POINTS_CONFIG),
@@ -158,22 +190,22 @@ export function getCombinedTasksAndPointsEmbed() {
 export function getInitialButtonsRow() {
     const startRaidButton = new ButtonBuilder()
         .setCustomId('startRaidWizard_btn')
-        .setLabel('Start Raid')
-        .setStyle(ButtonStyle.Success);
+        .setLabel('⚔️ Start Raid')
+        .setStyle(ButtonStyle.Primary);
 
     const getHelpRoleButton = new ButtonBuilder()
         .setCustomId('getHelpRole_btn')
-        .setLabel('Get Help Role')
+        .setLabel('📣 Get Help Role')
         .setStyle(ButtonStyle.Secondary);
 
     const seeRaidTasksButton = new ButtonBuilder()
         .setCustomId('seeRaidTasks_btn')
-        .setLabel('Raid Tasks')
+        .setLabel('📙 Raid Tasks')
         .setStyle(ButtonStyle.Secondary);
 
     const showAllCommandsButton = new ButtonBuilder()
         .setCustomId('showAllCommands_btn')
-        .setLabel('Commands List')
+        .setLabel('📙 Commands List')
         .setStyle(ButtonStyle.Secondary);
 
     return new ActionRowBuilder()
@@ -210,7 +242,7 @@ export function getChartsEmbed() {
 export function getLeaderboardCommandsEmbed() {
     return new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('Leaderboard Commands List ðŸ†')
+        .setTitle('Leaderboard Commands List')
         .setDescription('this is shown using `!lbcommands`. \nHere are the commands to check raid experience and rankings:')
         .addFields(
             {
@@ -229,7 +261,7 @@ export function getLeaderboardCommandsEmbed() {
 export function getModeratorCommandsEmbed() {
     return new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('Moderator Commands List ðŸ†')
+        .setTitle('Moderator Commands List')
         .setDescription('this is shown using `!modcommands`. \nHere are the commands for moderation:')
         .addFields(
             {
@@ -242,6 +274,11 @@ export function getModeratorCommandsEmbed() {
 \`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
 \`!lbackup\`: Forces the bot to upload a new leaderboard backup and replace the old one.
 \`!restorelb\`: Restores the leaderboard from an attached \`leaderboard.json\` file.
+
+**GIF/Text command CRUD**
+\`!addgif <command>\`: Create/manage a GIF embed command
+\`!addtextgif <command>\`: Create/manage a text-only command
+Then use the buttons on the preview message: \`Edit\`, \`Change Gif\`, \`Delete\`, \`Close\`.
 `
             }
         )
@@ -261,7 +298,7 @@ export function getSecretCommandsEmbed(gifCommands, textGifCommands) {
 
     return new EmbedBuilder()
         .setColor(EMBED_COLOR)
-        .setTitle('ðŸ¤« Secret Gif Commands List ðŸ¤«')
+        .setTitle('Secret Gif Commands List ')
         .setDescription('**Note:** These commands are for fun and may not be suitable for all audiences. Use them at your own discretion:')
         .addFields(
             {
