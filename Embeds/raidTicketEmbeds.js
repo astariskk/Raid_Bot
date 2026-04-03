@@ -29,8 +29,8 @@ export const closeTicketButton = new ButtonBuilder()
 
 // Button to edit the tasks associated with a raid.
 export const editTaskButton = new ButtonBuilder()
-    .setCustomId("editTask_btn")
-    .setLabel('✏️ Edit Task')
+    .setCustomId("editRequest_btn")
+    .setLabel('Edit Request')
     .setStyle(ButtonStyle.Secondary);
 
 export const cancelTicketButton = new ButtonBuilder()

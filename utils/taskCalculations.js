@@ -5,7 +5,6 @@
 import {
     POINTS_CONFIG,
     MAX_XP_PER_RAID,
-    TASK_GROUPS,
 } from '../config/constants.js';
 
 
@@ -33,28 +32,13 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
         }
 
         let currentEntryPoints = 0;
-        let effectiveTasks = new Set();
-
         const resolvedName = taskName;
-
-        // Handle meta categories (e.g., 'dailies', 'weeklies')
-        if (Object.prototype.hasOwnProperty.call(TASK_GROUPS, resolvedName)) {
-            TASK_GROUPS[resolvedName].forEach(t => effectiveTasks.add(t));
-        } else if (Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
-            effectiveTasks.add(resolvedName);
-        } else {
+        if (!Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
             unknownTasks.push(entry);
             continue;
         }
 
-        effectiveTasks.forEach(t => {
-            if (POINTS_CONFIG.hasOwnProperty(t)) {
-                currentEntryPoints += POINTS_CONFIG[t];
-            } else {
-                console.warn(`Task "${t}" from "${resolvedName}" not found in POINTS_CONFIG.`);
-                unknownTasks.push(t); // Add specific sub-task if not found
-            }
-        });
+        currentEntryPoints += POINTS_CONFIG[resolvedName];
 
         // Apply multiplier to the current entry's total points
         const taskPoints = currentEntryPoints * multiplier;

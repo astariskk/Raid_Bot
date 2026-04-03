@@ -74,15 +74,6 @@ export const OTHERS_SEVEN_LIST = [
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'difficult'];
 export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
-// --- Task groups (used for expanding meta tasks like "dailies") ---
-export const TASK_GROUPS = {
-  dailies: DAILIES_LIST,
-  weeklies: WEEKLIES_LIST,
-  templeshrine: TEMPLESHRINE_LIST,
-  originul: ORIGINUL_LIST,
-  legion: LEGION_LIST,
-};
-
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(
   ([task, points]) => `${task} = ${points} EXP`,
 );

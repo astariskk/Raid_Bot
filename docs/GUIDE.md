@@ -42,7 +42,7 @@ Task points + allowed task inputs live in:
 
 Key exports:
 - `POINTS_CONFIG` task EXP values
-- `TASK_GROUPS` meta tasks that expand to multiple tasks (`dailies`, `weeklies`, etc.)
+- Meta task aliases (like `dailies`, `weeklies`, etc.) are not used anymore; tickets store explicit task keys.
 - `MAX_XP_PER_RAID` raid EXP cap
 
 ## Map Join Prefixes
