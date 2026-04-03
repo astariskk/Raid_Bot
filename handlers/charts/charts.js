@@ -490,23 +490,6 @@ export async function handleChartsAutocompleteInteraction(interaction) {
       if (suggestions.length >= 25) break;
     }
 
-    // Then variants (if any).
-    if (suggestions.length < 25) {
-      for (const chart of eligible) {
-        const typeTitle = String(chart.title ?? chart.key);
-        const variants = Array.isArray(chart.variants) ? chart.variants : [];
-        for (const v of variants) {
-          const vName = String(v?.name ?? v?.title ?? v?.key ?? '').trim();
-          if (!vName) continue;
-          if (!raw || vName.toLowerCase().includes(raw)) {
-            push(`${typeTitle} — ${vName}`, `var:${chart.key}:${v.key}`);
-          }
-          if (suggestions.length >= 25) break;
-        }
-        if (suggestions.length >= 25) break;
-      }
-    }
-
     await interaction.respond(suggestions.slice(0, 25)).catch(() => {});
   } catch (err) {
     console.error('charts autocomplete failed:', err);
