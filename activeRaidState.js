@@ -60,7 +60,17 @@ export async function createRaid(channelId, raidDetails) {
     try {
         const document = { ...raidDetails };
         await createRaidState(channelId, document);
-        raidStateCache.set(channelId, { data: { id: String(channelId), ...document }, timestamp: Date.now() });
+        const data = { id: String(channelId), ...document };
+        raidStateCache.set(channelId, { data, timestamp: Date.now() });
+        raidStateMinimalCache.set(channelId, {
+            data: {
+                id: String(channelId),
+                requesterId: data.requesterId ?? null,
+                status: data.status ?? null,
+                isAwaitingCompletion: Boolean(data.isAwaitingCompletion ?? false),
+            },
+            timestamp: Date.now(),
+        });
     } catch (error) {
         console.error(`Error creating raid ${channelId} in DB:`, error);
         throw error;
@@ -74,7 +84,26 @@ export async function updateRaid(channelId, updates) {
         }
 
         await updateRaidState(channelId, updates);
-        raidStateCache.delete(channelId); // Invalidate cache
+
+        const cached = raidStateCache.get(channelId);
+        if (cached?.data) {
+            raidStateCache.set(channelId, {
+                data: { ...cached.data, ...updates },
+                timestamp: Date.now(),
+            });
+        } else {
+            raidStateCache.delete(channelId);
+        }
+
+        const minimalCached = raidStateMinimalCache.get(channelId);
+        const nextMinimal = {
+            ...(minimalCached?.data ?? { id: String(channelId) }),
+            ...(updates.requesterId !== undefined ? { requesterId: updates.requesterId } : {}),
+            ...(updates.status !== undefined ? { status: updates.status } : {}),
+            ...(updates.isAwaitingCompletion !== undefined ? { isAwaitingCompletion: Boolean(updates.isAwaitingCompletion) } : {}),
+        };
+        raidStateMinimalCache.set(channelId, { data: nextMinimal, timestamp: Date.now() });
+
         console.log(`Raid ${channelId} updated in DB.`);
     } catch (error) {
         console.error(`Error updating raid ${channelId} in DB:`, error);

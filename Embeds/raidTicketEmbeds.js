@@ -9,15 +9,9 @@ import {
 } from 'discord.js';
 
 import {
-    DAILIES_LIST,
-    WEEKLIES_LIST,
-    TEMPLESHRINE_LIST,
-    ORIGINUL_LIST,
-    LEGION_LIST,
-    OTHERS_FOUR_LIST,
-    OTHERS_SEVEN_LIST,
     GENERIC_TASKS_LIST,
     POINTS_CONFIG,
+    RAID_TASK_CATEGORIES,
 } from '../config/constants.js';
 
 export const closeTicketButton = new ButtonBuilder()
@@ -179,16 +173,7 @@ function buildRaidWizardDetailsModal({ customId, title, mapNameRequired, default
     return modal;
 }
 
-const CATEGORY_DEFS = [
-    { key: 'dailies', label: 'Dailies', tasks: DAILIES_LIST, raidType: '4-man' },
-    { key: 'weeklies', label: 'Weeklies', tasks: WEEKLIES_LIST, raidType: '4-man' },
-    { key: 'templeshrine', label: 'Temple Shrine', tasks: TEMPLESHRINE_LIST, raidType: '4-man' },
-    { key: 'originul', label: 'Originul', tasks: ORIGINUL_LIST, raidType: '7-man' },
-    { key: 'legion', label: 'Legion', tasks: LEGION_LIST, raidType: '7-man' },
-    { key: 'other_four', label: 'Other 4-man', tasks: OTHERS_FOUR_LIST, raidType: '4-man' },
-    { key: 'other_seven', label: 'Other 7-man', tasks: OTHERS_SEVEN_LIST, raidType: '7-man' },
-    { key: 'generic', label: 'Other Tasks', tasks: GENERIC_TASKS_LIST, raidType: 'other' },
-];
+const CATEGORY_DEFS = RAID_TASK_CATEGORIES;
 
 export function getRaidWizardCategoryDef(categoryKey) {
     return CATEGORY_DEFS.find((c) => c.key === categoryKey) ?? null;

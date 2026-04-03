@@ -74,6 +74,25 @@ export const OTHERS_SEVEN_LIST = [
 export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'difficult'];
 export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
+// --- Raid Task Categories (single source of truth for the raid wizard UI) ---
+// Keep list exports above for backwards compatibility.
+export const RAID_TASK_CATEGORIES = Object.freeze([
+  { key: 'dailies', label: 'Dailies', tasks: DAILIES_LIST, raidType: '4-man' },
+  { key: 'weeklies', label: 'Weeklies', tasks: WEEKLIES_LIST, raidType: '4-man' },
+  { key: 'templeshrine', label: 'Temple Shrine', tasks: TEMPLESHRINE_LIST, raidType: '4-man' },
+  { key: 'originul', label: 'Originul', tasks: ORIGINUL_LIST, raidType: '7-man' },
+  { key: 'legion', label: 'Legion', tasks: LEGION_LIST, raidType: '7-man' },
+  { key: 'other_four', label: 'Other 4-man', tasks: OTHERS_FOUR_LIST, raidType: '4-man' },
+  { key: 'other_seven', label: 'Other 7-man', tasks: OTHERS_SEVEN_LIST, raidType: '7-man' },
+  { key: 'generic', label: 'Other Tasks', tasks: GENERIC_TASKS_LIST, raidType: 'other' },
+]);
+
+export const TASK_CATEGORY_BY_TASK = Object.freeze(
+  Object.fromEntries(
+    RAID_TASK_CATEGORIES.flatMap((cat) => (cat.tasks || []).map((task) => [task, cat.key])),
+  ),
+);
+
 export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(
   ([task, points]) => `${task} = ${points} EXP`,
 );

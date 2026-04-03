@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'disc
 import { LEADERBOARD_CHANNEL_ID } from '../../config/constants.js';
 import { BLUE_EMBED_COLOR, EMBED_COLOR } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
+import { resolveDisplayNameFast } from '../../utils/discordNames.js';
 import {
   connectDB,
   getDailyPointsForRange,
@@ -115,19 +116,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
 
     for (let index = 0; index < usersOnPage.length; index += 1) {
       const player = usersOnPage[index];
-      let userName = `<@${player.userId}>`;
-
-      try {
-        const member = await guild.members.fetch(player.userId);
-        userName = member.displayName;
-      } catch {
-        try {
-          const user = await client.users.fetch(player.userId);
-          userName = user.globalName || user.username;
-        } catch (error) {
-          console.error(`Could not resolve user ID ${player.userId}:`, error);
-        }
-      }
+      const userName = resolveDisplayNameFast({ client, guild, userId: player.userId });
 
       const safeName = String(userName).replace(/\s+/g, ' ').trim();
       ranks.push(String(startIndex + index + 1));

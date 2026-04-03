@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
-import { EMBED_COLOR, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
+import { EMBED_COLOR, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config/constants.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { requireAuth } from './ticketUtils.js';
@@ -321,7 +321,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     if (fullRaidInfo) raidInfo = fullRaidInfo;
 
     /* ---------- HARD LOCK: ADMIN REVIEW ---------- */
-    if (raidInfo?.status === 'admin_review') {
+    if (raidInfo?.status === RAID_STATUS.ADMIN_REVIEW) {
         if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({ content: 'The raid is already closed.', flags: MessageFlags.Ephemeral }).catch(() => {});
         }

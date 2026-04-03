@@ -15,7 +15,8 @@ import {
   MODERATOR_ROLE_ID,
   OFFICER_ROLE_ID,
   RAID_MANAGER_ROLE_ID,
-  RAID_HELPER_ROLE_ID
+  RAID_HELPER_ROLE_ID,
+  RAID_STATUS,
 } from '../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
@@ -242,7 +243,7 @@ export async function finalizeAdminReview(
 
     /* -------------------- DB + LEADERBOARD -------------------- */
     await updateRaid(channel.id, {
-      status: "admin_review",
+      status: RAID_STATUS.ADMIN_REVIEW,
       isAwaitingCompletion: false,
       awaitingCompletionRequesterId: null,
       pointsAwarded,

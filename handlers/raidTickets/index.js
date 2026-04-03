@@ -7,6 +7,7 @@ import { handleTicketMessages, handleCommandInteractions } from './ticketCommand
 import { handleLifecycleInteractions } from './ticketLifecycle.js';
 import { handleCompletionInteractions } from './ticketCompletion.js';
 import { handleReviewInteractions } from './ticketReview.js';
+import { RAID_STATUS } from '../../config/constants.js';
 
 export function setupRaidHandlers(client) {
 
@@ -38,7 +39,7 @@ export function setupRaidHandlers(client) {
         }
 
         // Route based on Raid Status & Component ID
-        if (raidInfo.status === 'admin_review') {
+        if (raidInfo.status === RAID_STATUS.ADMIN_REVIEW) {
             await handleReviewInteractions(interaction, raidInfo);
             return;
         }
@@ -54,7 +55,7 @@ export function setupRaidHandlers(client) {
 
         // Lifecycle (Edit, Cancel)
         if (
-            ['editRequest_btn', 'editTask_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
+            ['editRequest_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
             interaction.customId.startsWith('editRequest_') ||
             interaction.customId.startsWith('raidWizardEdit_') ||
             interaction.customId.startsWith('raidWizardEditDetailsModal_')

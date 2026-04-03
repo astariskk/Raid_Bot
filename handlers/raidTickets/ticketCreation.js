@@ -1,24 +1,10 @@
 import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS } from '../../config/constants.js';
+import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS, RAID_STATUS } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTasks, validateAndResolveTaskList } from '../../utils/allowedTasks.js';
+import { inferRaidTypeFromCategoryKeys } from '../../utils/raidRequest.js';
 import { threadActionRow } from '../../Embeds/raidTicketEmbeds.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
-
-function inferRaidTypeFromCategoryKeys(categoryKeys) {
-    const keys = (categoryKeys || []).filter(Boolean);
-    if (!keys.length) return 'other';
-
-    const typeSet = new Set();
-    for (const key of keys) {
-        if (['dailies', 'weeklies', 'templeshrine', 'other_four'].includes(key)) typeSet.add('4-man');
-        else if (['originul', 'legion', 'other_seven'].includes(key)) typeSet.add('7-man');
-        else typeSet.add('other');
-    }
-
-    if (typeSet.size === 1) return [...typeSet][0];
-    return 'other';
-}
 
 export async function handleRaidCreation(interaction) {
     if (!interaction.isModalSubmit()) return;
@@ -100,7 +86,7 @@ export async function handleRaidCreation(interaction) {
 
         // Build Embed
         const embed = new EmbedBuilder()
-            .setColor(STATUS_COLORS?.Waiting ?? EMBED_COLOR)
+            .setColor(STATUS_COLORS?.[RAID_STATUS.WAITING] ?? EMBED_COLOR)
             .setTitle(`${raidType} Raid Request`)
             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
             .addFields(
@@ -108,7 +94,7 @@ export async function handleRaidCreation(interaction) {
                 { name: 'Map', value: `${mapName || 'Auto (based on task)'}`, inline: false},
                 { name: 'Room Number', value: `${mapNumber}`, inline: true },
                 { name: 'Server', value: server, inline: true },
-                { name: 'Status', value: 'Waiting', inline: true },
+                { name: 'Status', value: RAID_STATUS.WAITING, inline: true },
                 { name: 'Description', value: description || 'No description provided.' }
             );
 
@@ -135,7 +121,7 @@ export async function handleRaidCreation(interaction) {
             mapNumber,
             server,
             description,
-            status: 'Waiting',
+            status: RAID_STATUS.WAITING,
             proofImage: null,
             isAwaitingCompletion: false,
             partialHelpers: [],

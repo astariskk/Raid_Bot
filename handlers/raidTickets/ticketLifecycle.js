@@ -13,8 +13,9 @@ import {
     getRaidInfo
 } from '../../activeRaidState.js';
 
-import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, OTHERS_FOUR_LIST, OTHERS_SEVEN_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
+import { inferCategoryKeysFromTasks, inferRaidTypeFromCategoryKeys } from '../../utils/raidRequest.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
 import { consumeRaidWizardSession, createRaidWizardSession, getRaidWizardSession, updateRaidWizardSession } from './raidWizardSession.js';
@@ -78,34 +79,6 @@ function formatTaskRunsString({ order, runsByTask }) {
         out.push(runs > 1 ? `${key} x${runs}` : key);
     }
     return out.join(', ');
-}
-
-function inferCategoryKeysFromTasks(tasks) {
-    const keys = new Set();
-    for (const t of tasks) {
-        if (DAILIES_LIST.includes(t)) keys.add('dailies');
-        else if (WEEKLIES_LIST.includes(t)) keys.add('weeklies');
-        else if (TEMPLESHRINE_LIST.includes(t)) keys.add('templeshrine');
-        else if (ORIGINUL_LIST.includes(t)) keys.add('originul');
-        else if (LEGION_LIST.includes(t)) keys.add('legion');
-        else if (OTHERS_FOUR_LIST.includes(t)) keys.add('other_four');
-        else if (OTHERS_SEVEN_LIST.includes(t)) keys.add('other_seven');
-        else if (GENERIC_TASKS_LIST.includes(t)) keys.add('generic');
-    }
-    return [...keys];
-}
-
-function inferRaidTypeFromCategoryKeys(categoryKeys) {
-    const keys = (categoryKeys || []).filter(Boolean);
-    if (!keys.length) return 'other';
-    const typeSet = new Set();
-    for (const key of keys) {
-        if (['dailies', 'weeklies', 'templeshrine', 'other_four'].includes(key)) typeSet.add('4-man');
-        else if (['originul', 'legion', 'other_seven'].includes(key)) typeSet.add('7-man');
-        else typeSet.add('other');
-    }
-    if (typeSet.size === 1) return [...typeSet][0];
-    return 'other';
 }
 
 async function startEditTasksWizard(interaction, raidInfo) {
@@ -180,7 +153,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
     if (fullRaidInfo) raidInfo = fullRaidInfo;
 
     /* ---------- EDIT REQUEST (START) ---------- */
-    if (interaction.customId === "editRequest_btn" || interaction.customId === "editTask_btn") {
+    if (interaction.customId === "editRequest_btn") {
         const sessionId = newEditRequestSessionId(interaction.user.id);
         editRequestSessions.set(sessionId, {
             userId: interaction.user.id,
@@ -405,7 +378,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
     }
 
     /* ---------- 1. EDIT TASK ---------- */
-    if (interaction.customId === "editTask_btn") {
+    if (false && interaction.customId === "editTask_btn") {
         const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
 
         const existingTokens = parseRaidTasks(raidInfo.task || '');
@@ -430,8 +403,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 else if (TEMPLESHRINE_LIST.includes(t)) keys.add('templeshrine');
                 else if (ORIGINUL_LIST.includes(t)) keys.add('originul');
                 else if (LEGION_LIST.includes(t)) keys.add('legion');
-                else if (OTHERS_FOUR_LIST.includes(t)) keys.add('other_four');
-                else if (OTHERS_SEVEN_LIST.includes(t)) keys.add('other_seven');
                 else if (GENERIC_TASKS_LIST.includes(t)) keys.add('generic');
             }
             return [...keys];
@@ -557,20 +528,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 return;
             }
 
-            const inferRaidType = (categoryKeys) => {
-                const keys = (categoryKeys || []).filter(Boolean);
-                if (!keys.length) return 'other';
-                const typeSet = new Set();
-                for (const key of keys) {
-                    if (['dailies', 'weeklies', 'templeshrine', 'other_four'].includes(key)) typeSet.add('4-man');
-                    else if (['originul', 'legion', 'other_seven'].includes(key)) typeSet.add('7-man');
-                    else typeSet.add('other');
-                }
-                if (typeSet.size === 1) return [...typeSet][0];
-                return 'other';
-            };
-
-            const raidType = inferRaidType(session.categoryKeys) ?? 'other';
+            const raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys) ?? 'other';
             const mapNameRequired = session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
             const defaults = session.defaults ?? {};
 
@@ -589,20 +547,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             return;
         }
 
-        const inferRaidType = (categoryKeys) => {
-            const keys = (categoryKeys || []).filter(Boolean);
-            if (!keys.length) return 'other';
-            const typeSet = new Set();
-            for (const key of keys) {
-                if (['dailies', 'weeklies', 'templeshrine', 'other_four'].includes(key)) typeSet.add('4-man');
-                else if (['originul', 'legion', 'other_seven'].includes(key)) typeSet.add('7-man');
-                else typeSet.add('other');
-            }
-            if (typeSet.size === 1) return [...typeSet][0];
-            return 'other';
-        };
-
-        const raidType = inferRaidType(session.categoryKeys);
+        const raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys);
 
         const { resolvedTasks, invalidTasks } = validateAndResolveTaskList(session.tasks, 'any');
         if (invalidTasks.length) {

@@ -52,6 +52,7 @@ import {
 
 import { getSupabase } from '../../utils/supabaseClient.js';
 import { invalidateLeaderboardCache } from '../leaderboard/core.js';
+import { inferRaidTypeFromCategoryKeys } from '../../utils/raidRequest.js';
 
 function isStaffMember(member) {
     if (!member) return false;
@@ -155,21 +156,6 @@ function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
     }
 
     return embed;
-}
-
-function inferRaidTypeFromCategoryKeys(categoryKeys) {
-    const keys = (categoryKeys || []).filter(Boolean);
-    if (!keys.length) return 'other';
-
-    const typeSet = new Set();
-    for (const key of keys) {
-        if (['dailies', 'weeklies', 'templeshrine', 'other_four'].includes(key)) typeSet.add('4-man');
-        else if (['originul', 'legion', 'other_seven'].includes(key)) typeSet.add('7-man');
-        else typeSet.add('other');
-    }
-
-    if (typeSet.size === 1) return [...typeSet][0];
-    return 'other';
 }
 
 export function setupGeneralCommandsHandler(client) {

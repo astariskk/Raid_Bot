@@ -1,6 +1,7 @@
 import { MessageFlags } from 'discord.js';
 
 import { updateRaidStatus } from '../../activeRaidState.js';
+import { RAID_STATUS } from '../../config/constants.js';
 import { generateRaidMapsEmbed, parseRaidTasks } from '../../utils/raidMaps.js';
 
 // --- Main Message Handler ---
@@ -10,9 +11,13 @@ export async function handleTicketMessages(message, client, raidInfo) {
   if (!raidInfo) return;
 
   // 1. Status Updates
-  const statusMap = { '!waiting': 'Waiting', '!full': 'Full', '!ongoing': 'Ongoing' };
+  const statusMap = {
+    '!waiting': RAID_STATUS.WAITING,
+    '!full': RAID_STATUS.FULL,
+    '!ongoing': RAID_STATUS.ONGOING,
+  };
   if (statusMap[content]) {
-    if (['awaiting_completion', 'completed'].includes(raidInfo.status)) return;
+    if ([RAID_STATUS.AWAITING_COMPLETION, RAID_STATUS.COMPLETED].includes(raidInfo.status)) return;
     try {
       await updateRaidStatus(client, message.channel.id, statusMap[content]);
       await message.react('👍');

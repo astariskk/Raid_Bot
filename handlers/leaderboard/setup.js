@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from 'discord.js';
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
+import { resolveDisplayNameFast } from '../../utils/discordNames.js';
 import {
     createLbCheckResponse,
     createPaginatedLeaderboardEmbed,
@@ -205,6 +206,7 @@ export async function sendLeaderboardCheckResults({ client, guild, requesterId, 
 
     const leaderboard = await getCachedLeaderboard();
     const effectiveTargetUserIds = new Set(targetUserIds);
+    let seedDailyData = null;
 
     if (effectiveTargetUserIds.size === 0) {
         const allDailyPoints = await getDailyPointsForRange(
@@ -212,6 +214,7 @@ export async function sendLeaderboardCheckResults({ client, guild, requesterId, 
             dateInfo.rawStartDate,
             dateInfo.rawEndDate,
         );
+        seedDailyData = allDailyPoints;
         allDailyPoints.forEach((entry) => effectiveTargetUserIds.add(entry.userId));
     }
 
@@ -219,41 +222,42 @@ export async function sendLeaderboardCheckResults({ client, guild, requesterId, 
         throw new Error(`No EXP recorded for anyone ${dateInfo.description}.`);
     }
 
-    const usersData = await Promise.all(
-        Array.from(effectiveTargetUserIds).map(async (userId) => {
-            let userDisplayName = `<@${userId}>`;
+    const targetIds = Array.from(effectiveTargetUserIds);
 
-            try {
-                const member = await guild.members.fetch(userId);
-                userDisplayName = member.displayName;
-            } catch {
-                try {
-                    const user = await client.users.fetch(userId);
-                    userDisplayName = user.globalName || user.username;
-                } catch (error) {
-                    console.error(`Could not resolve user ID ${userId}:`, error);
-                }
-            }
+    // Pull daily points once and group by user for performance (avoids N DB calls).
+    let allDailyData = [];
+    if (targetUserIds.length === 0) {
+        allDailyData = seedDailyData ?? [];
+    } else {
+        allDailyData = await getDailyPointsForRange(targetIds, dateInfo.rawStartDate, dateInfo.rawEndDate);
+    }
 
-            const dailyDataForUser = await getDailyPointsForRange([userId], dateInfo.rawStartDate, dateInfo.rawEndDate);
-            dailyDataForUser.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    const dailyByUser = new Map();
+    for (const entry of allDailyData) {
+        if (!dailyByUser.has(entry.userId)) dailyByUser.set(entry.userId, []);
+        dailyByUser.get(entry.userId).push(entry);
+    }
 
-            let totalPointsForRange = 0;
-            const dailyBreakdown = [];
-            dailyDataForUser.forEach((entry) => {
-                totalPointsForRange += entry.points;
-                dailyBreakdown.push(`\`${entry.date}\`: ${entry.points} EXP`);
-            });
+    const usersData = targetIds.map((userId) => {
+        const userDisplayName = resolveDisplayNameFast({ client, guild, userId });
+        const dailyDataForUser = dailyByUser.get(userId) ?? [];
+        dailyDataForUser.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-            return {
-                id: userId,
-                displayName: userDisplayName,
-                totalPointsForRange,
-                dailyBreakdown,
-                overallTotal: leaderboard[userId] || 0,
-            };
-        }),
-    );
+        let totalPointsForRange = 0;
+        const dailyBreakdown = [];
+        dailyDataForUser.forEach((entry) => {
+            totalPointsForRange += entry.points;
+            dailyBreakdown.push(`\`${entry.date}\`: ${entry.points} EXP`);
+        });
+
+        return {
+            id: userId,
+            displayName: userDisplayName,
+            totalPointsForRange,
+            dailyBreakdown,
+            overallTotal: leaderboard[userId] || 0,
+        };
+    });
 
     const finalUsersData = targetUserIds.length === 0
         ? usersData.filter((userData) => userData.totalPointsForRange > 0)
