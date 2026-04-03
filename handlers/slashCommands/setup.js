@@ -10,7 +10,7 @@ import { getCombinedTasksAndPointsEmbed } from '../../Embeds/generalCommandsEmbe
 import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
 import { getGifCommand } from '../../utils/gifCommandsStore.js';
 import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
-import { startChartBrowseInteraction } from '../charts/charts.js';
+import { postChartToChannel, startChartBrowseInteraction } from '../charts/charts.js';
 
 function getMentionedUserIds(usersString = '') {
   const input = String(usersString ?? '');
@@ -308,10 +308,46 @@ export async function handleSlashCommandInteraction(interaction, client) {
     }
 
     case 'chart': {
+      const categoryKey = (interaction.options.getString('category') || '').trim();
+      const chartToken = (interaction.options.getString('chart') || '').trim();
       try {
+        if (chartToken.toLowerCase().startsWith('var:')) {
+          const parts = chartToken.split(':'); // var, typeKey, variantKey
+          const typeKey = parts[1] || '';
+          const variantKey = parts[2] || '';
+          await postChartToChannel({ channel: interaction.channel, chartKey: typeKey, variantKey, ownerId: interaction.user.id });
+          await interaction.reply({ content: 'Posted.', flags: MessageFlags.Ephemeral }).catch(() => {});
+          return;
+        }
+
+        if (chartToken.toLowerCase().startsWith('type:')) {
+          const typeKey = chartToken.slice('type:'.length).trim();
+          await startChartBrowseInteraction(interaction, { query: `type:${typeKey}` });
+          return;
+        }
+
+        if (categoryKey) {
+          await startChartBrowseInteraction(interaction, { query: `cat:${categoryKey}` });
+          return;
+        }
+
         await startChartBrowseInteraction(interaction);
       } catch (error) {
         console.error('Error handling /chart:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to browse charts.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'charts': {
+      const query = interaction.options.getString('query') || '';
+      try {
+        await startChartBrowseInteraction(interaction, { query });
+      } catch (error) {
+        console.error('Error handling /charts:', error);
         await interaction.reply({
           content: error?.message || 'Failed to browse charts.',
           flags: MessageFlags.Ephemeral,

@@ -12,6 +12,7 @@ import { getSupabase } from '../../utils/supabaseClient.js';
 import {
   findChartKeyByTrigger,
   getChart,
+  getChartsCache,
   listChartCategories,
   listChartTypesInCategory,
   loadChartsCache,
@@ -205,7 +206,7 @@ function buildNavRow({ ownerId, ts, disabledPrev, disabledNext }) {
   );
 }
 
-async function postChartToChannel({ channel, chartKey, variantKey, ownerId }) {
+export async function postChartToChannel({ channel, chartKey, variantKey, ownerId }) {
   const chart = await getChart(chartKey);
   if (!chart) throw new Error('Chart not found.');
 
@@ -339,9 +340,57 @@ export async function maybeHandleChartsBrowseMessage(message) {
   return true;
 }
 
-export async function startChartBrowseInteraction(interaction) {
+export async function startChartBrowseInteraction(interaction, { query = '' } = {}) {
   const sessionId = newSessionId();
   const session = { ownerId: interaction.user.id, step: 'category', category: null, categoryKey: null, typeKey: null, typeTitle: null, categoryQuery: null };
+
+  const q = String(query ?? '').trim();
+  if (q) {
+    // Token values from autocomplete:
+    // - cat:<categoryKey>
+    // - type:<typeKey>
+    // - trig:!trigger
+    const lower = q.toLowerCase();
+    if (lower.startsWith('cat:')) {
+      const catKey = lower.slice('cat:'.length).trim();
+      const categories = await listChartCategories().catch(() => []);
+      const picked = categories.find((c) => normalizeCategoryKey(c) === catKey);
+      if (picked) {
+        session.step = 'type';
+        session.category = picked;
+        session.categoryKey = normalizeCategoryKey(picked);
+      } else {
+        session.categoryQuery = q;
+      }
+    } else if (lower.startsWith('type:')) {
+      const typeKey = lower.slice('type:'.length).trim();
+      const chart = await getChart(typeKey).catch(() => null);
+      if (chart) {
+        session.step = 'variant';
+        session.category = chart.category;
+        session.categoryKey = normalizeCategoryKey(chart.category);
+        session.typeKey = chart.key;
+        session.typeTitle = chart.title;
+      } else {
+        session.categoryQuery = q;
+      }
+    } else if (lower.startsWith('trig:')) {
+      const trig = lower.slice('trig:'.length).trim();
+      const key = await findChartKeyByTrigger(trig).catch(() => null);
+      const chart = key ? await getChart(key).catch(() => null) : null;
+      if (chart) {
+        session.step = 'variant';
+        session.category = chart.category;
+        session.categoryKey = normalizeCategoryKey(chart.category);
+        session.typeKey = chart.key;
+        session.typeTitle = chart.title;
+      } else {
+        session.categoryQuery = q;
+      }
+    } else {
+      session.categoryQuery = q;
+    }
+  }
   browseSessions.set(sessionId, session);
 
   await interaction.reply({
@@ -349,6 +398,120 @@ export async function startChartBrowseInteraction(interaction) {
     components: await buildBrowseComponents(session, sessionId),
     flags: MessageFlags.Ephemeral,
   });
+}
+
+export async function handleChartsAutocompleteInteraction(interaction) {
+  try {
+    const focused = interaction.options.getFocused(true);
+    if (!focused) return;
+
+    const isChartsCommand = interaction.commandName === 'charts';
+    const isChartCommand = interaction.commandName === 'chart';
+    if (isChartsCommand && focused.name !== 'query') return;
+    if (isChartCommand && focused.name !== 'category' && focused.name !== 'chart') return;
+
+    const raw = String(focused.value ?? '').trim().toLowerCase();
+    await loadChartsCache().catch(() => {});
+
+    const { charts } = getChartsCache();
+    const chartList = Object.values(charts || {});
+
+    const suggestions = [];
+    const push = (name, value) => {
+      if (!name || !value) return;
+      if (suggestions.length >= 25) return;
+      suggestions.push({ name: String(name).slice(0, 100), value: String(value).slice(0, 100) });
+    };
+
+    if (isChartsCommand) {
+      // /charts query: suggest category/type/trigger tokens
+      const categorySeen = new Set();
+      for (const c of chartList.map((x) => x.category).filter(Boolean)) {
+        const label = String(c);
+        const key = normalizeCategoryKey(label);
+        if (!key || categorySeen.has(key)) continue;
+        categorySeen.add(key);
+        if (!raw || label.toLowerCase().includes(raw)) {
+          push(`Category: ${label}`, `cat:${key}`);
+        }
+      }
+
+      for (const chart of chartList) {
+        const typeTitle = String(chart.title ?? chart.key);
+        const cat = String(chart.category ?? 'general');
+        const triggers = Array.isArray(chart.triggers) ? chart.triggers : [];
+
+        if (!raw || typeTitle.toLowerCase().includes(raw) || String(chart.key).toLowerCase().includes(raw)) {
+          push(`${cat} — ${typeTitle}`, `type:${chart.key}`);
+        }
+
+        for (const t of triggers) {
+          const trig = String(t);
+          if (!raw || trig.toLowerCase().includes(raw)) {
+            push(`Trigger: ${trig} → ${typeTitle}`, `trig:${trig}`);
+          }
+        }
+
+        if (suggestions.length >= 25) break;
+      }
+
+      await interaction.respond(suggestions.slice(0, 25)).catch(() => {});
+      return;
+    }
+
+    // /chart category/chart autocomplete
+    if (focused.name === 'category') {
+      const categorySeen = new Set();
+      for (const c of chartList.map((x) => x.category).filter(Boolean)) {
+        const label = String(c);
+        const key = normalizeCategoryKey(label);
+        if (!key || categorySeen.has(key)) continue;
+        categorySeen.add(key);
+        if (!raw || label.toLowerCase().includes(raw)) {
+          push(label, key);
+        }
+      }
+      await interaction.respond(suggestions.slice(0, 25)).catch(() => {});
+      return;
+    }
+
+    // focused.name === 'chart'
+    const categoryKey = String(interaction.options.getString('category') ?? '').trim().toLowerCase();
+    const eligible = categoryKey
+      ? chartList.filter((c) => normalizeCategoryKey(c.category) === categoryKey)
+      : chartList;
+
+    // Prefer type matches first.
+    for (const chart of eligible) {
+      const typeTitle = String(chart.title ?? chart.key);
+      if (!raw || typeTitle.toLowerCase().includes(raw) || String(chart.key).toLowerCase().includes(raw)) {
+        push(typeTitle, `type:${chart.key}`);
+      }
+      if (suggestions.length >= 25) break;
+    }
+
+    // Then variants (if any).
+    if (suggestions.length < 25) {
+      for (const chart of eligible) {
+        const typeTitle = String(chart.title ?? chart.key);
+        const variants = Array.isArray(chart.variants) ? chart.variants : [];
+        for (const v of variants) {
+          const vName = String(v?.name ?? v?.title ?? v?.key ?? '').trim();
+          if (!vName) continue;
+          if (!raw || vName.toLowerCase().includes(raw)) {
+            push(`${typeTitle} — ${vName}`, `var:${chart.key}:${v.key}`);
+          }
+          if (suggestions.length >= 25) break;
+        }
+        if (suggestions.length >= 25) break;
+      }
+    }
+
+    await interaction.respond(suggestions.slice(0, 25)).catch(() => {});
+  } catch (err) {
+    console.error('charts autocomplete failed:', err);
+    await interaction.respond([]).catch(() => {});
+  }
 }
 
 export async function handleChartsBrowseInteraction(interaction) {

@@ -11,7 +11,7 @@ import {
 import {
   EXP_LAIR_CHANNEL_ID,
   EMBED_COLOR,
-  EXP_EMBED_COLOR,
+  BLUE_EMBED_COLOR,
   MODERATOR_ROLE_ID,
   OFFICER_ROLE_ID,
   RAID_MANAGER_ROLE_ID,
@@ -23,7 +23,7 @@ import { updateLeaderboard } from '../leaderboard/core.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
 
 const COLOR_INFO = EMBED_COLOR;
-const COLOR_EXP_LAIR = EXP_EMBED_COLOR;
+const COLOR_EXP_LAIR = BLUE_EMBED_COLOR;
 
 function normalizePartialHelpers(raidInfo) {
   const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];

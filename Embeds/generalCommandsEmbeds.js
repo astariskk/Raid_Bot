@@ -48,9 +48,7 @@ export function getCommandsEmbed() {
                 value:
                     `• \`!waiting\` / \`!ongoing\` / \`!full\` — update raid status (requester/staff)\n` +
                     `• \`!raidmaps <number>\` or \`!maps <number>\` — show join maps for this ticket\n` +
-                    `• \`!charts\` — show available charts\n` +
-                    `• \`!1man\` \`!2man\` \`!3man\` \`!4man\` — ultraspeaker charts\n` +
-                    `• \`!lpchart\` \`!gramielchart\` \`!gramiel\` — additional charts`,
+                    `• \`!charts\` or \`/charts\` : use these to find the available charts for ultras`,
                 inline: false,
             },
         )

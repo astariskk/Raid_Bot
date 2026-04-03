@@ -147,7 +147,7 @@ function buildRaidWizardDetailsModal({ customId, title, mapNameRequired, default
 
     const mapNumberInput = new TextInputBuilder()
         .setCustomId('mapNumberInput')
-        .setLabel('Map Number (e.g., 99999)')
+        .setLabel('Map Number: ')
         .setStyle(TextInputStyle.Short)
         .setRequired(true)
         .setPlaceholder('e.g., 2323, 1212')

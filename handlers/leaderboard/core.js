@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { LEADERBOARD_CHANNEL_ID } from '../../config/constants.js';
-import { EMBED_COLOR } from '../../config/constants.js';
+import { BLUE_EMBED_COLOR, EMBED_COLOR } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
 import {
   connectDB,
@@ -100,8 +100,8 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   const usersOnPage = usersData.slice(startIndex, endIndex);
 
   const embed = new EmbedBuilder()
-    .setColor(EMBED_COLOR)
-    .setTitle('Raid Leaderboard')
+    .setColor(BLUE_EMBED_COLOR)
+    .setTitle('🏆 Raid Leaderboard 🏆')
     .setTimestamp()
     .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Leaderboard Rankings` });
 
@@ -131,7 +131,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
 
       const safeName = String(userName).replace(/\s+/g, ' ').trim();
       ranks.push(String(startIndex + index + 1));
-      names.push(safeName.length > NAME_MAX ? `${safeName.slice(0, Math.max(0, NAME_MAX - 1))}…` : safeName);
+      names.push(safeName.length > NAME_MAX ? `${safeName.slice(0, Math.max(0, NAME_MAX - 3))}...` : safeName);
       points.push(String(player.totalExp));
     }
 
