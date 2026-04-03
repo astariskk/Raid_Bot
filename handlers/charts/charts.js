@@ -20,7 +20,6 @@ import {
 
 const browseSessions = new Map(); // sessionId -> { ownerId, step, category, categoryKey, typeKey }
 const showSessions = new Map(); // messageId -> { ownerId, typeKey, variantKey, pageIndex, ts }
-const triggerVariantPickSessions = new Map(); // sessionId -> { ownerId, typeKey }
 
 function newSessionId() {
   return `${Date.now()}_${Math.random().toString(16).slice(2)}`;
@@ -41,7 +40,7 @@ function buildChartsListEmbed({ categories }) {
     .setDescription('Use `!chart` or `/chart` to browse by category. You can also use trigger words like `!2man` if configured.');
 
   for (const cat of categories.slice(0, 25)) {
-    embed.addFields({ name: cat.name, value: cat.value || '—', inline: false });
+    embed.addFields({ name: cat.name, value: cat.value || '-', inline: false });
   }
 
   return embed;
@@ -58,10 +57,10 @@ async function buildDynamicChartsListEmbed() {
     for (const t of types) {
       const trig = (t.triggers || []).slice(0, 6).map((x) => `\`${x}\``).join(' ');
       const variantCount = Array.isArray(t.variants) ? t.variants.length : 0;
-      lines.push(`• **${String(t.title ?? t.key)}**${variantCount ? ` (${variantCount} variants)` : ''} ${trig ? `— ${trig}` : ''}`.trim());
+      lines.push(`- **${String(t.title ?? t.key)}**${variantCount ? ` (${variantCount} variants)` : ''} ${trig ? `- ${trig}` : ''}`.trim());
       if (lines.join('\n').length > 900) break;
     }
-    fields.push({ name: c, value: lines.join('\n') || '—' });
+    fields.push({ name: c, value: lines.join('\n') || '-' });
   }
 
   return buildChartsListEmbed({ categories: fields.map((f) => ({ name: f.name, value: f.value })) });
@@ -80,7 +79,6 @@ function buildBrowseEmbed(session) {
     return embed;
   }
 
-  embed.setDescription(`Category: \`${session.category}\`\nType: \`${session.typeTitle || session.typeKey || '—'}\`\nSelect a variant.`);
   return embed;
 }
 
@@ -105,33 +103,6 @@ async function buildBrowseComponents(session, sessionId) {
       .setStyle(ButtonStyle.Danger);
 
     return [new ActionRowBuilder().addComponents(select), new ActionRowBuilder().addComponents(cancel)];
-  }
-
-  if (session.step === 'variant') {
-    const chart = await getChart(session.typeKey).catch(() => null);
-    const variants = Array.isArray(chart?.variants) ? chart.variants : [];
-
-    const select = new StringSelectMenuBuilder()
-      .setCustomId(`chart_browse_variant_${sessionId}`)
-      .setPlaceholder('Select variant...')
-      .setMinValues(1)
-      .setMaxValues(1);
-
-    const options = variants.slice(0, 25).map((v) => ({ label: String(v.name ?? v.title ?? v.key).slice(0, 100), value: v.key }));
-    if (!options.length) options.push({ label: 'No variants found', value: '__none__' });
-    select.addOptions(options);
-
-    const back = new ButtonBuilder()
-      .setCustomId(`chart_browse_back_${sessionId}`)
-      .setLabel('Back')
-      .setStyle(ButtonStyle.Secondary);
-
-    const cancel = new ButtonBuilder()
-      .setCustomId(`chart_browse_cancel_${sessionId}`)
-      .setLabel('Cancel')
-      .setStyle(ButtonStyle.Danger);
-
-    return [new ActionRowBuilder().addComponents(select), new ActionRowBuilder().addComponents(back, cancel)];
   }
 
   const types = await listChartTypesInCategory(session.category).catch(() => []);
@@ -241,77 +212,7 @@ export async function maybeHandleChartTriggerMessage(message) {
   const chart = await getChart(key).catch(() => null);
   if (!chart) return false;
 
-  const variants = Array.isArray(chart.variants) ? chart.variants : [];
-  if (variants.length <= 1) {
-    await postChartToChannel({ channel: message.channel, chartKey: chart.key, variantKey: variants[0]?.key, ownerId: message.author.id });
-    return true;
-  }
-
-  const sessionId = newSessionId();
-  triggerVariantPickSessions.set(sessionId, { ownerId: message.author.id, typeKey: chart.key });
-
-  const select = new StringSelectMenuBuilder()
-    .setCustomId(`chart_trigpick_${sessionId}`)
-    .setPlaceholder('Select variant...')
-    .setMinValues(1)
-    .setMaxValues(1)
-    .addOptions(variants.slice(0, 25).map((v) => ({ label: String(v.name ?? v.title ?? v.key).slice(0, 100), value: v.key })));
-
-  const cancel = new ButtonBuilder()
-    .setCustomId(`chart_trigpick_cancel_${sessionId}`)
-    .setLabel('Cancel')
-    .setStyle(ButtonStyle.Danger);
-
-  const embed = new EmbedBuilder()
-    .setColor(EMBED_COLOR)
-    .setTitle('Select Chart Variant')
-    .setDescription(`Type: **${String(chart.title ?? chart.key)}**`);
-
-  await message.channel.send({
-    embeds: [embed],
-    components: [new ActionRowBuilder().addComponents(select), new ActionRowBuilder().addComponents(cancel)],
-  });
-  return true;
-}
-
-export async function handleChartTriggerVariantPickInteraction(interaction) {
-  if (!interaction.isStringSelectMenu() && !interaction.isButton()) return false;
-  const id = interaction.customId || '';
-  if (!id.startsWith('chart_trigpick_')) return false;
-
-  if (interaction.isButton() && id.startsWith('chart_trigpick_cancel_')) {
-    const sessionId = id.slice('chart_trigpick_cancel_'.length);
-    triggerVariantPickSessions.delete(sessionId);
-    await interaction.update({ content: 'Cancelled.', embeds: [], components: [] }).catch(() => {});
-    return true;
-  }
-
-  if (!interaction.isStringSelectMenu()) return false;
-
-  const sessionId = id.slice('chart_trigpick_'.length);
-  const session = triggerVariantPickSessions.get(sessionId);
-  if (!session) {
-    await interaction.reply({ content: 'Session expired.', flags: MessageFlags.Ephemeral }).catch(() => {});
-    return true;
-  }
-
-  if (session.ownerId && session.ownerId !== interaction.user.id) {
-    await interaction.reply({ content: 'Not your session.', flags: MessageFlags.Ephemeral }).catch(() => {});
-    return true;
-  }
-
-  const variantKey = interaction.values?.[0];
-  if (!variantKey) return true;
-
-  try {
-    await postChartToChannel({ channel: interaction.channel, chartKey: session.typeKey, variantKey, ownerId: interaction.user.id });
-  } catch (e) {
-    await interaction.reply({ content: e?.message || 'Failed to post chart.', flags: MessageFlags.Ephemeral }).catch(() => {});
-    return true;
-  }
-
-  triggerVariantPickSessions.delete(sessionId);
-  await interaction.update({ content: 'Posted.', embeds: [], components: [] }).catch(() => {});
+  await postChartToChannel({ channel: message.channel, chartKey: chart.key, variantKey: 'main', ownerId: message.author.id });
   return true;
 }
 
@@ -366,11 +267,9 @@ export async function startChartBrowseInteraction(interaction, { query = '' } = 
       const typeKey = lower.slice('type:'.length).trim();
       const chart = await getChart(typeKey).catch(() => null);
       if (chart) {
-        session.step = 'variant';
+        session.step = 'type';
         session.category = chart.category;
         session.categoryKey = normalizeCategoryKey(chart.category);
-        session.typeKey = chart.key;
-        session.typeTitle = chart.title;
       } else {
         session.categoryQuery = q;
       }
@@ -379,11 +278,9 @@ export async function startChartBrowseInteraction(interaction, { query = '' } = 
       const key = await findChartKeyByTrigger(trig).catch(() => null);
       const chart = key ? await getChart(key).catch(() => null) : null;
       if (chart) {
-        session.step = 'variant';
+        session.step = 'type';
         session.category = chart.category;
         session.categoryKey = normalizeCategoryKey(chart.category);
-        session.typeKey = chart.key;
-        session.typeTitle = chart.title;
       } else {
         session.categoryQuery = q;
       }
@@ -485,15 +382,9 @@ export async function handleChartsBrowseInteraction(interaction) {
   }
 
   if (interaction.isButton() && action === 'back') {
-    if (session.step === 'variant') {
-      session.step = 'type';
-      session.typeKey = null;
-      session.typeTitle = null;
-    } else {
-      session.step = 'category';
-      session.category = null;
-      session.categoryKey = null;
-    }
+    session.step = 'category';
+    session.category = null;
+    session.categoryKey = null;
     browseSessions.set(sessionId, session);
     await interaction.update({
       embeds: [buildBrowseEmbed(session)],
@@ -539,38 +430,8 @@ export async function handleChartsBrowseInteraction(interaction) {
       return true;
     }
 
-    const variants = Array.isArray(chart.variants) ? chart.variants : [];
-    if (variants.length <= 1) {
-      try {
-        await postChartToChannel({ channel: interaction.channel, chartKey: chart.key, variantKey: variants[0]?.key, ownerId: interaction.user.id });
-      } catch (e) {
-        await interaction.reply({ content: e?.message || 'Failed to post chart.', flags: MessageFlags.Ephemeral }).catch(() => {});
-        return true;
-      }
-
-      browseSessions.delete(sessionId);
-      await interaction.update({ content: 'Posted.', embeds: [], components: [] }).catch(() => {});
-      return true;
-    }
-
-    session.step = 'variant';
-    session.typeKey = chart.key;
-    session.typeTitle = chart.title;
-    browseSessions.set(sessionId, session);
-
-    await interaction.update({
-      embeds: [buildBrowseEmbed(session)],
-      components: await buildBrowseComponents(session, sessionId),
-    });
-    return true;
-  }
-
-  if (interaction.isStringSelectMenu() && action === 'variant') {
-    const variantKey = interaction.values?.[0];
-    if (!variantKey || variantKey === '__none__') return true;
-
     try {
-      await postChartToChannel({ channel: interaction.channel, chartKey: session.typeKey, variantKey, ownerId: interaction.user.id });
+      await postChartToChannel({ channel: interaction.channel, chartKey: chart.key, variantKey: 'main', ownerId: interaction.user.id });
     } catch (e) {
       await interaction.reply({ content: e?.message || 'Failed to post chart.', flags: MessageFlags.Ephemeral }).catch(() => {});
       return true;

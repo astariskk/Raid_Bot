@@ -311,18 +311,10 @@ export async function handleSlashCommandInteraction(interaction, client) {
       const categoryKey = (interaction.options.getString('category') || '').trim();
       const chartToken = (interaction.options.getString('chart') || '').trim();
       try {
-        if (chartToken.toLowerCase().startsWith('var:')) {
-          const parts = chartToken.split(':'); // var, typeKey, variantKey
-          const typeKey = parts[1] || '';
-          const variantKey = parts[2] || '';
-          await postChartToChannel({ channel: interaction.channel, chartKey: typeKey, variantKey, ownerId: interaction.user.id });
-          await interaction.reply({ content: 'Posted.', flags: MessageFlags.Ephemeral }).catch(() => {});
-          return;
-        }
-
         if (chartToken.toLowerCase().startsWith('type:')) {
           const typeKey = chartToken.slice('type:'.length).trim();
-          await startChartBrowseInteraction(interaction, { query: `type:${typeKey}` });
+          await postChartToChannel({ channel: interaction.channel, chartKey: typeKey, variantKey: 'main', ownerId: interaction.user.id });
+          await interaction.reply({ content: 'Posted.', flags: MessageFlags.Ephemeral }).catch(() => {});
           return;
         }
 

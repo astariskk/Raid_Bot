@@ -36,7 +36,6 @@ import { handleChartsCrudInteraction, maybeHandleEditChartMessage } from './char
 import {
     handleChartShowInteraction,
     handleChartsBrowseInteraction,
-    handleChartTriggerVariantPickInteraction,
     maybeHandleChartTriggerMessage,
     maybeHandleChartsBrowseMessage,
 } from '../charts/charts.js';
@@ -327,7 +326,6 @@ export function setupGeneralCommandsHandler(client) {
 
         if (await handleChartsCrudInteraction(interaction)) return;
         if (await handleChartShowInteraction(interaction)) return;
-        if (await handleChartTriggerVariantPickInteraction(interaction)) return;
         if (await handleChartsBrowseInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
 
@@ -509,7 +507,6 @@ export function setupGeneralCommandsHandler(client) {
         if (!interaction.isStringSelectMenu()) return;
 
         if (await handleChartsCrudInteraction(interaction)) return;
-        if (await handleChartTriggerVariantPickInteraction(interaction)) return;
         if (await handleChartsBrowseInteraction(interaction)) return;
         // CRUD modal submits land on the same interactionCreate event, but we already handle them above via the button listener.
         if (await handleGifCommandCrudInteraction(interaction)) return;
