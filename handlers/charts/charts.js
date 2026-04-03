@@ -405,10 +405,8 @@ export async function handleChartsAutocompleteInteraction(interaction) {
     const focused = interaction.options.getFocused(true);
     if (!focused) return;
 
-    const isChartsCommand = interaction.commandName === 'charts';
-    const isChartCommand = interaction.commandName === 'chart';
-    if (isChartsCommand && focused.name !== 'query') return;
-    if (isChartCommand && focused.name !== 'category' && focused.name !== 'chart') return;
+    if (interaction.commandName !== 'chart') return;
+    if (focused.name !== 'category' && focused.name !== 'chart') return;
 
     const raw = String(focused.value ?? '').trim().toLowerCase();
     await loadChartsCache().catch(() => {});
@@ -422,42 +420,6 @@ export async function handleChartsAutocompleteInteraction(interaction) {
       if (suggestions.length >= 25) return;
       suggestions.push({ name: String(name).slice(0, 100), value: String(value).slice(0, 100) });
     };
-
-    if (isChartsCommand) {
-      // /charts query: suggest category/type/trigger tokens
-      const categorySeen = new Set();
-      for (const c of chartList.map((x) => x.category).filter(Boolean)) {
-        const label = String(c);
-        const key = normalizeCategoryKey(label);
-        if (!key || categorySeen.has(key)) continue;
-        categorySeen.add(key);
-        if (!raw || label.toLowerCase().includes(raw)) {
-          push(`Category: ${label}`, `cat:${key}`);
-        }
-      }
-
-      for (const chart of chartList) {
-        const typeTitle = String(chart.title ?? chart.key);
-        const cat = String(chart.category ?? 'general');
-        const triggers = Array.isArray(chart.triggers) ? chart.triggers : [];
-
-        if (!raw || typeTitle.toLowerCase().includes(raw) || String(chart.key).toLowerCase().includes(raw)) {
-          push(`${cat} — ${typeTitle}`, `type:${chart.key}`);
-        }
-
-        for (const t of triggers) {
-          const trig = String(t);
-          if (!raw || trig.toLowerCase().includes(raw)) {
-            push(`Trigger: ${trig} → ${typeTitle}`, `trig:${trig}`);
-          }
-        }
-
-        if (suggestions.length >= 25) break;
-      }
-
-      await interaction.respond(suggestions.slice(0, 25)).catch(() => {});
-      return;
-    }
 
     // /chart category/chart autocomplete
     if (focused.name === 'category') {

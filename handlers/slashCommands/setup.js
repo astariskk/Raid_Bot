@@ -342,20 +342,6 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
-    case 'charts': {
-      const query = interaction.options.getString('query') || '';
-      try {
-        await startChartBrowseInteraction(interaction, { query });
-      } catch (error) {
-        console.error('Error handling /charts:', error);
-        await interaction.reply({
-          content: error?.message || 'Failed to browse charts.',
-          flags: MessageFlags.Ephemeral,
-        }).catch(() => {});
-      }
-      return;
-    }
-
     default:
       await interaction.reply({
         content: 'Unknown command.',

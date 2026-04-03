@@ -9,7 +9,7 @@ export async function registerSlashCommands(client) {
 export function setupSlashCommandsHandler(client) {
     client.on('interactionCreate', async (interaction) => {
         if (interaction.isAutocomplete?.()) {
-            if (interaction.commandName === 'charts' || interaction.commandName === 'chart') {
+            if (interaction.commandName === 'chart') {
                 await handleChartsAutocompleteInteraction(interaction);
             }
             return;

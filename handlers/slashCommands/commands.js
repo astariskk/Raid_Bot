@@ -123,20 +123,6 @@ export const commands = [
     default_member_permissions: PermissionFlagsBits.ManageMessages.toString(),
   },
   {
-    name: 'charts',
-    description: 'Browse charts (with suggestions).',
-    dm_permission: false,
-    options: [
-      {
-        name: 'query',
-        description: 'Start typing a category/type/trigger',
-        type: ApplicationCommandOptionType.String,
-        required: false,
-        autocomplete: true,
-      },
-    ],
-  },
-  {
     name: 'chart',
     description: 'Browse charts by category.',
     dm_permission: false,
@@ -150,7 +136,7 @@ export const commands = [
       },
       {
         name: 'chart',
-        description: 'Type or variant (autocomplete)',
+        description: 'Type (autocomplete)',
         type: ApplicationCommandOptionType.String,
         required: false,
         autocomplete: true,
