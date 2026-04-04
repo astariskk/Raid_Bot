@@ -1,7 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, MessageFlags } from 'discord.js';
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
-import { resolveDisplayNameFast } from '../../utils/discordNames.js';
 import {
     createLbCheckResponse,
     createPaginatedLeaderboardEmbed,
@@ -185,7 +184,7 @@ export async function sendLeaderboardResults({ client, guild, requesterId, send 
         currentPage: 1,
         totalPages: Math.max(1, Math.ceil(allPlayers.length / 10)),
         usersData: allPlayers,
-        resetInfo: `Last reset: ${lastResetDate}`,
+        resetInfo: '',
         originalRequesterId: requesterId,
         timestamp: Date.now(),
     };
@@ -239,7 +238,6 @@ export async function sendLeaderboardCheckResults({ client, guild, requesterId, 
     }
 
     const usersData = targetIds.map((userId) => {
-        const userDisplayName = resolveDisplayNameFast({ client, guild, userId });
         const dailyDataForUser = dailyByUser.get(userId) ?? [];
         dailyDataForUser.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
@@ -252,7 +250,6 @@ export async function sendLeaderboardCheckResults({ client, guild, requesterId, 
 
         return {
             id: userId,
-            displayName: userDisplayName,
             totalPointsForRange,
             dailyBreakdown,
             overallTotal: leaderboard[userId] || 0,

@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'disc
 import { LEADERBOARD_CHANNEL_ID } from '../../config/constants.js';
 import { BLUE_EMBED_COLOR, EMBED_COLOR } from '../../config/constants.js';
 import { sendLeaderboardBackup } from '../backup/index.js';
-import { resolveDisplayNameFast } from '../../utils/discordNames.js';
+import { resolveDisplayName } from '../../utils/discordNames.js';
 import {
   connectDB,
   getDailyPointsForRange,
@@ -100,14 +100,24 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   const endIndex = Math.min(startIndex + usersPerPage, usersData.length);
   const usersOnPage = usersData.slice(startIndex, endIndex);
 
+  const nowUnix = Math.floor(Date.now() / 1000);
+  const headerDescription = `Raid leaderboard rankings | <t:${nowUnix}:f>`;
+  const description = resetInfo ? `${resetInfo}\n${headerDescription}` : headerDescription;
+  const formatExp = (value) => {
+    const n = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(n)) return String(value);
+    return new Intl.NumberFormat('en-US').format(n);
+  };
+
   const embed = new EmbedBuilder()
     .setColor(BLUE_EMBED_COLOR)
     .setTitle('🏆 Raid Leaderboard 🏆')
+    .setDescription(description)
     .setTimestamp()
-    .setFooter({ text: `Page ${currentPage}/${totalPages} | Raid Leaderboard Rankings` });
+    .setFooter({ text: `Page ${currentPage} of ${totalPages}` });
 
   if (usersOnPage.length === 0) {
-    embed.setDescription(`${resetInfo}\n\nThe leaderboard is empty. Start earning some EXP!`);
+    embed.setDescription(`${description}\n\nThe leaderboard is empty. Start earning some EXP!`);
   } else {
     const ranks = [];
     const names = [];
@@ -116,21 +126,19 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
 
     for (let index = 0; index < usersOnPage.length; index += 1) {
       const player = usersOnPage[index];
-      const userName = resolveDisplayNameFast({ client, guild, userId: player.userId });
+      const userName = await resolveDisplayName({ client, guild, userId: player.userId });
 
       const safeName = String(userName).replace(/\s+/g, ' ').trim();
       ranks.push(String(startIndex + index + 1));
       names.push(safeName.length > NAME_MAX ? `${safeName.slice(0, Math.max(0, NAME_MAX - 3))}...` : safeName);
-      points.push(String(player.totalExp));
+      points.push(formatExp(player.totalExp));
     }
 
-    embed
-      .setDescription(resetInfo || null)
-      .addFields(
-        { name: '#', value: ranks.join('\n').slice(0, 1024) || '\u200b', inline: true },
-        { name: 'Name', value: names.join('\n').slice(0, 1024) || '\u200b', inline: true },
-        { name: 'EXP', value: points.join('\n').slice(0, 1024) || '\u200b', inline: true },
-      );
+    embed.addFields(
+      { name: '#', value: ranks.join('\n').slice(0, 1024) || '\u200b', inline: true },
+      { name: 'Name', value: names.join('\n').slice(0, 1024) || '\u200b', inline: true },
+      { name: 'EXP', value: points.join('\n').slice(0, 1024) || '\u200b', inline: true },
+    );
   }
 
   if (originalRequesterId === 'scheduled_reset') {
@@ -143,7 +151,7 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   };
 }
 
-export async function createLbCheckResponse(sessionData) {
+export async function createLbCheckResponse(sessionData, client, guild) {
   const { currentPage, totalPages, usersData, dateInfo, originalRequesterId, timestamp } = sessionData;
   const usersPerPage = 5;
   const startIndex = (currentPage - 1) * usersPerPage;
@@ -161,7 +169,8 @@ export async function createLbCheckResponse(sessionData) {
     descriptionContent = 'No EXP data found for this page.';
   } else {
     for (const userData of usersOnPage) {
-      descriptionContent += `**${userData.displayName}**\n`;
+      const displayName = await resolveDisplayName({ client, guild, userId: userData.id });
+      descriptionContent += `**${displayName}**\n`;
       if (dateInfo.rawStartDate.getTime() === dateInfo.rawEndDate.getTime()) {
         descriptionContent += `- EXP Gained: ${userData.totalPointsForRange} EXP\n`;
       } else {
