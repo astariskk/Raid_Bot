@@ -113,6 +113,7 @@ export const commands = [
         description: 'Existing command name (without the slash), e.g. "bonk"',
         type: ApplicationCommandOptionType.String,
         required: true,
+        autocomplete: true,
       },
     ],
   },
