@@ -4,6 +4,7 @@ import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { threadActionRow } from './buttons/threadButtons.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
+import { normalizeRoomNumber } from '../../utils/roomNumber.js';
 
 export async function handleRaidCreation(interaction) {
     if (!interaction.isModalSubmit()) return;
@@ -50,9 +51,20 @@ export async function handleRaidCreation(interaction) {
     }
 
     const mapName = interaction.fields.getTextInputValue('mapNameInput');
-    const mapNumber = interaction.fields.getTextInputValue('mapNumberInput');
+    const mapNumberRaw = interaction.fields.getTextInputValue('mapNumberInput');
+    const mapNumber = normalizeRoomNumber(mapNumberRaw);
     const server = interaction.fields.getTextInputValue('serverInput');
     const description = interaction.fields.getTextInputValue('descriptionInput');
+
+    if (!mapNumber) {
+        const msg = 'Room Number must contain at least one digit.';
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({ content: msg }).catch(() => {});
+        } else {
+            await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return;
+    }
 
     const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
     if (isMapNameRequired && !String(mapName ?? '').trim()) {

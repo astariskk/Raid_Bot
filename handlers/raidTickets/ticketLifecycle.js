@@ -24,6 +24,7 @@ import { finalizeAdminReview } from './ticketReview.js';
 import { consumeRaidWizardSession, createRaidWizardSession, getRaidWizardSession, updateRaidWizardSession } from './raidWizardSession.js';
 import { getRaidWizardCategoryDef, getRaidWizardEditCategorySelectRow, getRaidWizardEditDetailsModal, getRaidWizardEditNavRow, getRaidWizardEditTasksSelectRow, getRaidWizardTaskOptionsCount } from './embeds/raidWizardUi.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
+import { normalizeRoomNumber } from '../../utils/roomNumber.js';
 
 const EDIT_REQUEST_TTL_MS = 10 * 60 * 1000;
 const editRequestSessions = new Map(); // sessionId -> { userId, channelId, kind, createdAtMs, updatedAtMs }
@@ -455,9 +456,15 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         }
 
         const mapName = interaction.fields.getTextInputValue('mapNameInput');
-        const mapNumber = interaction.fields.getTextInputValue('mapNumberInput');
+        const mapNumberRaw = interaction.fields.getTextInputValue('mapNumberInput');
+        const mapNumber = normalizeRoomNumber(mapNumberRaw);
         const server = interaction.fields.getTextInputValue('serverInput');
         const description = interaction.fields.getTextInputValue('descriptionInput') || 'No description.';
+
+        if (!mapNumber) {
+            await interaction.reply({ content: 'Room Number must contain at least one digit.', flags: MessageFlags.Ephemeral });
+            return;
+        }
 
         const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
         if (isMapNameRequired && !String(mapName ?? '').trim()) {
