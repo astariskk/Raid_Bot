@@ -1,5 +1,5 @@
 import { ChannelType } from 'discord.js';
-import { getRaidInfo } from '../../activeRaidState.js';
+import { getRaidInfo, getRaidInfoMinimal } from '../../activeRaidState.js';
 import { RAID_CATEGORY_ID } from '../../config/constants.js';
 
 import { handleRaidCreation } from './ticketCreation.js';
@@ -7,6 +7,7 @@ import { handleTicketMessages, handleCommandInteractions } from './ticketCommand
 import { handleLifecycleInteractions } from './ticketLifecycle.js';
 import { handleCompletionInteractions } from './ticketCompletion.js';
 import { handleReviewInteractions } from './ticketReview.js';
+import { RAID_STATUS } from '../../config/constants.js';
 
 export function setupRaidHandlers(client) {
 
@@ -26,38 +27,53 @@ export function setupRaidHandlers(client) {
 
     // 2. Interaction Listener (Buttons/Modals)
     client.on("interactionCreate", async (interaction) => {
-        if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isUserSelectMenu()) return;
+        if (
+            !interaction.isButton() &&
+            !interaction.isModalSubmit() &&
+            !interaction.isUserSelectMenu() &&
+            !interaction.isMentionableSelectMenu?.() &&
+            !interaction.isStringSelectMenu()
+        ) return;
 
-        const raidInfo = await getRaidInfo(interaction.channel?.id);
+        const raidInfo = await getRaidInfoMinimal(interaction.channel?.id);
         if (!raidInfo) {
             // Check for Creation Modal (which happens before raidInfo exists)
-            if (interaction.customId.startsWith('raidRequestModal')) {
+            if (interaction.customId.startsWith('raidWizardDetailsModal_')) {
                 await handleRaidCreation(interaction);
             }
             return;
         }
 
         // Route based on Raid Status & Component ID
-        if (raidInfo.status === 'admin_review') {
+        if (raidInfo.status === RAID_STATUS.ADMIN_REVIEW) {
             await handleReviewInteractions(interaction, raidInfo);
             return;
         }
 
         // Completion Flow (Close, Helpers, Proof)
-        if (['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid'].includes(interaction.customId)) {
+        if (
+            ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid', 'partialHelper_btn'].includes(interaction.customId) ||
+            interaction.customId.startsWith('partialHelper_')
+        ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;
         }
 
         // Lifecycle (Edit, Cancel)
-        if (['editTask_btn', 'editTaskModal', 'cancelRaidTicket', 'confirmCancelRaid'].includes(interaction.customId)) {
+        if (
+            ['editRequest_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
+            interaction.customId.startsWith('editRequest_') ||
+            interaction.customId.startsWith('raidWizardEdit_') ||
+            interaction.customId.startsWith('raidWizardEditDetailsModal_')
+        ) {
             await handleLifecycleInteractions(interaction, raidInfo, client);
             return;
         }
 
-        // Commands (Maps, Charts)
-        if (interaction.customId.includes('raidmaps') || interaction.customId.includes('chart_')) {
-            await handleCommandInteractions(interaction, raidInfo);
+        // Commands (Maps)
+        if (interaction.customId.includes('raidmaps')) {
+            const fullRaidInfo = await getRaidInfo(interaction.channel?.id);
+            await handleCommandInteractions(interaction, fullRaidInfo ?? raidInfo);
             return;
         }
     });

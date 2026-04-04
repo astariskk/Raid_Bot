@@ -1,7 +1,9 @@
 import { EmbedBuilder } from 'discord.js';
 
 // --- Constants for Embed Colors ---
-const color = 0x0099ff; // Blue for waiting
+import { EMBED_COLOR } from '../config/constants.js';
+
+const color = EMBED_COLOR;
 
 export const RAID_CHARTS = {
     '!1man': {

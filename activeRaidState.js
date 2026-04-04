@@ -1,13 +1,15 @@
 // activeRaidState.js
 
 import { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
-import { ALLOWED_TASK_NAMES } from './config/constants.js';
-// CHANGED: Import the collection directly from dbOps
-import { raidStatesCollection } from './utils/dbOps.js'; 
+import { EMBED_COLOR, STATUS_COLORS } from './config/constants.js';
+import { createRaidState, deleteRaidState, getRaidState, getRaidStateMinimal, updateRaidState } from './utils/dbOps.js';
 
 // Cache for active raid tickets to reduce database reads.
 const raidStateCache = new Map();
 const CACHE_LIFETIME_MS = 5 * 60 * 1000; // 5 minutes
+
+const raidStateMinimalCache = new Map();
+const MINIMAL_CACHE_LIFETIME_MS = 30 * 1000; // 30 seconds
 
 
 export async function getRaidInfo(channelId) {
@@ -21,7 +23,7 @@ export async function getRaidInfo(channelId) {
     }
 
     try {
-        const raidInfo = await raidStatesCollection.findOne({ _id: channelId });
+        const raidInfo = await getRaidState(channelId);
         if (raidInfo) {
             raidStateCache.set(channelId, { data: raidInfo, timestamp: Date.now() });
         }
@@ -32,11 +34,43 @@ export async function getRaidInfo(channelId) {
     }
 }
 
+export async function getRaidInfoMinimal(channelId) {
+    if (raidStateMinimalCache.has(channelId)) {
+        const cachedEntry = raidStateMinimalCache.get(channelId);
+        if (Date.now() - cachedEntry.timestamp < MINIMAL_CACHE_LIFETIME_MS) {
+            return cachedEntry.data;
+        } else {
+            raidStateMinimalCache.delete(channelId);
+        }
+    }
+
+    try {
+        const raidInfo = await getRaidStateMinimal(channelId);
+        if (raidInfo) {
+            raidStateMinimalCache.set(channelId, { data: raidInfo, timestamp: Date.now() });
+        }
+        return raidInfo;
+    } catch (error) {
+        console.error(`Error fetching minimal raid info for ticket ${channelId}:`, error);
+        return null;
+    }
+}
+
 export async function createRaid(channelId, raidDetails) {
     try {
-        const document = { _id: channelId, ...raidDetails };
-        await raidStatesCollection.insertOne(document);
-        raidStateCache.set(channelId, { data: document, timestamp: Date.now() });
+        const document = { ...raidDetails };
+        await createRaidState(channelId, document);
+        const data = { id: String(channelId), ...document };
+        raidStateCache.set(channelId, { data, timestamp: Date.now() });
+        raidStateMinimalCache.set(channelId, {
+            data: {
+                id: String(channelId),
+                requesterId: data.requesterId ?? null,
+                status: data.status ?? null,
+                isAwaitingCompletion: Boolean(data.isAwaitingCompletion ?? false),
+            },
+            timestamp: Date.now(),
+        });
     } catch (error) {
         console.error(`Error creating raid ${channelId} in DB:`, error);
         throw error;
@@ -49,11 +83,27 @@ export async function updateRaid(channelId, updates) {
             delete updates.pendingData;
         }
 
-        await raidStatesCollection.updateOne(
-            { _id: channelId },
-            { $set: updates }
-        );
-        raidStateCache.delete(channelId); // Invalidate cache
+        await updateRaidState(channelId, updates);
+
+        const cached = raidStateCache.get(channelId);
+        if (cached?.data) {
+            raidStateCache.set(channelId, {
+                data: { ...cached.data, ...updates },
+                timestamp: Date.now(),
+            });
+        } else {
+            raidStateCache.delete(channelId);
+        }
+
+        const minimalCached = raidStateMinimalCache.get(channelId);
+        const nextMinimal = {
+            ...(minimalCached?.data ?? { id: String(channelId) }),
+            ...(updates.requesterId !== undefined ? { requesterId: updates.requesterId } : {}),
+            ...(updates.status !== undefined ? { status: updates.status } : {}),
+            ...(updates.isAwaitingCompletion !== undefined ? { isAwaitingCompletion: Boolean(updates.isAwaitingCompletion) } : {}),
+        };
+        raidStateMinimalCache.set(channelId, { data: nextMinimal, timestamp: Date.now() });
+
         console.log(`Raid ${channelId} updated in DB.`);
     } catch (error) {
         console.error(`Error updating raid ${channelId} in DB:`, error);
@@ -63,7 +113,7 @@ export async function updateRaid(channelId, updates) {
 
 export async function deleteRaid(channelId) {
     try {
-        await raidStatesCollection.deleteOne({ _id: channelId });
+        await deleteRaidState(channelId);
         raidStateCache.delete(channelId);
         console.log(`Raid ${channelId} deleted from DB.`);
     } catch (error) {
@@ -73,7 +123,7 @@ export async function deleteRaid(channelId) {
 }
 
 
-export async function updateRaidStatus(client, channelId, newStatus, newColor) {
+export async function updateRaidStatus(client, channelId, newStatus) {
     const raidInfo = await getRaidInfo(channelId); 
     if (!raidInfo || !raidInfo.messageId || !raidInfo.originalChannelId) {
         console.log(`Could not find raid info or messageId for ticket ${channelId} to update status.`);
@@ -90,6 +140,8 @@ export async function updateRaidStatus(client, channelId, newStatus, newColor) {
             return;
         }
 
+        const nextColor = STATUS_COLORS?.[newStatus] ?? EMBED_COLOR;
+
         const updatedEmbed = new EmbedBuilder(originalEmbed.data)
             .setFields(
                 originalEmbed.fields.map(field => {
@@ -99,11 +151,13 @@ export async function updateRaidStatus(client, channelId, newStatus, newColor) {
                     return field;
                 })
             )
-            .setColor(newColor)
+            .setColor(nextColor)
             .setTimestamp(); 
         
         await message.edit({ embeds: [updatedEmbed] });
         console.log(`Updated status to "${newStatus}" for raid in ticket ${channelId}`);
+
+        await updateRaid(channelId, { status: newStatus });
         
 
     } catch (error) {

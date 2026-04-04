@@ -1,30 +1,28 @@
 import { EmbedBuilder } from 'discord.js';
-import { TASK_MAP_CATEGORIES, TASK_TO_MAP_PREFIX_MAPPING } from '../config/constants.js';
+import { EMBED_COLOR, getJoinPrefixes } from '../config/constants.js';
 
 export function generateRaidMapsEmbed(tasks, mapNumber) {
-    let expandedTasks = [];
+    const normalizedTasks = [];
     
     for (const task of tasks) {
-        if (TASK_MAP_CATEGORIES[task]) {
-            expandedTasks = expandedTasks.concat(TASK_MAP_CATEGORIES[task]);
-        } else {
-            expandedTasks.push(task);
-        }
+        const normalized = String(task ?? '').trim().toLowerCase();
+        if (!normalized) continue;
+        normalizedTasks.push(normalized);
     }
 
     // Ensure mapNumber is a string for consistent join
     const finalMapNumber = String(mapNumber); 
 
-    const joinLinksWithPoints = expandedTasks
+    const joinLinksWithPoints = normalizedTasks
         .flatMap(task => {
-            const prefixes = TASK_TO_MAP_PREFIX_MAPPING[task] || [task];
+            const prefixes = getJoinPrefixes(task);
             return prefixes.map(prefix => `\`\`\`/join ${prefix}-${finalMapNumber}\`\`\``);
         })
         .join('\n');
 
 
     return new EmbedBuilder()
-        .setColor(0x0099FF)
+        .setColor(EMBED_COLOR)
         .setTitle(`Raid Maps for this raid:`)
         .setDescription(`${joinLinksWithPoints}`)
 }

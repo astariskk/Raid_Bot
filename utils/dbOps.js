@@ -1,255 +1,328 @@
-// utils/dbOps.js
+// utils/dbOps.js (Supabase)
 
-import { MongoClient } from 'mongodb';
-
-const DB_NAME = 'raid_bot_db';
-
-let dbClient;
-let leaderboardCollection;
-let dailyPointsCollection;
-let metadataCollection;
-export let raidStatesCollection; // ADDED: Export the new collection
+import { getSupabase } from './supabaseClient.js';
 
 export async function connectDB() {
-    const MONGODB_URI = process.env.MONGODB_URI;
-
-    if (dbClient && dbClient.topology.isConnected()) {
-        return;
-    }
-
-    if (!MONGODB_URI) {
-        console.error('MONGODB_URI is not defined in environment variables. Please set it.');
-        throw new Error('MONGODB_URI is not defined.');
-    }
-
-    try {
-        dbClient = new MongoClient(MONGODB_URI);
-        await dbClient.connect();
-        console.log('Connected to MongoDB successfully!');
-
-        const db = dbClient.db(DB_NAME);
-        
-        // --- Initialize all collections here ---
-        leaderboardCollection = db.collection('leaderboard_data');
-        dailyPointsCollection = db.collection('daily_points');
-        metadataCollection = db.collection('metadata');
-        
-        // ADDED: Initialize the raid states collection
-        raidStatesCollection = db.collection('raid_states');
-
-        // --- Create all indexes here ---
-        await leaderboardCollection.createIndex({ totalExp: -1 }).catch(console.error);
-        await dailyPointsCollection.createIndex({ date: 1, userId: 1 }, { unique: true }).catch(console.error);
-        await metadataCollection.createIndex({ _id: 1 }).catch(console.error);
-        
-        // ADDED: Create index for the new collection
-        await raidStatesCollection.createIndex({ _id: 1 }).catch(console.error); 
-        
-        console.log("All database collections initialized.");
-    } catch (error) {
-        console.error('Failed to connect to MongoDB:', error);
-        throw error;
-    }
+    // Kept for backwards compatibility with existing code paths.
+    // Supabase client is created lazily.
+    getSupabase();
 }
 
-/**
- * Closes the MongoDB connection.
- * @returns {Promise<void>}
-*/
 export async function closeDB() {
-    if (dbClient && dbClient.topology.isConnected()) {
-        await dbClient.close();
-        console.log('MongoDB connection closed.');
-    }
+    // No-op for Supabase.
 }
 
-/**
- * Fetches the entire leaderboard data from MongoDB.
- * Combines user total EXP and metadata.
- * @returns {Promise<Object>} The leaderboard data object, including _lastResetDate and _dailyPoints.
- */
+/* -------------------- LEADERBOARD -------------------- */
 export async function getLeaderboardData() {
-    try {
-        await connectDB(); // Ensure connection is active
+    await connectDB();
+    const supabase = getSupabase();
 
-        const users = await leaderboardCollection.find({}).toArray();
-        const metadataDoc = await metadataCollection.findOne({ _id: 'leaderboard_meta' });
-        const dailyPointsDocs = await dailyPointsCollection.find({}).toArray();
+    const [{ data: users, error: usersError }, { data: meta, error: metaError }, { data: daily, error: dailyError }] =
+        await Promise.all([
+            supabase.from('leaderboard_users').select('user_id,total_exp'),
+            supabase.from('leaderboard_metadata').select('last_reset_date,last_backup_message_id').eq('id', 'leaderboard_meta').maybeSingle(),
+            supabase.from('leaderboard_daily_points').select('date,user_id,points'),
+        ]);
 
-        const leaderboard = {};
+    if (usersError) throw usersError;
+    if (metaError) throw metaError;
+    if (dailyError) throw dailyError;
 
-        // Populate total EXP
-        users.forEach(user => {
-            leaderboard[user._id] = user.totalExp;
-        });
-
-        // Populate metadata
-        leaderboard._lastResetDate = metadataDoc ? metadataDoc.lastResetDate : null;
-
-        // Populate daily points
-        leaderboard._dailyPoints = {};
-        dailyPointsDocs.forEach(doc => {
-            if (!leaderboard._dailyPoints[doc.date]) {
-                leaderboard._dailyPoints[doc.date] = {};
-            }
-            leaderboard._dailyPoints[doc.date][doc.userId] = doc.points;
-        });
-
-        // Ensure _dailyPoints is always an object, even if missing from old data
-        if (!leaderboard._dailyPoints) {
-            leaderboard._dailyPoints = {};
-        }
-
-        return leaderboard;
-    } catch (error) {
-        console.error('Error getting leaderboard data from DB:', error);
-        throw error;
+    const leaderboard = {};
+    for (const row of users ?? []) {
+        leaderboard[row.user_id] = Number(row.total_exp ?? 0);
     }
+
+    leaderboard._lastResetDate = meta?.last_reset_date ?? null;
+    leaderboard._dailyPoints = {};
+    for (const row of daily ?? []) {
+        const date = row.date;
+        if (!leaderboard._dailyPoints[date]) leaderboard._dailyPoints[date] = {};
+        leaderboard._dailyPoints[date][row.user_id] = Number(row.points ?? 0);
+    }
+
+    return leaderboard;
 }
 
-/**
- * Sets the entire leaderboard data in MongoDB.
- * This is primarily used for full resets or initial setup.
- * @param {Object} leaderboardData - The data to write.
- * @returns {Promise<void>}
- */
 export async function setLeaderboardData(leaderboardData) {
-    try {
-        await connectDB(); // Ensure connection is active
+    await connectDB();
+    const supabase = getSupabase();
 
-        // Clear existing data and insert new total EXP
-        await leaderboardCollection.deleteMany({});
-        const userDocs = Object.entries(leaderboardData)
-            .filter(([key]) => !key.startsWith('_'))
-            .map(([userId, totalExp]) => ({ _id: userId, totalExp: totalExp }));
-        if (userDocs.length > 0) {
-            await leaderboardCollection.insertMany(userDocs);
+    const userRows = Object.entries(leaderboardData)
+        .filter(([key]) => !key.startsWith('_'))
+        .map(([userId, totalExp]) => ({
+            user_id: userId,
+            total_exp: Number(totalExp ?? 0),
+        }));
+
+    const dailyRows = [];
+    const dailyPoints = leaderboardData?._dailyPoints ?? {};
+    for (const date of Object.keys(dailyPoints)) {
+        for (const userId of Object.keys(dailyPoints[date] ?? {})) {
+            dailyRows.push({
+                date,
+                user_id: userId,
+                points: Number(dailyPoints[date][userId] ?? 0),
+            });
         }
-
-        // Update metadata (last reset date)
-        await metadataCollection.updateOne(
-            { _id: 'leaderboard_meta' },
-            { $set: { lastResetDate: leaderboardData._lastResetDate } },
-            { upsert: true } // Insert if not exists
-        );
-
-        // Clear existing daily points and insert new ones
-        await dailyPointsCollection.deleteMany({});
-        const dailyPointsDocs = [];
-        for (const date in leaderboardData._dailyPoints) {
-            for (const userId in leaderboardData._dailyPoints[date]) {
-                dailyPointsDocs.push({
-                    _id: `${date}_${userId}`, // Unique ID for each daily entry
-                    date: date,
-                    userId: userId,
-                    points: leaderboardData._dailyPoints[date][userId]
-                });
-            }
-        }
-        if (dailyPointsDocs.length > 0) {
-            await dailyPointsCollection.insertMany(dailyPointsDocs);
-        }
-
-    } catch (error) {
-        console.error('Error setting leaderboard data to DB:', error);
-        throw error;
     }
+
+    const { error: deleteUsersError } = await supabase.from('leaderboard_users').delete().neq('user_id', '__never__');
+    if (deleteUsersError) throw deleteUsersError;
+    const { error: deleteDailyError } = await supabase.from('leaderboard_daily_points').delete().neq('user_id', '__never__');
+    if (deleteDailyError) throw deleteDailyError;
+
+    if (userRows.length) {
+        const { error } = await supabase.from('leaderboard_users').insert(userRows);
+        if (error) throw error;
+    }
+    if (dailyRows.length) {
+        const { error } = await supabase.from('leaderboard_daily_points').insert(dailyRows);
+        if (error) throw error;
+    }
+
+    const { error: metaError } = await supabase
+        .from('leaderboard_metadata')
+        .upsert({
+            id: 'leaderboard_meta',
+            last_reset_date: leaderboardData?._lastResetDate ?? null,
+        });
+    if (metaError) throw metaError;
 }
 
-/**
- * Updates a user's total points and records daily points in MongoDB.
- * This performs atomic updates.
- * @param {string} userId - The ID of the user.
- * @param {number} pointsToAdd - The points to add (can be negative for subtraction).
- * @returns {Promise<void>}
- */
 export async function updateUserExp(userId, pointsToAdd) {
-    try {
-        await connectDB(); // Ensure connection is active
+    await connectDB();
+    const supabase = getSupabase();
 
-        // Update total points for the user
-        await leaderboardCollection.updateOne(
-            { _id: userId },
-            { $inc: { totalExp: pointsToAdd } }, // Increment totalExp by pointsToAdd
-            { upsert: true } // Create document if it doesn't exist
-        );
-
-        // Update daily points for the user
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-        await dailyPointsCollection.updateOne(
-            { date: today, userId: userId },
-            { $inc: { points: pointsToAdd }, $set: { _id: `${today}_${userId}` } }, // Increment daily points, set unique ID
-            { upsert: true } // Create document if it doesn't exist
-        );
-        console.log(`[dbOps] Recording daily EXP for userId: ${userId} on date: ${today} with points: ${pointsToAdd}`); // Add this line
-
-    } catch (error) {
-        console.error('Error updating user EXP in DB:', error);
-        throw error;
-    }
+    const { error } = await supabase.rpc('add_exp', {
+        p_user_id: String(userId),
+        p_points: Number(pointsToAdd),
+    });
+    if (error) throw error;
 }
 
-/**
- * Fetches daily points for a specific date range for specified users.
- * @param {string[]} userIds - Array of user IDs to fetch data for.
- * @param {Date} startDate - The start date (inclusive).
- * @param {Date} endDate - The end date (inclusive).
- * @returns {Promise<Array<{ date: string, userId: string, points: number }>>}
- */
 export async function getDailyPointsForRange(userIds, startDate, endDate) {
-    try {
-        await connectDB(); // Ensure connection is active
+    await connectDB();
+    const supabase = getSupabase();
 
-        const startISO = startDate.toISOString().split('T')[0];
-        const endISO = endDate.toISOString().split('T')[0];
+    const startISO = startDate.toISOString().split('T')[0];
+    const endISO = endDate.toISOString().split('T')[0];
 
-        const query = {
-            userId: { $in: userIds },
-            date: { $gte: startISO, $lte: endISO }
-        };
-        console.log(`[dbOps] getDailyPointsForRange query: ${JSON.stringify(query)}`); // log the query for debugging
+    const { data, error } = await supabase
+        .from('leaderboard_daily_points')
+        .select('date,user_id,points')
+        .in('user_id', userIds)
+        .gte('date', startISO)
+        .lte('date', endISO);
 
-        const dailyData = await dailyPointsCollection.find(query).toArray();
-        console.log(`[dbOps] getDailyPointsForRange found ${dailyData.length} records.`);   //log the number of records found
-        // --- ADD THIS NEW LOG ---
-        console.log(`[dbOps] Daily data retrieved:`, dailyData);           //log the retrieved daily data
-
-        return dailyData;
-    } catch (error) {
-        console.error('Error fetching daily points for range from DB:', error);
-        throw error;
-    }
+    if (error) throw error;
+    return (data ?? []).map((row) => ({
+        date: row.date,
+        userId: row.user_id,
+        points: Number(row.points ?? 0),
+    }));
 }
-/**
- * Gets the last backup message ID from the metadata collection.
- * @returns {Promise<string|null>} The message ID or null if not found.
- */
+
 export async function getLastBackupMessageId() {
-    try {
-        await connectDB();
-        const metadataDoc = await metadataCollection.findOne({ _id: 'leaderboard_meta' });
-        return metadataDoc ? metadataDoc.lastBackupMessageId : null;
-    } catch (error) {
-        console.error('Error getting last backup message ID from DB:', error);
-        return null; // Return null on error to prevent crashing
-    }
+    await connectDB();
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+        .from('leaderboard_metadata')
+        .select('last_backup_message_id')
+        .eq('id', 'leaderboard_meta')
+        .maybeSingle();
+
+    if (error) throw error;
+    return data?.last_backup_message_id ?? null;
 }
 
-/**
- * Sets the last backup message ID in the metadata collection.
- * @param {string} messageId
- * @returns {Promise<void>}
- */
 export async function setLastBackupMessageId(messageId) {
-    try {
-        await connectDB();
-        await metadataCollection.updateOne(
-            { _id: 'leaderboard_meta' },
-            { $set: { lastBackupMessageId: messageId } },
-            { upsert: true }
-        );
-    } catch (error) {
-        console.error('Error setting last backup message ID in DB:', error);
-        throw error;
+    await connectDB();
+    const supabase = getSupabase();
+
+    const { error } = await supabase
+        .from('leaderboard_metadata')
+        .upsert({
+            id: 'leaderboard_meta',
+            last_backup_message_id: String(messageId),
+        });
+    if (error) throw error;
+}
+
+/* -------------------- RAID STATE (TICKETS) -------------------- */
+export async function getRaidState(channelId) {
+    await connectDB();
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+        .from('raid_states')
+        .select('id,requester_id,message_id,original_channel_id,status,original_name,is_awaiting_completion,request,closing')
+        .eq('id', String(channelId))
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    const request = data.request ?? {};
+    const closing = data.closing ?? {};
+
+    return {
+        id: data.id,
+        messageId: data.message_id ?? request.messageId ?? request.message_id ?? closing.messageId ?? closing.message_id ?? null,
+        originalChannelId: data.original_channel_id ?? request.originalChannelId ?? request.original_channel_id ?? closing.originalChannelId ?? closing.original_channel_id ?? null,
+        requesterId: data.requester_id ?? request.requesterId ?? request.requester_id ?? closing.requesterId ?? closing.requester_id ?? null,
+        status: data.status ?? null,
+        originalName: data.original_name ?? closing.originalName ?? closing.original_name ?? request.originalName ?? request.original_name ?? null,
+        // request (kept as flattened fields for existing code)
+        task: request.tasks ?? request.task ?? '',
+        mapName: request.mapName ?? request.map_name ?? '',
+        mapNumber: request.mapNumber ?? request.map_number ?? '',
+        server: request.server ?? '',
+        description: request.description ?? '',
+        // closing (flattened)
+        isAwaitingCompletion: Boolean((data.is_awaiting_completion ?? closing.isAwaitingCompletion ?? closing.is_awaiting_completion) ?? false),
+        pendingHelperIds: closing.pendingHelperIds ?? closing.pending_helper_ids ?? null,
+        proofImage: closing.proofImage ?? closing.proof_image ?? null,
+        partialHelpers: closing.partialHelpers ?? closing.partial_helpers ?? [],
+        awaitingCompletionRequesterId: closing.awaitingCompletionRequesterId ?? closing.awaiting_completion_requester_id ?? null,
+        pointsAwarded: closing.pointsAwarded ?? closing.points_awarded ?? null,
+        expLairMessageLink: closing.expLairMessageLink ?? closing.exp_lair_message_link ?? null,
+    };
+}
+
+export async function getRaidStateMinimal(channelId) {
+    await connectDB();
+    const supabase = getSupabase();
+
+    const { data, error } = await supabase
+        .from('raid_states')
+        .select('id,requester_id,status,is_awaiting_completion')
+        .eq('id', String(channelId))
+        .maybeSingle();
+    if (error) throw error;
+    if (!data) return null;
+
+    return {
+        id: data.id,
+        requesterId: data.requester_id ?? null,
+        status: data.status ?? null,
+        isAwaitingCompletion: Boolean(data.is_awaiting_completion ?? false),
+    };
+}
+
+export async function createRaidState(channelId, raidDetails) {
+    await connectDB();
+    const supabase = getSupabase();
+
+    const request = {
+        tasks: raidDetails.task ?? '',
+        mapName: raidDetails.mapName ?? '',
+        mapNumber: raidDetails.mapNumber ?? '',
+        server: raidDetails.server ?? '',
+        description: raidDetails.description ?? '',
+    };
+
+    const closing = {
+        pendingHelperIds: raidDetails.pendingHelperIds ?? null,
+        proofImage: raidDetails.proofImage ?? null,
+        awaitingCompletionRequesterId: raidDetails.awaitingCompletionRequesterId ?? null,
+        pointsAwarded: raidDetails.pointsAwarded ?? null,
+        expLairMessageLink: raidDetails.expLairMessageLink ?? null,
+        partialHelpers: raidDetails.partialHelpers ?? [],
+    };
+
+    const row = {
+        id: String(channelId),
+        requester_id: raidDetails.requesterId ?? null,
+        message_id: raidDetails.messageId ?? null,
+        original_channel_id: raidDetails.originalChannelId ?? null,
+        status: raidDetails.status ?? 'active',
+        original_name: raidDetails.originalName ?? null,
+        request,
+        is_awaiting_completion: Boolean(raidDetails.isAwaitingCompletion ?? false),
+        closing,
+    };
+    const { error } = await supabase.from('raid_states').insert(row);
+    if (error) throw error;
+}
+
+export async function updateRaidState(channelId, updates) {
+    await connectDB();
+    const supabase = getSupabase();
+
+    const columnKeyMap = {
+        messageId: 'message_id',
+        originalChannelId: 'original_channel_id',
+        requesterId: 'requester_id',
+        status: 'status',
+        originalName: 'original_name',
+        isAwaitingCompletion: 'is_awaiting_completion',
+    };
+
+    const requestKeys = new Set(['task', 'mapName', 'mapNumber', 'server', 'description']);
+    const closureKeys = new Set([
+        'pendingHelperIds',
+        'proofImage',
+        'awaitingCompletionRequesterId',
+        'pointsAwarded',
+        'expLairMessageLink',
+        'partialHelpers',
+    ]);
+
+    const columnUpdates = {};
+    const requestUpdates = {};
+    const closingUpdates = {};
+
+    for (const [key, value] of Object.entries(updates ?? {})) {
+        if (Object.prototype.hasOwnProperty.call(columnKeyMap, key)) {
+            columnUpdates[columnKeyMap[key]] = value;
+            continue;
+        }
+        if (requestKeys.has(key)) {
+            if (key === 'task') requestUpdates.tasks = value;
+            else requestUpdates[key] = value;
+            continue;
+        }
+        if (closureKeys.has(key)) {
+            closingUpdates[key] = value;
+            continue;
+        }
+        // Ignore unknown keys (old fields like `color` / `size`)
     }
+
+    const needsRequestMerge = Object.keys(requestUpdates).length > 0;
+    const needsClosingMerge = Object.keys(closingUpdates).length > 0;
+
+    let request = null;
+    let closing = null;
+    if (needsRequestMerge || needsClosingMerge) {
+        const sel = ['id'];
+        if (needsRequestMerge) sel.push('request');
+        if (needsClosingMerge) sel.push('closing');
+
+        const { data: existing, error: fetchError } = await supabase
+            .from('raid_states')
+            .select(sel.join(','))
+            .eq('id', String(channelId))
+            .maybeSingle();
+        if (fetchError) throw fetchError;
+
+        request = existing?.request ?? {};
+        closing = existing?.closing ?? {};
+    }
+
+    const dbUpdate = { ...columnUpdates };
+    if (needsRequestMerge) dbUpdate.request = { ...(request ?? {}), ...requestUpdates };
+    if (needsClosingMerge) dbUpdate.closing = { ...(closing ?? {}), ...closingUpdates };
+
+    const { error } = await supabase.from('raid_states').update(dbUpdate).eq('id', String(channelId));
+    if (error) throw error;
+}
+
+export async function deleteRaidState(channelId) {
+    await connectDB();
+    const supabase = getSupabase();
+
+    const { error } = await supabase.from('raid_states').delete().eq('id', String(channelId));
+    if (error) throw error;
 }

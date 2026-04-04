@@ -5,11 +5,15 @@
 import {
     POINTS_CONFIG,
     MAX_XP_PER_RAID,
-    TASK_MAP_CATEGORIES,
-    ALLOWED_TASK_NAMES,
     TASK_ALIASES,
 } from '../config/constants.js';
 
+function normalizeTaskAliasKey(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
 
 export function calculateTaskPointsWithMultiplier(tasksString) {
     // Updated to split tasks by '+' or ','
@@ -35,35 +39,22 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
         }
 
         let currentEntryPoints = 0;
-        let effectiveTasks = new Set();
+        let resolvedName = taskName;
 
-        // Handle meta categories (e.g., 'daily', 'weekly')
-        if (TASK_MAP_CATEGORIES.hasOwnProperty(taskName)) {
-            TASK_MAP_CATEGORIES[taskName].forEach(t => effectiveTasks.add(t));
+        if (!Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
+            const aliasKey = normalizeTaskAliasKey(taskName);
+            const mapped = TASK_ALIASES?.[aliasKey];
+            if (mapped && Object.prototype.hasOwnProperty.call(POINTS_CONFIG, mapped)) {
+                resolvedName = mapped;
+            }
         }
-        // Handle direct task names (e.g., 'speaker', 'kathool')
-        else if (POINTS_CONFIG.hasOwnProperty(taskName)) {
-            effectiveTasks.add(taskName);
-        }
-        // Handle aliases (e.g., 'drakath' -> 'drak')
-        else if (TASK_ALIASES.hasOwnProperty(taskName)) {
-            effectiveTasks.add(TASK_ALIASES[taskName]);
-        }
-        // If neither a meta category nor a direct task, mark as unknown
-        else {
+
+        if (!Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
             unknownTasks.push(entry);
             continue;
         }
 
-        effectiveTasks.forEach(t => {
-            if (POINTS_CONFIG.hasOwnProperty(t)) {
-                currentEntryPoints += POINTS_CONFIG[t];
-            } else {
-                // This case should ideally not happen if POINTS_CONFIG is comprehensive for all tasks in TASK_MAP_CATEGORIES
-                console.warn(`Task "${t}" from category "${taskName}" not found in POINTS_CONFIG.`);
-                unknownTasks.push(t); // Add specific sub-task if not found
-            }
-        });
+        currentEntryPoints += POINTS_CONFIG[resolvedName];
 
         // Apply multiplier to the current entry's total points
         const taskPoints = currentEntryPoints * multiplier;
@@ -71,7 +62,7 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
 
         // Add to breakdown for display
         if (taskPoints > 0) {
-            calculatedBreakdown.push(`${taskName}${multiplier > 1 ? `x${multiplier}` : ''}: ${taskPoints} EXP`);
+            calculatedBreakdown.push(`${resolvedName}${multiplier > 1 ? `x${multiplier}` : ''}: ${taskPoints} EXP`);
         }
     }
 

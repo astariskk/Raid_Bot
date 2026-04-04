@@ -1,15 +1,30 @@
 # Raid_Bot
 Vanaheim raid discord bot
 
-List of useful commands to show the usable commands
+## Setup (in Discord)
+Run these once in the right channels so members can use the bot:
 
-!raidcommands = shows the commands for raid stuff
+- In the raid channel: `!raidinfo` (posts the main help embed + buttons, including `Start Raid`)
+- In the raid channel: `!raidrules` (posts raid rules)
+- Anywhere: `!charts` (posts available charts)
 
-!modcommands = shows the commands for mods, exp management and such
+## Useful commands
 
-!lbcommands = shows the leaderboard commands
+- `!raidrules` = shows the raid rules
 
-!secretcommands = commands for secret sussy gifs
+- `!raidinfo` = shows the main raid info embed + buttons
+
+- `Start Raid` button = guided raid ticket creation (pick room type + tasks, then fill map/server in a modal)
+
+- In raid tickets: use `Partial Helper` to assign a helper to specific tasks (partial EXP), then `Close Raid` to award points
+
+- `!modcommands` = shows the commands for mods, exp management and such
+
+- `!lbcommands` = shows the leaderboard commands
+
+- `!secretcommands` = commands for secret sussy gifs
+
+- `!restorelb` = staff-only restore of leaderboard totals from a JSON file (the bot will prompt you to upload the file next)
 
 
 # debugging issues:
@@ -29,3 +44,28 @@ nodemon index.js
 or
 
 node index.js
+
+## Environment variables
+
+- `DISCORD_TOKEN` = your bot token
+- `SUPABASE_URL` = Project Settings -> API -> Project URL
+- `SUPABASE_SERVICE_ROLE_KEY` = Project Settings -> API -> Service role key (server-side secret)
+- `SUPABASE_GIF_BUCKET` = (optional) storage bucket name for GIFs (default: `gif-commands`)
+
+## GIF/Text commands
+
+- Admin commands:
+  - `!addgif <triggerword>` / `/addgif command:<triggerword>`: create a new GIF/Text command
+  - `!editgif <triggerword>` / `/editgif command:<triggerword>`: edit an existing GIF/Text command
+  - Use the buttons on the preview message: `Edit`, `Change Gif`, `Delete`, `Save and Close`.
+
+## Leaderboard restore (`!restorelb`)
+
+- Staff only (moderator/officer/raid manager roles).
+- Usage:
+  1. Send `!restorelb`
+  2. Upload the JSON file as your next message (within 2 minutes)
+- JSON file format (object mapping user ID -> points):
+  - `"330781632103710741": 0,`
+  - `"327400347381399554": 5000`
+- Rows with `0` are ignored.
