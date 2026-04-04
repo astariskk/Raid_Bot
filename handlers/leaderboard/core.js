@@ -100,8 +100,8 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   const endIndex = Math.min(startIndex + usersPerPage, usersData.length);
   const usersOnPage = usersData.slice(startIndex, endIndex);
 
-  const nowUnix = Math.floor(Date.now() / 1000);
-  const headerDescription = `Raid leaderboard rankings | <t:${nowUnix}:f>`;
+  const monthLabel = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
+  const headerDescription = `Raid leaderboard rankings for ${monthLabel}`;
   const description = resetInfo ? `${resetInfo}\n${headerDescription}` : headerDescription;
   const formatExp = (value) => {
     const n = typeof value === 'number' ? value : Number(value);
