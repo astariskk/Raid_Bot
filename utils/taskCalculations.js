@@ -5,8 +5,15 @@
 import {
     POINTS_CONFIG,
     MAX_XP_PER_RAID,
+    TASK_ALIASES,
 } from '../config/constants.js';
 
+function normalizeTaskAliasKey(value) {
+    return String(value ?? '')
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '');
+}
 
 export function calculateTaskPointsWithMultiplier(tasksString) {
     // Updated to split tasks by '+' or ','
@@ -32,7 +39,16 @@ export function calculateTaskPointsWithMultiplier(tasksString) {
         }
 
         let currentEntryPoints = 0;
-        const resolvedName = taskName;
+        let resolvedName = taskName;
+
+        if (!Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
+            const aliasKey = normalizeTaskAliasKey(taskName);
+            const mapped = TASK_ALIASES?.[aliasKey];
+            if (mapped && Object.prototype.hasOwnProperty.call(POINTS_CONFIG, mapped)) {
+                resolvedName = mapped;
+            }
+        }
+
         if (!Object.prototype.hasOwnProperty.call(POINTS_CONFIG, resolvedName)) {
             unknownTasks.push(entry);
             continue;

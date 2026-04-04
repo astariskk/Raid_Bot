@@ -18,6 +18,8 @@ export function createRaidWizardSession({ userId, guildId }) {
     guildId,
     mode: 'create',
     channelId: null,
+    originAppId: null,
+    originToken: null,
     step: 'category',
     categoryKeys: [],
     tasks: [],

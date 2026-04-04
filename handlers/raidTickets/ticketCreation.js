@@ -1,5 +1,5 @@
-import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
-import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS, RAID_STATUS } from '../../config/constants.js';
+import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags, WebhookClient } from 'discord.js';
+import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { threadActionRow } from './buttons/threadButtons.js';
@@ -8,6 +8,7 @@ import { consumeRaidWizardSession } from './raidWizardSession.js';
 export async function handleRaidCreation(interaction) {
     if (!interaction.isModalSubmit()) return;
 
+    let wizardSession = null;
     let resolvedTasks;
     const canEditWizardMessage = Boolean(interaction.message?.edit);
 
@@ -22,6 +23,7 @@ export async function handleRaidCreation(interaction) {
     if (interaction.customId.startsWith('raidWizardDetailsModal_')) {
         const sessionId = interaction.customId.slice('raidWizardDetailsModal_'.length);
         const session = consumeRaidWizardSession(sessionId);
+        wizardSession = session;
 
         if (!session || session.userId !== interaction.user.id) {
             await interaction.reply({
@@ -80,12 +82,13 @@ export async function handleRaidCreation(interaction) {
         });
 
         // Build Embed
+        const displayTasks = resolvedTasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t);
         const embed = new EmbedBuilder()
             .setColor(STATUS_COLORS?.[RAID_STATUS.WAITING] ?? EMBED_COLOR)
             .setTitle('Raid Request')
             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
             .addFields(
-                { name: 'Task(s)', value: resolvedTasks.join(', '), inline: false },
+                { name: 'Task(s)', value: displayTasks.join(', '), inline: false },
                 { name: 'Map', value: `${mapName || 'Auto (based on task)'}`, inline: false},
                 { name: 'Room Number', value: `${mapNumber}`, inline: true },
                 { name: 'Server', value: server, inline: true },
@@ -123,21 +126,24 @@ export async function handleRaidCreation(interaction) {
             originalName: baseName,
         });
 
-        const createdContent = `Raid ticket created: <#${ticketChannel.id}>`;
-        const createdEmbed = new EmbedBuilder()
-            .setColor(EMBED_COLOR)
-            .setTitle('Ticket Created')
-            .setDescription(createdContent);
+        const createdContent = `Ticket has been created: <#${ticketChannel.id}>`;
 
-        // Prefer editing the original wizard message directly (avoids interaction token expiry).
-        if (canEditWizardMessage) {
-            await interaction.message.edit({ content: null, embeds: [createdEmbed], components: [] }).catch(() => {});
+        // Edit the original Start Raid ephemeral wizard message if possible (we store its interaction token in the session).
+        if (wizardSession?.originAppId && wizardSession?.originToken) {
+            try {
+                const webhook = new WebhookClient({ id: wizardSession.originAppId, token: wizardSession.originToken });
+                await webhook.editMessage('@original', { content: createdContent, embeds: [], components: [] }).catch(() => {});
+            } catch (e) {
+                console.warn('Failed to edit original Start Raid wizard message:', e);
+            }
+        } else if (canEditWizardMessage) {
+            // Fallback (only works if discord.js provides interaction.message for this modal submit).
+            await interaction.message.edit({ content: createdContent, embeds: [], components: [] }).catch(() => {});
         }
 
+        // Don't send a second "ticket created" message; the wizard message is updated instead.
         if (interaction.replied || interaction.deferred) {
-            await interaction.editReply({ content: createdContent }).catch(() => {});
-        } else {
-            await interaction.reply({ content: createdContent, flags: MessageFlags.Ephemeral }).catch(() => {});
+            await interaction.deleteReply().catch(() => {});
         }
 
     } catch (error) {

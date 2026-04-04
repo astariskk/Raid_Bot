@@ -10,6 +10,7 @@ import {
     RAID_HELPER_ROLE_ID,
     RAID_MANAGER_ROLE_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
+    TASK_DISPLAY_NAMES,
 } from '../../config/constants.js';
 
 import {
@@ -139,7 +140,7 @@ function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
 
     embed.addFields({
         name: 'Selected Tasks',
-        value: tasks.length ? tasks.map((t) => `\`${t}\``).join(', ') : '*None*',
+        value: tasks.length ? tasks.map((t) => (TASK_DISPLAY_NAMES?.[t] ? `\`${t}\` — ${TASK_DISPLAY_NAMES[t]}` : `\`${t}\``)).join(', ') : '*None*',
         inline: false,
     });
 
@@ -333,6 +334,9 @@ export function setupGeneralCommandsHandler(client) {
                 ],
                 flags: MessageFlags.Ephemeral,
             });
+
+            // Store the interaction token so the modal submit handler can edit this ephemeral wizard message later.
+            updateRaidWizardSession(sessionId, { originAppId: interaction.applicationId, originToken: interaction.token });
             return;
         }
 

@@ -8,7 +8,7 @@ import {
     TextInputStyle,
 } from 'discord.js';
 
-import { POINTS_CONFIG, RAID_TASK_CATEGORIES } from '../../../config/constants.js';
+import { POINTS_CONFIG, RAID_TASK_CATEGORIES, TASK_DISPLAY_NAMES } from '../../../config/constants.js';
 
 function buildRaidWizardDetailsModal({ customId, title, mapNameRequired, defaults }) {
     const modal = new ModalBuilder()
@@ -116,11 +116,17 @@ export function getRaidWizardEditCategorySelectRow(sessionId, selectedCategoryKe
 }
 
 function describeTaskOption(taskKey) {
-    if (Object.prototype.hasOwnProperty.call(POINTS_CONFIG, taskKey)) {
-        return `${POINTS_CONFIG[taskKey]} EXP`.slice(0, 100);
-    }
+  if (Object.prototype.hasOwnProperty.call(POINTS_CONFIG, taskKey)) {
+        const name = TASK_DISPLAY_NAMES?.[taskKey];
+        const base = `${POINTS_CONFIG[taskKey]} EXP`;
+        return (name ? `${base} — ${name}` : base).slice(0, 100);
+  }
 
-    return 'Task'.slice(0, 100);
+  return 'Task'.slice(0, 100);
+}
+
+function getTaskLabel(taskKey) {
+    return String(TASK_DISPLAY_NAMES?.[taskKey] ?? taskKey).slice(0, 100);
 }
 
 export function getRaidWizardTasksSelectRow(sessionId, categoryKeys, selectedTasks = []) {
@@ -146,7 +152,7 @@ export function getRaidWizardTasksSelectRow(sessionId, categoryKeys, selectedTas
         },
         ...perCategoryAllOptions,
         ...uniqueTaskKeys.map((taskKey) => ({
-            label: taskKey,
+            label: getTaskLabel(taskKey),
             value: taskKey,
             description: describeTaskOption(taskKey),
             default: selectedSet.has(taskKey),
@@ -199,4 +205,3 @@ export function getRaidWizardEditNavRow(sessionId, { step, canContinue }) {
     row.components[2].setCustomId(`raidWizardEdit_cancel_${sessionId}`);
     return row;
 }
-

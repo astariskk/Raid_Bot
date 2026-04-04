@@ -97,3 +97,46 @@ export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(
   ([task, points]) => `${task} = ${points} EXP`,
 );
 
+export const TASK_DISPLAY_NAMES = Object.freeze({
+  tsleft: 'Templeshrine Left',
+  tsmid: 'Templeshrine Mid',
+  tsright: 'Templeshrine Right',
+  vamem: 'Void Aura Daily (Mem)',
+  vanonmem: 'Void Aura Daily (Non-Mem)',
+});
+
+function normalizeTaskAliasKey(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
+export const TASK_ALIASES = Object.freeze(() => {
+  const aliases = {};
+
+  // Always accept canonical keys (even if the user types spaces/punctuation).
+  for (const key of Object.keys(POINTS_CONFIG)) {
+    aliases[normalizeTaskAliasKey(key)] = key;
+  }
+
+  // Accept display names as aliases (e.g. "Templeshrine Left").
+  for (const [key, display] of Object.entries(TASK_DISPLAY_NAMES)) {
+    aliases[normalizeTaskAliasKey(display)] = key;
+  }
+
+  // Extra friendly aliases (not necessarily shown in UI).
+  aliases[normalizeTaskAliasKey('Temple Shrine Left')] = 'tsleft';
+  aliases[normalizeTaskAliasKey('Temple Shrine Mid')] = 'tsmid';
+  aliases[normalizeTaskAliasKey('Temple Shrine Right')] = 'tsright';
+  aliases[normalizeTaskAliasKey('Temple Shrine (Left)')] = 'tsleft';
+  aliases[normalizeTaskAliasKey('Temple Shrine (Mid)')] = 'tsmid';
+  aliases[normalizeTaskAliasKey('Temple Shrine (Right)')] = 'tsright';
+
+  aliases[normalizeTaskAliasKey('Void Flibbi')] = 'voidflibbi';
+  aliases[normalizeTaskAliasKey('Void Nightbane')] = 'voidnightbane';
+  aliases[normalizeTaskAliasKey('Void Xyfrag')] = 'voidxyfrag';
+
+  return aliases;
+})();
+

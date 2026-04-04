@@ -17,6 +17,7 @@ import {
   RAID_MANAGER_ROLE_ID,
   RAID_HELPER_ROLE_ID,
   RAID_STATUS,
+  TASK_DISPLAY_NAMES,
 } from '../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
@@ -25,6 +26,45 @@ import { requireAuth, isStaff } from './ticketUtils.js';
 
 const COLOR_INFO = EMBED_COLOR;
 const COLOR_EXP_LAIR = BLUE_EMBED_COLOR;
+
+function formatTaskTokenForDisplay(tokenRaw) {
+  const token = String(tokenRaw ?? '').trim();
+  if (!token) return '';
+
+  const m = token.match(/^(.+?)(?:\s*x\s*(\d+))?$/i);
+  const rawName = (m?.[1] ?? token).trim().toLowerCase();
+  const multiplier = m?.[2] ? parseInt(m[2], 10) : 1;
+
+  const display = TASK_DISPLAY_NAMES?.[rawName] ?? rawName;
+  if (multiplier && multiplier > 1) return `${display} x${multiplier}`;
+  return display;
+}
+
+function formatTaskStringForDisplay(taskString) {
+  const raw = String(taskString ?? '').trim();
+  if (!raw) return '';
+  return raw
+    .split(/[+,]/)
+    .map((t) => formatTaskTokenForDisplay(t))
+    .filter(Boolean)
+    .join(', ');
+}
+
+function formatTaskArrayForDisplay(tasks) {
+  return (tasks || []).map((t) => (TASK_DISPLAY_NAMES?.[t] ?? t)).join(', ');
+}
+
+function formatCalculatedBreakdown(calculatedBreakdown) {
+  return (calculatedBreakdown || []).map((line) => {
+    const m = String(line ?? '').match(/^([a-z0-9_]+)(?:x(\d+))?:\s*(.+)$/i);
+    if (!m) return line;
+    const key = String(m[1]).toLowerCase();
+    const mult = m[2] ? parseInt(m[2], 10) : 1;
+    const rest = m[3];
+    const display = TASK_DISPLAY_NAMES?.[key] ?? key;
+    return `${display}${mult > 1 ? ` x${mult}` : ''}: ${rest}`;
+  });
+}
 
 function normalizePartialHelpers(raidInfo) {
   const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
@@ -126,7 +166,7 @@ export async function finalizeAdminReview(
             .setDescription(
               `**Raid requested by:** ${requesterMember ?? `<@${raidInfo.requesterId}>`}\n` +
               `**Helpers:** ${helpers}\n` +
-              `**Task(s):** ${raidInfo.task}\n` +
+              `**Task(s):** ${formatTaskStringForDisplay(raidInfo.task)}\n` +
               `**Description:** ${raidInfo.description || "No description provided."}`
             )
             .setTimestamp()
@@ -187,13 +227,13 @@ export async function finalizeAdminReview(
 
             const tasks = partialMap.get(uid) ?? null;
             if (tasks && tasks.length) {
-              breakdown += `* Tasks: ${tasks.join(', ')}\n`;
+              breakdown += `* Tasks: ${formatTaskArrayForDisplay(tasks)}\n`;
             }
           }
 
           if (calculatedBreakdown.length) {
             breakdown += "\n**Task EXP Breakdown:**\n";
-            breakdown += calculatedBreakdown.map(t => `* ${t}`).join("\n");
+            breakdown += formatCalculatedBreakdown(calculatedBreakdown).map(t => `* ${t}`).join("\n");
 
           } else {
             breakdown += "No valid tasks were recognized for EXP calculation.";

@@ -16,7 +16,7 @@ import {
     getRaidInfo
 } from '../../activeRaidState.js';
 
-import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TASK_DISPLAY_NAMES, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
 import { requireAuth } from './ticketUtils.js';
@@ -478,7 +478,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         await updateRaidLogEmbed(client, interaction.channel.id, {
             title: 'Raid Request',
             fields: [
-                { name: 'Task(s)', value: updates.task },
+                { name: 'Task(s)', value: resolvedTasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') },
                 { name: 'Map', value: `${updates.mapName}` },
                 { name: 'Room Number', value: `${updates.mapNumber}`, inline: true },
                 { name: 'Server', value: updates.server, inline: true },
