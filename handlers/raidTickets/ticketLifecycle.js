@@ -4,6 +4,9 @@ import {
     ButtonBuilder,
     ButtonStyle,
     StringSelectMenuBuilder,
+    ModalBuilder,
+    TextInputBuilder,
+    TextInputStyle,
     MessageFlags
 } from 'discord.js';
 
@@ -15,15 +18,29 @@ import {
 
 import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
-import { inferCategoryKeysFromTasks, inferRaidTypeFromCategoryKeys } from '../../utils/raidRequest.js';
+import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
 import { consumeRaidWizardSession, createRaidWizardSession, getRaidWizardSession, updateRaidWizardSession } from './raidWizardSession.js';
-import { getRaidWizardCategoryDef, getRaidWizardEditCategorySelectRow, getRaidWizardEditDetailsModal, getRaidWizardEditNavRow, getRaidWizardEditTasksSelectRow, getRaidWizardTaskOptionsCount } from '../../Embeds/raidTicketEmbeds.js';
+import { getRaidWizardCategoryDef, getRaidWizardEditCategorySelectRow, getRaidWizardEditDetailsModal, getRaidWizardEditNavRow, getRaidWizardEditTasksSelectRow, getRaidWizardTaskOptionsCount } from './embeds/raidWizardUi.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 
 const EDIT_REQUEST_TTL_MS = 10 * 60 * 1000;
-const editRequestSessions = new Map(); // sessionId -> { userId, channelId, kind, runsTasks, runsCount, createdAtMs, updatedAtMs }
+const editRequestSessions = new Map(); // sessionId -> { userId, channelId, kind, createdAtMs, updatedAtMs }
+
+async function replyEphemeralSafe(interaction, payload) {
+    try {
+        if (interaction.deferred || interaction.replied) {
+            await interaction.followUp({ ...payload, flags: MessageFlags.Ephemeral });
+        } else {
+            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+        }
+        return true;
+    } catch (err) {
+        console.error('Failed to reply ephemeral:', err);
+        return false;
+    }
+}
 
 function newEditRequestSessionId(userId) {
     const ts = Date.now().toString(36);
@@ -72,14 +89,7 @@ function parseTaskRunsMap(taskString) {
     return { order, runsByTask };
 }
 
-function formatTaskRunsString({ order, runsByTask }) {
-    const out = [];
-    for (const key of order) {
-        const runs = runsByTask.get(key) ?? 1;
-        out.push(runs > 1 ? `${key} x${runs}` : key);
-    }
-    return out.join(', ');
-}
+
 
 async function startEditTasksWizard(interaction, raidInfo) {
     const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
@@ -159,8 +169,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             userId: interaction.user.id,
             channelId: interaction.channel.id,
             kind: null,
-            runsTasks: [],
-            runsCount: 3,
             createdAtMs: Date.now(),
             updatedAtMs: Date.now(),
         });
@@ -177,7 +185,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             .setMaxValues(1)
             .addOptions(
                 { label: 'Edit tasks', value: 'tasks', description: 'Category + task select (same flow as before)'.slice(0, 100) },
-                { label: 'Multiple runs', value: 'runs', description: 'Add xN to selected tasks'.slice(0, 100) },
                 { label: 'Edit details', value: 'details', description: 'Map/server/room/description modal'.slice(0, 100) },
             );
 
@@ -186,11 +193,29 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             .setLabel('Cancel')
             .setStyle(ButtonStyle.Secondary);
 
-        await interaction.reply({
+        const doneBtn = new ButtonBuilder()
+            .setCustomId(`editRequest_done_${sessionId}`)
+            .setLabel('Done')
+            .setStyle(ButtonStyle.Primary);
+
+        await replyEphemeralSafe(interaction, {
             embeds: [embed],
-            components: [new ActionRowBuilder().addComponents(select), new ActionRowBuilder().addComponents(cancelBtn)],
-            flags: MessageFlags.Ephemeral,
+            components: [
+                new ActionRowBuilder().addComponents(select),
+                new ActionRowBuilder().addComponents(doneBtn, cancelBtn),
+            ],
         });
+        return;
+    }
+
+    if (interaction.isButton?.() && interaction.customId.startsWith('editRequest_done_')) {
+        const sessionId = interaction.customId.slice('editRequest_done_'.length);
+        const session = consumeEditRequestSession(sessionId);
+        if (!session || session.userId !== interaction.user.id || session.channelId !== interaction.channel.id) {
+            await replyEphemeralSafe(interaction, { content: 'This edit session expired. Press Edit Request again.' });
+            return;
+        }
+        await interaction.update({ content: 'Closed.', embeds: [], components: [] }).catch(() => {});
         return;
     }
 
@@ -198,7 +223,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         const sessionId = interaction.customId.slice('editRequest_cancel_'.length);
         const session = consumeEditRequestSession(sessionId);
         if (!session || session.userId !== interaction.user.id || session.channelId !== interaction.channel.id) {
-            await interaction.reply({ content: 'This edit session expired. Press Edit Request again.', flags: MessageFlags.Ephemeral }).catch(() => {});
+            await replyEphemeralSafe(interaction, { content: 'This edit session expired. Press Edit Request again.' });
             return;
         }
         await interaction.update({ content: 'Cancelled.', embeds: [], components: [] }).catch(() => {});
@@ -242,138 +267,15 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 },
             });
 
-            const raidType = inferRaidTypeFromCategoryKeys(categoryKeys);
             const mapNameRequired = (order || []).some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
             const defaults = getRaidWizardSession(wizardSessionId)?.defaults ?? {};
-            await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, raidType, { mapNameRequired, defaults }));
+            await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { mapNameRequired, defaults }));
             consumeEditRequestSession(sessionId);
             return;
         }
 
-        // kind === 'runs'
-        const { order } = parseTaskRunsMap(raidInfo.task || '');
-        const uniqueTasks = [...new Set(order.map((t) => String(t).toLowerCase()))].filter(Boolean);
-        if (!uniqueTasks.length) {
-            await interaction.reply({ content: 'No tasks found on this ticket.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            return;
-        }
-
-        const embed = new EmbedBuilder()
-            .setColor(EMBED_COLOR)
-            .setTitle('Multiple Runs')
-            .setDescription('Step 2/2: Select task(s) and a multiplier, then Save.');
-
-        const tasksSelect = new StringSelectMenuBuilder()
-            .setCustomId(`editRequest_runs_tasks_${sessionId}`)
-            .setPlaceholder('Select tasks...')
-            .setMinValues(1)
-            .setMaxValues(Math.min(25, uniqueTasks.length))
-            .addOptions(uniqueTasks.slice(0, 25).map((t) => ({ label: t.slice(0, 100), value: t })));
-
-        const runsSelect = new StringSelectMenuBuilder()
-            .setCustomId(`editRequest_runs_count_${sessionId}`)
-            .setPlaceholder('Select runs...')
-            .setMinValues(1)
-            .setMaxValues(1)
-            .addOptions(
-                { label: 'x1 (remove)', value: '1' },
-                { label: 'x2', value: '2' },
-                { label: 'x3', value: '3' },
-                { label: 'x5', value: '5' },
-                { label: 'x10', value: '10' },
-            );
-
-        const saveBtn = new ButtonBuilder()
-            .setCustomId(`editRequest_runs_save_${sessionId}`)
-            .setLabel('Save')
-            .setStyle(ButtonStyle.Success)
-            .setDisabled(true);
-
-        const cancelBtn = new ButtonBuilder()
-            .setCustomId(`editRequest_cancel_${sessionId}`)
-            .setLabel('Cancel')
-            .setStyle(ButtonStyle.Secondary);
-
-        await interaction.update({
-            embeds: [embed],
-            components: [
-                new ActionRowBuilder().addComponents(tasksSelect),
-                new ActionRowBuilder().addComponents(runsSelect),
-                new ActionRowBuilder().addComponents(saveBtn, cancelBtn),
-            ],
-        });
-        return;
-    }
-
-    if (interaction.isStringSelectMenu?.() && interaction.customId.startsWith('editRequest_runs_tasks_')) {
-        const sessionId = interaction.customId.slice('editRequest_runs_tasks_'.length);
-        const session = getEditRequestSession(sessionId);
-        if (!session || session.userId !== interaction.user.id || session.channelId !== interaction.channel.id) {
-            await interaction.reply({ content: 'This edit session expired. Press Edit Request again.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            return;
-        }
-        const runsTasks = (interaction.values || []).map((v) => String(v).toLowerCase()).filter(Boolean);
-        const updated = updateEditRequestSession(sessionId, { runsTasks });
-
-        // Enable Save when at least 1 task selected (runsCount always has a default).
-        const saveBtn = new ButtonBuilder()
-            .setCustomId(`editRequest_runs_save_${sessionId}`)
-            .setLabel('Save')
-            .setStyle(ButtonStyle.Success)
-            .setDisabled(!(updated.runsTasks?.length ?? 0));
-
-        const cancelBtn = new ButtonBuilder()
-            .setCustomId(`editRequest_cancel_${sessionId}`)
-            .setLabel('Cancel')
-            .setStyle(ButtonStyle.Secondary);
-
-        await interaction.update({
-            components: [interaction.message.components[0], interaction.message.components[1], new ActionRowBuilder().addComponents(saveBtn, cancelBtn)],
-        });
-        return;
-    }
-
-    if (interaction.isStringSelectMenu?.() && interaction.customId.startsWith('editRequest_runs_count_')) {
-        const sessionId = interaction.customId.slice('editRequest_runs_count_'.length);
-        const session = getEditRequestSession(sessionId);
-        if (!session || session.userId !== interaction.user.id || session.channelId !== interaction.channel.id) {
-            await interaction.reply({ content: 'This edit session expired. Press Edit Request again.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            return;
-        }
-        const raw = interaction.values?.[0] ?? '3';
-        const runsCount = Math.max(1, parseInt(raw, 10) || 1);
-        updateEditRequestSession(sessionId, { runsCount });
-        await interaction.update({ components: interaction.message.components }).catch(() => {});
-        return;
-    }
-
-    if (interaction.isButton?.() && interaction.customId.startsWith('editRequest_runs_save_')) {
-        const sessionId = interaction.customId.slice('editRequest_runs_save_'.length);
-        const session = consumeEditRequestSession(sessionId);
-        if (!session || session.userId !== interaction.user.id || session.channelId !== interaction.channel.id) {
-            await interaction.reply({ content: 'This edit session expired. Press Edit Request again.', flags: MessageFlags.Ephemeral }).catch(() => {});
-            return;
-        }
-
-        const { order, runsByTask } = parseTaskRunsMap(raidInfo.task || '');
-        const tasksToUpdate = (session.runsTasks || []).map((t) => String(t).toLowerCase()).filter(Boolean);
-        const nextRuns = new Map(runsByTask);
-        for (const t of tasksToUpdate) {
-            if (!nextRuns.has(t)) order.push(t);
-            nextRuns.set(t, session.runsCount ?? 3);
-        }
-
-        const updatedTaskString = formatTaskRunsString({ order, runsByTask: nextRuns });
-        await updateRaid(interaction.channel.id, { task: updatedTaskString });
-
-        await updateRaidLogEmbed(client, interaction.channel.id, {
-            fields: [{ name: 'Task(s)', value: updatedTaskString }],
-        });
-
-        await interaction.update({
-            embeds: [new EmbedBuilder().setColor(EMBED_COLOR).setTitle('Edit Request').setDescription('Updated multiple runs.')],
-            components: [],
-        }).catch(() => {});
+        await interaction.update({ content: 'Unknown edit option.', embeds: [], components: [] }).catch(() => {});
+        consumeEditRequestSession(sessionId);
         return;
     }
 
@@ -528,11 +430,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 return;
             }
 
-            const raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys) ?? 'other';
             const mapNameRequired = session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
             const defaults = session.defaults ?? {};
 
-            await interaction.showModal(getRaidWizardEditDetailsModal(continueSessionId, raidType, { mapNameRequired, defaults }));
+            await interaction.showModal(getRaidWizardEditDetailsModal(continueSessionId, { mapNameRequired, defaults }));
         }
         return;
     }
@@ -546,8 +447,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             await interaction.reply({ content: 'This edit session expired. Press Edit Request again.', flags: MessageFlags.Ephemeral });
             return;
         }
-
-        const raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys);
 
         const { resolvedTasks, invalidTasks } = validateAndResolveTaskList(session.tasks, 'any');
         if (invalidTasks.length) {
@@ -577,7 +476,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         await updateRaid(interaction.channel.id, updates);
 
         await updateRaidLogEmbed(client, interaction.channel.id, {
-            title: `${raidType} Raid Request`,
+            title: 'Raid Request',
             fields: [
                 { name: 'Task(s)', value: updates.task },
                 { name: 'Map', value: `${updates.mapName}` },

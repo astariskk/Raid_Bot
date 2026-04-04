@@ -8,10 +8,15 @@ import { registerSlashCommands, setupSlashCommandsHandler } from '../handlers/sl
 import { connectDB } from '../utils/dbOps.js';
 
 export function registerBotReadyHandler(client) {
-  client.on('ready', async () => {
+  let didSetup = false;
+
+  client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
     try {
+      if (didSetup) return;
+      didSetup = true;
+
       await connectDB();
       console.log('Database connection established for bot operations.');
 

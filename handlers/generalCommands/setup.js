@@ -19,7 +19,7 @@ import {
     getRaidWizardNavRow,
     getRaidWizardTaskOptionsCount,
     getRaidWizardTasksSelectRow,
-} from '../../Embeds/raidTicketEmbeds.js';
+} from '../raidTickets/embeds/raidWizardUi.js';
 
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import {
@@ -52,7 +52,6 @@ import {
 
 import { getSupabase } from '../../utils/supabaseClient.js';
 import { invalidateLeaderboardCache } from '../leaderboard/core.js';
-import { inferRaidTypeFromCategoryKeys } from '../../utils/raidRequest.js';
 
 function isStaffMember(member) {
     if (!member) return false;
@@ -402,10 +401,9 @@ export function setupGeneralCommandsHandler(client) {
                 }
 
                 const includesGeneric = session.tasks?.some((t) => ['simple', 'moderate', 'difficult'].includes(t)) ?? false;
-                const raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys);
                 const mapNameRequired = includesGeneric;
 
-                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, raidType, { mapNameRequired }));
+                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { mapNameRequired }));
                 return;
             }
         }

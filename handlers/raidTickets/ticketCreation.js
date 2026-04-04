@@ -1,16 +1,23 @@
 import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags } from 'discord.js';
 import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS, RAID_STATUS } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
-import { validateAndResolveTasks, validateAndResolveTaskList } from '../../utils/allowedTasks.js';
-import { inferRaidTypeFromCategoryKeys } from '../../utils/raidRequest.js';
-import { threadActionRow } from '../../Embeds/raidTicketEmbeds.js';
+import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
+import { threadActionRow } from './buttons/threadButtons.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
 
 export async function handleRaidCreation(interaction) {
     if (!interaction.isModalSubmit()) return;
 
-    let raidType;
     let resolvedTasks;
+    const canEditWizardMessage = Boolean(interaction.message?.edit);
+
+    // Acknowledge quickly (channel creation + DB writes can exceed Discord's 3s window).
+    if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+            content: 'Creating raid ticket...',
+            flags: MessageFlags.Ephemeral
+        }).catch(() => {});
+    }
 
     if (interaction.customId.startsWith('raidWizardDetailsModal_')) {
         const sessionId = interaction.customId.slice('raidWizardDetailsModal_'.length);
@@ -24,28 +31,14 @@ export async function handleRaidCreation(interaction) {
             return;
         }
 
-        raidType = inferRaidTypeFromCategoryKeys(session.categoryKeys);
         const { resolvedTasks: tasks, invalidTasks } = validateAndResolveTaskList(session.tasks, 'any');
 
         if (invalidTasks.length > 0) {
-            await interaction.reply({
-                content: `Invalid task(s): ${invalidTasks.join(', ')}`,
-                flags: MessageFlags.Ephemeral
-            });
-            return;
-        }
-
-        resolvedTasks = tasks;
-    } else if (interaction.customId.startsWith('raidRequestModal')) {
-        const rawTasksInput = interaction.fields.getTextInputValue('taskInput');
-        raidType = interaction.customId.split('_')[1]; // e.g., '4-man'
-
-        const { resolvedTasks: tasks, invalidTasks } = validateAndResolveTasks(rawTasksInput, raidType);
-        if (invalidTasks.length > 0) {
-            await interaction.reply({
-                content: `Task(s) not allowed in a ${raidType} room: ${invalidTasks.join(', ')}`,
-                flags: MessageFlags.Ephemeral
-            });
+            if (interaction.replied || interaction.deferred) {
+                await interaction.editReply({ content: `Invalid task(s): ${invalidTasks.join(', ')}` }).catch(() => {});
+            } else {
+                await interaction.reply({ content: `Invalid task(s): ${invalidTasks.join(', ')}`, flags: MessageFlags.Ephemeral }).catch(() => {});
+            }
             return;
         }
 
@@ -61,10 +54,12 @@ export async function handleRaidCreation(interaction) {
 
     const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
     if (isMapNameRequired && !String(mapName ?? '').trim()) {
-        await interaction.reply({
-            content: 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).',
-            flags: MessageFlags.Ephemeral
-        });
+        const msg = 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).';
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({ content: msg }).catch(() => {});
+        } else {
+            await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
         return;
     }
 
@@ -87,7 +82,7 @@ export async function handleRaidCreation(interaction) {
         // Build Embed
         const embed = new EmbedBuilder()
             .setColor(STATUS_COLORS?.[RAID_STATUS.WAITING] ?? EMBED_COLOR)
-            .setTitle(`${raidType} Raid Request`)
+            .setTitle('Raid Request')
             .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
             .addFields(
                 { name: 'Task(s)', value: resolvedTasks.join(', '), inline: false },
@@ -125,7 +120,7 @@ export async function handleRaidCreation(interaction) {
             proofImage: null,
             isAwaitingCompletion: false,
             partialHelpers: [],
-            originalName: baseName
+            originalName: baseName,
         });
 
         const createdContent = `Raid ticket created: <#${ticketChannel.id}>`;
@@ -134,21 +129,24 @@ export async function handleRaidCreation(interaction) {
             .setTitle('Ticket Created')
             .setDescription(createdContent);
 
-        try {
-            if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
-                await interaction.update({ content: null, embeds: [createdEmbed], components: [] });
-            } else {
-                await interaction.reply({ content: createdContent, flags: MessageFlags.Ephemeral });
-            }
-        } catch (err) {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: createdContent, flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
-            console.error('Failed to update raid wizard message after creation:', err);
+        // Prefer editing the original wizard message directly (avoids interaction token expiry).
+        if (canEditWizardMessage) {
+            await interaction.message.edit({ content: null, embeds: [createdEmbed], components: [] }).catch(() => {});
+        }
+
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({ content: createdContent }).catch(() => {});
+        } else {
+            await interaction.reply({ content: createdContent, flags: MessageFlags.Ephemeral }).catch(() => {});
         }
 
     } catch (error) {
         console.error("Raid Creation Error:", error);
-        await interaction.reply({ content: "Failed to create raid ticket.", flags: MessageFlags.Ephemeral });
+        const msg = "Failed to create raid ticket.";
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({ content: msg }).catch(() => {});
+        } else {
+            await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
     }
 }

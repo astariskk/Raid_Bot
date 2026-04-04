@@ -5,11 +5,11 @@ import {
     EmbedBuilder,
     MessageFlags,
     StringSelectMenuBuilder,
-    UserSelectMenuBuilder,
+    MentionableSelectMenuBuilder,
 } from 'discord.js';
 
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
-import { EMBED_COLOR, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config/constants.js';
+import { EMBED_COLOR, MAX_HELPERS, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config/constants.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { requireAuth } from './ticketUtils.js';
@@ -24,9 +24,9 @@ import {
 /* -------------------- CLOSE UI HELPERS -------------------- */
 function createHelperSelectRow(maxValues) {
     return new ActionRowBuilder().addComponents(
-        new UserSelectMenuBuilder()
+        new MentionableSelectMenuBuilder()
             .setCustomId('closeRaid_SelectHelpers')
-            .setPlaceholder(`Select Helpers (Max ${maxValues})`)
+            .setPlaceholder(`Select Warrior helpers (Max ${maxValues})`)
             .setMaxValues(maxValues)
             .setMinValues(1),
     );
@@ -59,7 +59,52 @@ function createCloseButtonsRow({ isConfirmEnabled, proofImageUrl }) {
     );
 }
 
-const MAX_HELPERS = 10;
+async function filterToWarriorHelperIds(interaction, selectedIds) {
+    const guild = interaction.guild;
+    if (!guild) return { filtered: [], warnings: ['This can only be used in a server.'] };
+
+    const roleIds = new Set();
+    const userIds = new Set();
+
+    for (const id of selectedIds || []) {
+        if (guild.roles.cache.has(id)) roleIds.add(id);
+        else userIds.add(id);
+    }
+
+    const warnings = [];
+    if (roleIds.size) warnings.push('Roles cannot be selected (users only).');
+
+    const ids = [...userIds].filter((id) => id !== interaction.user.id);
+    if (ids.length < userIds.size) warnings.push('You cannot select yourself as a helper.');
+
+    const members = new Map();
+    try {
+        const fetched = await guild.members.fetch({ user: ids });
+        for (const [id, member] of fetched) members.set(id, member);
+    } catch {
+        await Promise.all(
+            ids.map(async (id) => {
+                const member = await guild.members.fetch(id).catch(() => null);
+                if (member) members.set(id, member);
+            }),
+        );
+    }
+
+    const filtered = [];
+    const rejected = [];
+    for (const id of ids) {
+        const member = members.get(id);
+        if (!member || !member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
+            rejected.push(id);
+            continue;
+        }
+        filtered.push(id);
+    }
+
+    if (rejected.length) warnings.push(`Only Warriors can be selected (removed ${rejected.length}).`);
+
+    return { filtered, warnings };
+}
 
 function formatPartialHelpersForClose(raidInfo) {
     const partialHelpers = normalizePartialHelpers(raidInfo);
@@ -249,9 +294,9 @@ function buildPartialHelperTasksRow(sessionId, taskKeys, selectedTasks) {
 }
 
 function buildPartialHelperUserRow(sessionId, { maxValues }) {
-    const menu = new UserSelectMenuBuilder()
+    const menu = new MentionableSelectMenuBuilder()
         .setCustomId(`partialHelper_user_${sessionId}`)
-        .setPlaceholder('Select a helper')
+        .setPlaceholder('Select Warrior helper(s)')
         .setMinValues(1)
         .setMaxValues(Math.max(1, maxValues ?? 1));
 
@@ -650,7 +695,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         return;
     }
 
-    if (interaction.isUserSelectMenu?.() && interaction.customId.startsWith('partialHelper_user_')) {
+    if (interaction.isMentionableSelectMenu?.() && interaction.customId.startsWith('partialHelper_user_')) {
         const sessionId = interaction.customId.slice('partialHelper_user_'.length);
         const session = getPartialHelperSession(sessionId);
         if (!session || session.userId !== interaction.user.id || session.channelId !== interaction.channel.id) {
@@ -658,11 +703,15 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             return;
         }
 
-        const helperIds = interaction.values || [];
+        const { filtered: helperIds, warnings } = await filterToWarriorHelperIds(interaction, interaction.values || []);
         const updated = updatePartialHelperSession(sessionId, { selectedHelperIds: helperIds });
 
         const freshRaidInfo = await getRaidInfo(interaction.channel.id);
         const partialHelpers = normalizePartialHelpers(freshRaidInfo);
+
+        if (warnings.length) {
+            await interaction.followUp({ content: `⚠️ ${warnings.join(' ')}`.slice(0, 2000), flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
 
         await interaction.update({
             embeds: [buildPartialHelperEmbed({ step: 'user', partialHelpers, selectedTasks: updated.selectedTasks })],
@@ -677,10 +726,10 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     /* ---------- UPDATE HELPER SELECTION ---------- */
     if (interaction.customId === 'closeRaid_SelectHelpers') {
         await safeDeferUpdate(interaction);
-        const selectedIds = interaction.values.filter((id) => id !== interaction.user.id);
+        const { filtered: selectedIds, warnings } = await filterToWarriorHelperIds(interaction, interaction.values || []);
 
-        let warningPrefix = '';
-        if (selectedIds.length < interaction.values.length) {
+        let warningPrefix = warnings.length ? `**Note:** ${warnings.join(' ')}\n\n` : '';
+        if (!warningPrefix && selectedIds.length < interaction.values.length) {
             warningPrefix = '⚠️ **Note: You cannot select yourself as a helper.**\n\n';
         }
 
@@ -717,13 +766,19 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             return match[0].replace(/[)>.,]+$/, '');
         };
 
-        await interaction.reply({ content: 'Send the proof image in the next message (you have 2 minutes).', flags: MessageFlags.Ephemeral });
+        await interaction.reply({
+            content: 'Send the proof image (upload) or a proof link in the **same channel** within 1 minute.',
+            flags: MessageFlags.Ephemeral
+        });
 
         try {
             const collected = await interaction.channel.awaitMessages({
-                filter: (m) => m.author.id === interaction.user.id && Boolean(extractProofUrlFromMessage(m)),
+                filter: (m) => {
+                    if (m.author.id !== interaction.user.id) return false;
+                    return Boolean(extractProofUrlFromMessage(m));
+                },
                 max: 1,
-                time: 120000,
+                time: 60000,
                 errors: ['time'],
             });
 
@@ -733,15 +788,19 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
             const updatedRaid = await getRaidInfo(interaction.channel.id);
             const selectedIds = updatedRaid.pendingHelperIds || [];
-            const maxHelpers = getMaxHelpersForRaidSize(updatedRaid.size);
+            const maxHelpers = MAX_HELPERS;
 
             const selectRow = createHelperSelectRow(maxHelpers);
             const btnRow = createCloseButtonsRow({ isConfirmEnabled: selectedIds.length > 0, proofImageUrl: proofUrl });
 
             await interaction.message.edit({ components: [selectRow, btnRow] });
             await interaction.followUp({ content: 'Proof saved!', flags: MessageFlags.Ephemeral });
-        } catch {
-            await interaction.followUp({ content: 'Timed out or no attachment received.', flags: MessageFlags.Ephemeral });
+        } catch (err) {
+            console.error('Proof capture failed:', err);
+            await interaction.followUp({
+                content: 'Timed out or no attachment/link received. Press `Attach Proof` again and upload the image in this channel.',
+                flags: MessageFlags.Ephemeral
+            });
         }
         return;
     }

@@ -10,11 +10,7 @@ export const RAID_STATUS = Object.freeze({
   CANCELLED: 'cancelled',
 });
 
-export const RAID_TYPE = Object.freeze({
-  FOUR: '4-man',
-  SEVEN: '7-man',
-  OTHER: 'other',
-});
+export const MAX_HELPERS = 10;
 
 // Prefer STATUS_COLORS from ui.js for Waiting/Ongoing/Full. This is a fallback + single place to map status -> color.
 export const RAID_STATUS_COLORS = Object.freeze({
@@ -22,4 +18,3 @@ export const RAID_STATUS_COLORS = Object.freeze({
   [RAID_STATUS.ONGOING]: 0x78b159,
   [RAID_STATUS.FULL]: 0xdd2e44,
 });
-

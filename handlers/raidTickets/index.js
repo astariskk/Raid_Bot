@@ -27,12 +27,18 @@ export function setupRaidHandlers(client) {
 
     // 2. Interaction Listener (Buttons/Modals)
     client.on("interactionCreate", async (interaction) => {
-        if (!interaction.isButton() && !interaction.isModalSubmit() && !interaction.isUserSelectMenu() && !interaction.isStringSelectMenu()) return;
+        if (
+            !interaction.isButton() &&
+            !interaction.isModalSubmit() &&
+            !interaction.isUserSelectMenu() &&
+            !interaction.isMentionableSelectMenu?.() &&
+            !interaction.isStringSelectMenu()
+        ) return;
 
         const raidInfo = await getRaidInfoMinimal(interaction.channel?.id);
         if (!raidInfo) {
             // Check for Creation Modal (which happens before raidInfo exists)
-            if (interaction.customId.startsWith('raidRequestModal') || interaction.customId.startsWith('raidWizardDetailsModal_')) {
+            if (interaction.customId.startsWith('raidWizardDetailsModal_')) {
                 await handleRaidCreation(interaction);
             }
             return;
