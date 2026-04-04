@@ -78,14 +78,15 @@ export function getHowToUseEmbed() {
             },
             {
                 name: '3) During the Raid',
-                value: 'In the ticket you can type `!waiting`, `!ongoing`, or `!full` to update the status.',
+                value: 'In the ticket you can type `!waiting`, `!ongoing`, or `!full` to update the status.\n' +
+                    '* The request can also edit the ticket description to update the task or details if needed. \n',
                 inline: false,
             },
             {
                 name: '4) Closing & Points',
                 value:
                     'Press `Close Raid`, select helpers, and (optional) use `Partial Helper` to assign helpers to specific tasks for partial EXP.\n' +
-                    `Max \`${MAX_XP_PER_RAID} EXP\` per player per raid.`,
+                    `* Max \`${MAX_XP_PER_RAID} EXP\` per player per raid.`,
                 inline: false,
             },
             {

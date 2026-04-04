@@ -162,8 +162,13 @@ function buildChartEmbed(chart, variantKey, pageIndex) {
   return embed;
 }
 
-function buildNavRow({ ownerId, ts, disabledPrev, disabledNext }) {
+function buildNavRow({ ownerId, ts, disabledPrev, disabledNext, disabledStart, disabledEnd }) {
   return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`chart_show_start_${ownerId}_${ts}`)
+      .setLabel('<<')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(Boolean(disabledStart ?? disabledPrev)),
     new ButtonBuilder()
       .setCustomId(`chart_show_prev_${ownerId}_${ts}`)
       .setLabel('<')
@@ -174,6 +179,11 @@ function buildNavRow({ ownerId, ts, disabledPrev, disabledNext }) {
       .setLabel('>')
       .setStyle(ButtonStyle.Secondary)
       .setDisabled(Boolean(disabledNext)),
+    new ButtonBuilder()
+      .setCustomId(`chart_show_end_${ownerId}_${ts}`)
+      .setLabel('>>')
+      .setStyle(ButtonStyle.Secondary)
+      .setDisabled(Boolean(disabledEnd ?? disabledNext)),
   );
 }
 
@@ -481,7 +491,13 @@ export async function handleChartShowInteraction(interaction) {
 
   session.pageIndex = dir === 'next'
     ? Math.min(total - 1, session.pageIndex + 1)
-    : Math.max(0, session.pageIndex - 1);
+    : dir === 'prev'
+      ? Math.max(0, session.pageIndex - 1)
+      : dir === 'start'
+        ? 0
+        : dir === 'end'
+          ? total - 1
+          : session.pageIndex;
   showSessions.set(interaction.message.id, session);
 
   const row = buildNavRow({
@@ -489,6 +505,8 @@ export async function handleChartShowInteraction(interaction) {
     ts: session.ts,
     disabledPrev: session.pageIndex === 0,
     disabledNext: session.pageIndex === total - 1,
+    disabledStart: session.pageIndex === 0,
+    disabledEnd: session.pageIndex === total - 1,
   });
 
   await interaction.update({ embeds: [buildChartEmbed(chart, session.variantKey, session.pageIndex)], components: [row] }).catch(() => {});
