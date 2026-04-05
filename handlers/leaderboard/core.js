@@ -119,26 +119,22 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
   if (usersOnPage.length === 0) {
     embed.setDescription(`${description}\n\nThe leaderboard is empty. Start earning some EXP!`);
   } else {
-    const ranks = [];
-    const names = [];
-    const points = [];
-    const NAME_MAX = 22;
+    const lines = [];
+    const NAME_MAX = 32;
 
     for (let index = 0; index < usersOnPage.length; index += 1) {
       const player = usersOnPage[index];
       const userName = await resolveDisplayName({ client, guild, userId: player.userId });
 
       const safeName = String(userName).replace(/\s+/g, ' ').trim();
-      ranks.push(String(startIndex + index + 1));
-      names.push(safeName.length > NAME_MAX ? `${safeName.slice(0, Math.max(0, NAME_MAX - 3))}...` : safeName);
-      points.push(formatExp(player.totalExp));
+      const displayName = safeName.length > NAME_MAX ? `${safeName.slice(0, Math.max(0, NAME_MAX - 3))}...` : safeName;
+      const rank = startIndex + index + 1;
+      const exp = formatExp(player.totalExp);
+
+      lines.push(`**${rank}. ${displayName}** • ${exp} EXP`);
     }
 
-    embed.addFields(
-      { name: '#', value: ranks.join('\n').slice(0, 1024) || '\u200b', inline: true },
-      { name: 'Name', value: names.join('\n').slice(0, 1024) || '\u200b', inline: true },
-      { name: 'EXP', value: points.join('\n').slice(0, 1024) || '\u200b', inline: true },
-    );
+    embed.setDescription(`${description}\n\n${lines.join('\n')}`.slice(0, 4096));
   }
 
   if (originalRequesterId === 'scheduled_reset') {

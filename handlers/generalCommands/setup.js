@@ -508,10 +508,24 @@ export function setupGeneralCommandsHandler(client) {
             }
 
             const categoryKeys = interaction.values || [];
-            const updated = updateRaidWizardSession(sessionId, { categoryKeys, step: 'category', tasks: [] });
 
-            const optionCount = getRaidWizardTaskOptionsCount(updated.categoryKeys);
-            const canContinue = updated.categoryKeys.length > 0 && optionCount <= 25;
+            const optionCount = getRaidWizardTaskOptionsCount(categoryKeys);
+            const canContinue = categoryKeys.length > 0 && optionCount <= 25;
+            const nextStep = canContinue ? 'tasks' : 'category';
+
+            const updated = updateRaidWizardSession(sessionId, { categoryKeys, step: nextStep, tasks: [] });
+
+            // Auto-advance to Page 2 when the category selection is valid.
+            if (canContinue) {
+                await interaction.update({
+                    embeds: [getWizardTasksEmbed({ categoryKeys: updated.categoryKeys, tasks: [] })],
+                    components: [
+                        getRaidWizardTasksSelectRow(sessionId, updated.categoryKeys, []),
+                        getRaidWizardNavRow(sessionId, { step: 'tasks', canContinue: false }),
+                    ],
+                });
+                return;
+            }
 
             await interaction.update({
                 embeds: [
@@ -526,7 +540,7 @@ export function setupGeneralCommandsHandler(client) {
                 ],
                 components: [
                     getRaidWizardCategorySelectRow(sessionId, updated.categoryKeys),
-                    getRaidWizardNavRow(sessionId, { step: 'category', canContinue }),
+                    getRaidWizardNavRow(sessionId, { step: 'category', canContinue: false }),
                 ],
             });
             return;

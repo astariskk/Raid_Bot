@@ -69,7 +69,7 @@ export function getHowToUseEmbed() {
             {
                 name: '2) Start Raid',
                 value:
-                    'Press `Start Raid`, pick categories + tasks, then fill in the details modal.\n' +
+                    'Press `Start Raid`, pick the category, press next and select the tasks , then fill in the details modal.\n' +
                     'If your task is not listed, use other tasks: \n'+ 
                     '* `simple` - for 7 man rooms and tasks that will take less than 5 minutes \n' +
                     '* `moderate` - for tasks that will take 5-20 minutes \n' +

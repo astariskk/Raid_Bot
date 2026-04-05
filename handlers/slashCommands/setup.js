@@ -261,16 +261,17 @@ export async function handleSlashCommandInteraction(interaction, client) {
       }
 
       try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+
         const existing = await getGifCommand(normalized).catch(() => null);
         if (!existing) {
-          await interaction.reply({
+          await interaction.editReply({
             content: `\`/${normalized}\` does not exist yet. Use \`/addgif\` to create it.`,
-            flags: MessageFlags.Ephemeral,
           });
           return;
         }
 
-        const sent = await startGifCommandCrudSession({
+        await startGifCommandCrudSession({
           channel: interaction.channel,
           guild: interaction.guild,
           member: interaction.member,
@@ -279,12 +280,16 @@ export async function handleSlashCommandInteraction(interaction, client) {
           kind: existing.kind,
         });
 
-        await interaction.reply({
-          content: `Opened editor for \`/${normalized}\`. ${sent?.url ? `Open: ${sent.url}` : ''}`.trim(),
-          flags: MessageFlags.Ephemeral,
-        });
+        await interaction.deleteReply().catch(() => {});
       } catch (error) {
         console.error('Error handling /editgif:', error);
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({
+            content: error?.message || 'Failed to open GIF editor.',
+          }).catch(() => {});
+          return;
+        }
+
         await interaction.reply({
           content: error?.message || 'Failed to open GIF editor.',
           flags: MessageFlags.Ephemeral,

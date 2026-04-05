@@ -276,20 +276,17 @@ async function buildWizardComponents(session, { messageId }) {
   const prevBtn = new ButtonBuilder().setCustomId(`chartedit_prev_${messageId}`).setLabel('<').setStyle(ButtonStyle.Secondary);
   const nextBtn = new ButtonBuilder().setCustomId(`chartedit_next_${messageId}`).setLabel('>').setStyle(ButtonStyle.Secondary);
   const addBtn = new ButtonBuilder().setCustomId(`chartedit_add_${messageId}`).setLabel('Add Page').setStyle(ButtonStyle.Secondary);
-  const removeBtn = new ButtonBuilder().setCustomId(`chartedit_remove_${messageId}`).setLabel('Remove Page').setStyle(ButtonStyle.Secondary);
+  const editImageBtn = new ButtonBuilder().setCustomId(`chartedit_img_${messageId}`).setLabel('Edit Image').setStyle(ButtonStyle.Secondary);
   const editVariantTitleBtn = new ButtonBuilder().setCustomId(`chartedit_vtitle_${messageId}`).setLabel('Edit Title').setStyle(ButtonStyle.Secondary);
-  const deleteVariantBtn = new ButtonBuilder()
-    .setCustomId(`chartedit_delvariant_${messageId}`)
-    .setLabel('Delete Variant')
-    .setStyle(ButtonStyle.Danger);
+  const removeBtn = new ButtonBuilder().setCustomId(`chartedit_remove_${messageId}`).setLabel('Remove Page').setStyle(ButtonStyle.Danger);
   const deleteTypeBtn = new ButtonBuilder().setCustomId(`chartedit_delete_${messageId}`).setLabel('Delete Type').setStyle(ButtonStyle.Danger);
   const editTriggersBtn = new ButtonBuilder().setCustomId(`chartedit_trig_${messageId}`).setLabel('Edit Triggers').setStyle(ButtonStyle.Secondary);
   const closeBtn = new ButtonBuilder().setCustomId(`chartedit_close_${messageId}`).setLabel('Save and Close').setStyle(ButtonStyle.Success);
 
   return [
     new ActionRowBuilder().addComponents(variantSelect),
-    new ActionRowBuilder().addComponents(prevBtn, nextBtn, addBtn, removeBtn, editVariantTitleBtn),
-    new ActionRowBuilder().addComponents(editTriggersBtn, deleteVariantBtn, deleteTypeBtn, closeBtn),
+    new ActionRowBuilder().addComponents(prevBtn, nextBtn, addBtn, editImageBtn, editVariantTitleBtn),
+    new ActionRowBuilder().addComponents(editTriggersBtn, removeBtn, deleteTypeBtn, closeBtn),
   ];
 }
 
@@ -559,7 +556,7 @@ export async function handleChartsCrudInteraction(interaction) {
     session.variantKey = null;
     session.variantTitle = null;
     session.chart = null;
-    session.step = 'category';
+    session.step = session.category ? 'type' : 'category';
     sessions.set(messageId, session);
     await refreshFromComponentInteraction(interaction, session);
     return true;
@@ -577,7 +574,7 @@ export async function handleChartsCrudInteraction(interaction) {
     session.variantKey = null;
     session.variantTitle = null;
     session.chart = null;
-    session.step = 'category';
+    session.step = 'type';
     sessions.set(messageId, session);
     await refreshFromModalInteraction(interaction, session);
     return true;
@@ -1137,6 +1134,57 @@ export async function handleChartsCrudInteraction(interaction) {
         sessions.set(messageId, session);
 
         await interaction.followUp({ content: 'Page added.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        await interaction.editReply(await buildWizardPayload(session, messageId)).catch(() => {});
+      } catch {
+        await interaction.followUp({ content: 'Timed out waiting for an attachment.', flags: MessageFlags.Ephemeral }).catch(() => {});
+      }
+      return true;
+    }
+
+    if (action === 'img') {
+      if (!pages.length) {
+        await interaction.reply({ content: 'No pages yet. Use Add Page first.', flags: MessageFlags.Ephemeral });
+        return true;
+      }
+
+      const idx = Math.max(0, Math.min(session.pageIndex ?? 0, pages.length - 1));
+      const currentPage = pages[idx] || null;
+
+      await interaction.deferUpdate().catch(() => {});
+      await interaction.followUp({ content: 'Upload the new chart image as your next message (within 60s).', flags: MessageFlags.Ephemeral }).catch(() => {});
+
+      const channel = interaction.channel;
+      if (!channel) return true;
+
+      try {
+        const collected = await channel.awaitMessages({
+          filter: (m) => m.author.id === interaction.user.id && m.attachments.size > 0,
+          max: 1,
+          time: 60000,
+          errors: ['time'],
+        });
+        const attachment = collected.first().attachments.first();
+        const assetPath = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
+
+        if (currentPage?.asset_path) {
+          const supabase = getSupabase();
+          await supabase.storage.from(getChartsBucket()).remove([String(currentPage.asset_path)]).catch(() => {});
+        }
+
+        const updatedPages = [...pages];
+        updatedPages[idx] = { ...updatedPages[idx], asset_path: assetPath };
+
+        const updatedVariants = [...chart.variants];
+        updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], pages: updatedPages };
+
+        await updateChart(chart.key, { variants: updatedVariants });
+        const updated = await getChart(chart.key);
+
+        session.chart = updated;
+        session.pageIndex = idx;
+        sessions.set(messageId, session);
+
+        await interaction.followUp({ content: 'Image updated.', flags: MessageFlags.Ephemeral }).catch(() => {});
         await interaction.editReply(await buildWizardPayload(session, messageId)).catch(() => {});
       } catch {
         await interaction.followUp({ content: 'Timed out waiting for an attachment.', flags: MessageFlags.Ephemeral }).catch(() => {});
