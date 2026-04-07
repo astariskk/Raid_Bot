@@ -215,6 +215,7 @@ export async function maybeHandleChartTriggerMessage(message) {
 
   const first = content.split(/\s+/)[0]?.toLowerCase();
   if (!first) return false;
+  if (!first.startsWith('!') && !first.startsWith('/')) return false;
 
   const key = await findChartKeyByTrigger(first).catch(() => null);
   if (!key) return false;
