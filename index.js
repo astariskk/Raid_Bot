@@ -2,6 +2,8 @@
 
 import './bootstrap/env.js';
 
+import dns from 'node:dns';
+
 import { startHealthServer } from './bootstrap/webServer.js';
 import { createDiscordClient } from './bootstrap/discordClient.js';
 import { registerBotReadyHandler } from './bootstrap/botReady.js';
@@ -9,13 +11,33 @@ import { registerProcessHandlers } from './bootstrap/processHandlers.js';
 import { registerDiscordDiagnostics } from './bootstrap/discordDiagnostics.js';
 import { logDiscordConnectivity } from './bootstrap/networkDiagnostics.js';
 
-import dns from "dns";
-dns.setServers([
-  "8.8.8.8",
-  "8.8.4.4"
-]);
-
 startHealthServer();
+
+// Prefer IPv4 when the platform has broken IPv6 egress/DNS (common on some hosts).
+if (['1', 'true', 'yes'].includes(String(process.env.DISCORD_FORCE_IPV4 ?? '').toLowerCase())) {
+  try {
+    dns.setDefaultResultOrder('ipv4first');
+    console.log('[net] Forcing DNS result order: ipv4first');
+  } catch (error) {
+    console.warn('[net] Failed to set ipv4first DNS result order:', error?.message ?? error);
+  }
+}
+
+// Optional custom DNS servers (comma-separated), e.g. "8.8.8.8,8.8.4.4"
+if (process.env.DISCORD_DNS_SERVERS) {
+  const servers = String(process.env.DISCORD_DNS_SERVERS)
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (servers.length) {
+    try {
+      dns.setServers(servers);
+      console.log('[net] Using custom DNS servers:', servers.join(', '));
+    } catch (error) {
+      console.warn('[net] Failed to set custom DNS servers:', error?.message ?? error);
+    }
+  }
+}
 
 export const client = createDiscordClient();
 registerBotReadyHandler(client);
@@ -75,4 +97,3 @@ client
     if (exitOnFatal) process.exit(1);
     console.error('DISABLE_PROCESS_EXIT is enabled; bot will stay running for debugging.');
   });
-

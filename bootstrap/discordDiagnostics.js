@@ -4,8 +4,13 @@ export function registerDiscordDiagnostics(client) {
 
   if (!diagnosticsEnabled) return;
 
+  // Legacy-ish events (may not fire on discord.js v14, but harmless to register)
+  client.on('connecting', () => console.log('[discord] Connecting...'));
+  client.on('reconnecting', () => console.log('[discord] Reconnecting...'));
+
   client.on('warn', (info) => console.warn('[discord warn]', info));
   client.on('error', (error) => console.error('[discord error]', error));
+  client.on('debug', (message) => console.log('[discord debug]', message));
 
   client.on('shardError', (error, shardId) => {
     console.error(`[discord shardError shard=${shardId}]`, error);
@@ -27,4 +32,3 @@ export function registerDiscordDiagnostics(client) {
   // Low-level gateway debug (if available)
   client.ws?.on?.('debug', (message) => console.log('[discord ws]', message));
 }
-
