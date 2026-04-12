@@ -1,99 +1,12 @@
 // index.js
 
 import './bootstrap/env.js';
+import { startBot } from './bootstrap/startBot.js';
 
-import dns from 'node:dns';
-
-import { startHealthServer } from './bootstrap/webServer.js';
-import { createDiscordClient } from './bootstrap/discordClient.js';
-import { registerBotReadyHandler } from './bootstrap/botReady.js';
-import { registerProcessHandlers } from './bootstrap/processHandlers.js';
-import { registerDiscordDiagnostics } from './bootstrap/discordDiagnostics.js';
-import { logDiscordConnectivity } from './bootstrap/networkDiagnostics.js';
-
-startHealthServer();
-
-// Prefer IPv4 when the platform has broken IPv6 egress/DNS (common on some hosts).
-if (['1', 'true', 'yes'].includes(String(process.env.DISCORD_FORCE_IPV4 ?? '').toLowerCase())) {
-  try {
-    dns.setDefaultResultOrder('ipv4first');
-    console.log('[net] Forcing DNS result order: ipv4first');
-  } catch (error) {
-    console.warn('[net] Failed to set ipv4first DNS result order:', error?.message ?? error);
-  }
-}
-
-// Optional custom DNS servers (comma-separated), e.g. "8.8.8.8,8.8.4.4"
-if (process.env.DISCORD_DNS_SERVERS) {
-  const servers = String(process.env.DISCORD_DNS_SERVERS)
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (servers.length) {
-    try {
-      dns.setServers(servers);
-      console.log('[net] Using custom DNS servers:', servers.join(', '));
-    } catch (error) {
-      console.warn('[net] Failed to set custom DNS servers:', error?.message ?? error);
-    }
-  }
-}
-
-export const client = createDiscordClient();
-registerBotReadyHandler(client);
-registerProcessHandlers(client);
-registerDiscordDiagnostics(client);
-
-const exists = (value) => (value ? 'EXISTS' : 'MISSING');
-console.log('[env] DISCORD_TOKEN:', exists(process.env.DISCORD_TOKEN));
-console.log('[env] SUPABASE_URL:', exists(process.env.SUPABASE_URL));
-console.log(
-  '[env] SUPABASE_KEY:',
-  exists(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY),
-);
-
-const exitOnFatal =
-  !['1', 'true', 'yes'].includes(String(process.env.DISABLE_PROCESS_EXIT ?? '').toLowerCase());
-
-const readyTimeoutMs = Number(process.env.DISCORD_READY_TIMEOUT_MS ?? 30000);
-const loginTimeoutMs = Number(process.env.DISCORD_LOGIN_TIMEOUT_MS ?? 30000);
-let loginSettled = false;
-let loginResolved = false;
-
-setTimeout(() => {
-  const isReady = typeof client.isReady === 'function' ? client.isReady() : Boolean(client.readyAt);
-  if (!isReady) {
-    console.warn(
-      `[discord] Still not ready after ${readyTimeoutMs}ms (loginSettled=${loginSettled}, loginResolved=${loginResolved}). If this persists, check network/DNS and token validity.`,
-    );
-  }
-}, readyTimeoutMs);
-
-setTimeout(() => {
-  if (!loginSettled) {
-    console.warn(
-      `[discord] Login promise still pending after ${loginTimeoutMs}ms. This usually indicates gateway connect/DNS/TLS issues rather than an invalid token.`,
-    );
-  }
-}, loginTimeoutMs);
-
-// Optional connectivity probes (requires DISCORD_DIAGNOSTICS=1)
-logDiscordConnectivity().catch((e) => console.warn('[net] diagnostics failed:', e?.message ?? e));
-
-client
-  .login(process.env.DISCORD_TOKEN)
-  .then(() => {
-    loginSettled = true;
-    loginResolved = true;
-    console.log('[discord] Login promise resolved.');
-  })
-  .catch((error) => {
-    loginSettled = true;
-    loginResolved = false;
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    console.error('!!! FAILED TO LOGIN TO DISCORD (login promise rejected):');
-    console.error(error);
-    console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
-    if (exitOnFatal) process.exit(1);
-    console.error('DISABLE_PROCESS_EXIT is enabled; bot will stay running for debugging.');
-  });
+startBot().catch((error) => {
+  console.error('[startup] startBot() failed:', error);
+  console.error('[startup] stack:', error?.stack);
+  const exitOnFatal =
+    !['1', 'true', 'yes'].includes(String(process.env.DISABLE_PROCESS_EXIT ?? '').toLowerCase());
+  if (exitOnFatal) process.exit(1);
+});

@@ -1,7 +1,7 @@
 // bootstrap/discordClient.js
-import { Client, GatewayIntentBits } from 'discord.js';
+export async function createDiscordClient() {
+  const { Client, GatewayIntentBits } = await import('discord.js');
 
-export function createDiscordClient() {
   return new Client({
     intents: [
       GatewayIntentBits.Guilds,
