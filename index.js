@@ -9,13 +9,11 @@ import { registerProcessHandlers } from './bootstrap/processHandlers.js';
 import { registerDiscordDiagnostics } from './bootstrap/discordDiagnostics.js';
 import { logDiscordConnectivity } from './bootstrap/networkDiagnostics.js';
 
-/* 
 import dns from "dns";
 dns.setServers([
   "8.8.8.8",
   "8.8.4.4"
 ]);
-*/
 
 startHealthServer();
 
