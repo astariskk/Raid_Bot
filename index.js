@@ -7,6 +7,7 @@ import { createDiscordClient } from './bootstrap/discordClient.js';
 import { registerBotReadyHandler } from './bootstrap/botReady.js';
 import { registerProcessHandlers } from './bootstrap/processHandlers.js';
 import { registerDiscordDiagnostics } from './bootstrap/discordDiagnostics.js';
+import { logDiscordConnectivity } from './bootstrap/networkDiagnostics.js';
 
 /* 
 import dns from "dns";
@@ -35,19 +36,40 @@ const exitOnFatal =
   !['1', 'true', 'yes'].includes(String(process.env.DISABLE_PROCESS_EXIT ?? '').toLowerCase());
 
 const readyTimeoutMs = Number(process.env.DISCORD_READY_TIMEOUT_MS ?? 30000);
+const loginTimeoutMs = Number(process.env.DISCORD_LOGIN_TIMEOUT_MS ?? 30000);
+let loginSettled = false;
+let loginResolved = false;
+
 setTimeout(() => {
   const isReady = typeof client.isReady === 'function' ? client.isReady() : Boolean(client.readyAt);
   if (!isReady) {
     console.warn(
-      `[discord] Still not ready after ${readyTimeoutMs}ms. If this persists, check token/env and network/DNS.`,
+      `[discord] Still not ready after ${readyTimeoutMs}ms (loginSettled=${loginSettled}, loginResolved=${loginResolved}). If this persists, check network/DNS and token validity.`,
     );
   }
 }, readyTimeoutMs);
 
+setTimeout(() => {
+  if (!loginSettled) {
+    console.warn(
+      `[discord] Login promise still pending after ${loginTimeoutMs}ms. This usually indicates gateway connect/DNS/TLS issues rather than an invalid token.`,
+    );
+  }
+}, loginTimeoutMs);
+
+// Optional connectivity probes (requires DISCORD_DIAGNOSTICS=1)
+logDiscordConnectivity().catch((e) => console.warn('[net] diagnostics failed:', e?.message ?? e));
+
 client
   .login(process.env.DISCORD_TOKEN)
-  .then(() => console.log('[discord] Login promise resolved.'))
+  .then(() => {
+    loginSettled = true;
+    loginResolved = true;
+    console.log('[discord] Login promise resolved.');
+  })
   .catch((error) => {
+    loginSettled = true;
+    loginResolved = false;
     console.error('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!');
     console.error('!!! FAILED TO LOGIN TO DISCORD (login promise rejected):');
     console.error(error);
