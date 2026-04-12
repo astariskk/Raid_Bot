@@ -9,6 +9,8 @@ import { connectDB } from '../utils/dbOps.js';
 
 export function registerBotReadyHandler(client) {
   let didSetup = false;
+  const exitOnReadyFailure =
+    !['1', 'true', 'yes'].includes(String(process.env.DISABLE_PROCESS_EXIT ?? '').toLowerCase());
 
   client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -17,8 +19,9 @@ export function registerBotReadyHandler(client) {
       if (didSetup) return;
       didSetup = true;
 
+      console.log('[startup] Initializing DB client...');
       await connectDB();
-      console.log('Database connection established for bot operations.');
+      console.log('[startup] DB init complete.');
 
       await registerSlashCommands(client);
       setupSlashCommandsHandler(client);
@@ -32,7 +35,8 @@ export function registerBotReadyHandler(client) {
     } catch (error) {
       console.error('Failed to start bot due to database connection error:', error);
       console.error('Error details:', error?.stack);
-      process.exit(1);
+      if (exitOnReadyFailure) process.exit(1);
+      console.error('DISABLE_PROCESS_EXIT is enabled; bot will stay running for debugging.');
     }
   });
 }

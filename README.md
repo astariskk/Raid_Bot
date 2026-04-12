@@ -29,9 +29,7 @@ Run these once in the right channels so members can use the bot:
 
 # debugging issues:
 
-if there are no Bot is online on Logs, Blame Discord banning render's IP
-
-to fix. Either Create a new project on a new region or Wait
+on the service, press manual deploy and press deploy latest commit
 
 
 # For copying the code/running it locally
