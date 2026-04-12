@@ -10,7 +10,13 @@ export function registerDiscordDiagnostics(client) {
 
   client.on('warn', (info) => console.warn('[discord warn]', info));
   client.on('error', (error) => console.error('[discord error]', error));
-  client.on('debug', (message) => console.log('[discord debug]', message));
+  client.on('debug', (message) => {
+    if (typeof message === 'string' && message.includes('Provided token:')) {
+      console.log('[discord debug]', 'Provided token: [REDACTED]');
+      return;
+    }
+    console.log('[discord debug]', message);
+  });
 
   client.on('shardError', (error, shardId) => {
     console.error(`[discord shardError shard=${shardId}]`, error);
