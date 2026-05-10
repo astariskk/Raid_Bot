@@ -1,109 +1,99 @@
 // config/constants/tasks.js
+import { getSupabase } from '../../utils/supabaseClient.js';
 
 export const MAX_XP_PER_RAID = 30000; // 30,000 EXP per raid
 
-export const POINTS_CONFIG = {
-  // --- daily tasks ---
-  ezrajal: 1000,
-  warden: 1000,
-  engineer: 1000,
-  tyndarius: 1000,
-
-  // --- other four ---
-  kala: 1000,
-  iara: 1000,
-
-  // --- temple shrine tasks ---
-  tsleft: 1000,
-  tsmid: 2000,
-  tsright: 1000,
-
-  // --- weekly tasks ---
-  speaker: 4000,
-  gramiel: 3000,
-  darkon: 3000,
-  drago: 1000,
-  dage: 2000,
-  nulgath: 2000,
-  drakath: 2000,
-
-  // --- other seven ---
-  mechabinky: 5000,
-  astralshrine: 3000,
-  kathool: 2000,
-  voidnerfkitten: 1000,
-  lavarockshore: 1000,
-  apexazalith: 1000,
-
-  // --- VA daily ---
-  vamem: 1000,
-  vanonmem: 2000,
-
-  // --- originul ---
-  voidflibbi: 1000,
-  voidnightbane: 1000,
-  voidxyfrag: 1000,
-
-  // --- generic tasks ---
-  simple: 1000,
-  moderate: 5000,
-  difficult: 10000,
-
-  // --- legion ---
-  deimos: 500,
-  beast: 500,
-  lichlord: 500,
+const CATEGORY_LABELS = {
+  dailies: 'Dailies',
+  weeklies: 'Weeklies',
+  templeshrine: 'Temple Shrine',
+  originul: 'Originul',
+  legion: 'Legion',
+  other_seven: 'Other 7-man',
+  generic: 'Other Tasks',
 };
 
-// --- Canonical task group members ---
-export const DAILIES_LIST = ['ezrajal', 'warden', 'engineer', 'tyndarius'];
-export const WEEKLIES_LIST = ['nulgath', 'dage', 'drakath', 'darkon', 'drago', 'speaker', 'gramiel'];
-export const TEMPLESHRINE_LIST = ['tsleft', 'tsmid', 'tsright'];
-export const ORIGINUL_LIST = ['voidflibbi', 'voidnightbane', 'voidxyfrag'];
-export const OTHERS_FOUR_LIST = ['kala', 'iara'];
-export const OTHERS_SEVEN_LIST = [
-  'mechabinky',
-  'kathool',
-  'astralshrine',
-  'voidnerfkitten',
-  'lavarockshore',
-  'apexazalith',
-  'vamem',
-  'vanonmem',
+const CATEGORY_ORDER = [
+  'dailies',
+  'weeklies',
+  'templeshrine',
+  'originul',
+  'legion',
+  'other_seven',
+  'generic',
 ];
-export const GENERIC_TASKS_LIST = ['simple', 'moderate', 'difficult'];
-export const LEGION_LIST = ['deimos', 'beast', 'lichlord'];
 
-// --- Raid Task Categories (single source of truth for the raid wizard UI) ---
-// Keep list exports above for backwards compatibility.
-export const RAID_TASK_CATEGORIES = Object.freeze([
-  { key: 'dailies', label: 'Dailies', tasks: DAILIES_LIST },
-  { key: 'weeklies', label: 'Weeklies', tasks: WEEKLIES_LIST },
-  { key: 'templeshrine', label: 'Temple Shrine', tasks: TEMPLESHRINE_LIST },
-  { key: 'originul', label: 'Originul', tasks: ORIGINUL_LIST },
-  { key: 'legion', label: 'Legion', tasks: LEGION_LIST },
-  { key: 'other_four', label: 'Other 4-man', tasks: OTHERS_FOUR_LIST },
-  { key: 'other_seven', label: 'Other 7-man', tasks: OTHERS_SEVEN_LIST },
-  { key: 'generic', label: 'Other Tasks', tasks: GENERIC_TASKS_LIST },
-]);
+const FALLBACK_TASK_ROWS = [
+  { key: 'ezrajal', display_name: 'Ultra Ezrajal', points: 1000, category: 'dailies', active: true, map_names: ['ultraezrajal'], aliases: [], sort_order: 10 },
+  { key: 'warden', display_name: 'Ultra Warden', points: 1000, category: 'dailies', active: true, map_names: ['ultrawarden'], aliases: [], sort_order: 20 },
+  { key: 'engineer', display_name: 'Ultra Engineer', points: 1000, category: 'dailies', active: true, map_names: ['ultraengineer'], aliases: [], sort_order: 30 },
+  { key: 'tyndarius', display_name: 'Ultra Tyndarius', points: 1000, category: 'dailies', active: true, map_names: ['ultratyndarius'], aliases: [], sort_order: 40 },
 
-export const TASK_CATEGORY_BY_TASK = Object.freeze(
-  Object.fromEntries(
-    RAID_TASK_CATEGORIES.flatMap((cat) => (cat.tasks || []).map((task) => [task, cat.key])),
-  ),
-);
+  { key: 'nulgath', display_name: 'Ultra Nulgath', points: 2000, category: 'weeklies', active: true, map_names: ['ultranulgath'], aliases: [], sort_order: 10 },
+  { key: 'dage', display_name: 'Ultra Dage', points: 2000, category: 'weeklies', active: true, map_names: ['ultradage'], aliases: [], sort_order: 20 },
+  { key: 'drakath', display_name: 'Champion Drakath', points: 2000, category: 'weeklies', active: true, map_names: ['championdrakath'], aliases: [], sort_order: 30 },
+  { key: 'darkon', display_name: 'Ultra Darkon', points: 3000, category: 'weeklies', active: true, map_names: ['ultradarkon'], aliases: [], sort_order: 40 },
+  { key: 'drago', display_name: 'Ultra Drago', points: 1000, category: 'weeklies', active: true, map_names: ['ultradrago'], aliases: [], sort_order: 50 },
+  { key: 'speaker', display_name: 'Ultra Speaker', points: 4000, category: 'weeklies', active: true, map_names: ['ultraspeaker'], aliases: [], sort_order: 60 },
+  { key: 'gramiel', display_name: 'Ultra Gramiel', points: 3000, category: 'weeklies', active: true, map_names: ['ultragramiel'], aliases: [], sort_order: 70 },
 
-export const DISPLAY_POINTS_LIST = Object.entries(POINTS_CONFIG).map(
-  ([task, points]) => `${task} = ${points} EXP`,
-);
+  { key: 'tsleft', display_name: 'Templeshrine Left', points: 1000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine left', 'temple shrine (left)', 'templeshrineleft'], sort_order: 10 },
+  { key: 'tsmid', display_name: 'Templeshrine Mid', points: 2000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine mid', 'temple shrine (mid)', 'templeshrinemid'], sort_order: 20 },
+  { key: 'tsright', display_name: 'Templeshrine Right', points: 1000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine right', 'temple shrine (right)', 'templeshrineright'], sort_order: 30 },
 
-export const TASK_DISPLAY_NAMES = Object.freeze({
-  tsleft: 'Templeshrine Left',
-  tsmid: 'Templeshrine Mid',
-  tsright: 'Templeshrine Right',
-  vamem: 'Void Aura Daily (Mem)',
-  vanonmem: 'Void Aura Daily (Non-Mem)',
-});
+  { key: 'voidflibbi', display_name: 'Void Flibbi', points: 1000, category: 'originul', active: true, map_names: ['voidflibbi'], aliases: ['flibbi'], sort_order: 10 },
+  { key: 'voidnightbane', display_name: 'Void Nightbane', points: 1000, category: 'originul', active: true, map_names: ['voidnightbane'], aliases: ['nightbane'], sort_order: 20 },
+  { key: 'voidxyfrag', display_name: 'Void Xyfrag', points: 1000, category: 'originul', active: true, map_names: ['voidxyfrag'], aliases: ['xyfrag'], sort_order: 30 },
+
+  { key: 'deimos', display_name: 'Deimos', points: 500, category: 'legion', active: true, map_names: ['deimos'], aliases: [], sort_order: 10 },
+  { key: 'beast', display_name: 'Beast', points: 500, category: 'legion', active: true, map_names: ['sevencircleswar'], aliases: [], sort_order: 20 },
+  { key: 'lichlord', display_name: 'Lich Lord', points: 500, category: 'legion', active: true, map_names: ['frozenlair'], aliases: ['lich'], sort_order: 30 },
+
+  { key: 'kala', display_name: 'Ultra Kala', points: 1000, category: 'generic', active: false, map_names: ['ultrakala'], aliases: [], sort_order: 10 },
+  { key: 'iara', display_name: 'Ultra Iara', points: 1000, category: 'generic', active: false, map_names: ['ultraiara'], aliases: [], sort_order: 20 },
+
+  { key: 'mechabinky', display_name: 'Mechabinky', points: 5000, category: 'other_seven', active: true, map_names: ['grimchallenge'], aliases: ['grim'], sort_order: 10 },
+  { key: 'kathool', display_name: 'Kathool', points: 2000, category: 'other_seven', active: true, map_names: ['kathooldepths'], aliases: ['kath'], sort_order: 20 },
+  { key: 'astralshrine', display_name: 'Astral Shrine', points: 3000, category: 'other_seven', active: true, map_names: ['astralshrine'], aliases: ['astral'], sort_order: 30 },
+  { key: 'voidnerfkitten', display_name: 'Void Nerf Kitten', points: 1000, category: 'other_seven', active: true, map_names: ['voidnerfkitten'], aliases: ['nerfkitten'], sort_order: 40 },
+  { key: 'lavarockshore', display_name: 'Lavarockshore', points: 1000, category: 'other_seven', active: true, map_names: ['lavarockshore'], aliases: ['lava', 'lavarock', 'rockshore'], sort_order: 50 },
+  { key: 'apexazalith', display_name: 'Apex Azalith', points: 1000, category: 'other_seven', active: true, map_names: ['apexazalith'], aliases: ['apex'], sort_order: 60 },
+  { key: 'vamem', display_name: 'Void Aura Daily (Mem)', points: 1000, category: 'other_seven', active: true, map_names: ['ancienttrigoras', 'chaoskraken', 'gravechallenge'], aliases: ['vam'], sort_order: 70 },
+  { key: 'vanonmem', display_name: 'Void Aura Daily (Non-Mem)', points: 2000, category: 'other_seven', active: true, map_names: ['voidflibbi', 'icewing', 'hydrachallenge'], aliases: ['vanm'], sort_order: 80 },
+
+  { key: 'simple', display_name: 'Simple', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['easy'], sort_order: 10 },
+  { key: 'moderate', display_name: 'Moderate', points: 5000, category: 'generic', active: true, map_names: [], aliases: ['medium'], sort_order: 20 },
+  { key: 'difficult', display_name: 'Difficult', points: 10000, category: 'generic', active: true, map_names: [], aliases: ['hard'], sort_order: 30 },
+];
+
+export const POINTS_CONFIG = {};
+export const TASK_DISPLAY_NAMES = {};
+export const TASK_ALIASES = {};
+export const TASK_JOIN_PREFIXES = {};
+export const TASK_CATEGORY_BY_TASK = {};
+export const DISPLAY_POINTS_LIST = [];
+
+export const DAILIES_LIST = [];
+export const WEEKLIES_LIST = [];
+export const TEMPLESHRINE_LIST = [];
+export const ORIGINUL_LIST = [];
+export const OTHERS_FOUR_LIST = [];
+export const OTHERS_SEVEN_LIST = [];
+export const GENERIC_TASKS_LIST = [];
+export const LEGION_LIST = [];
+
+export const RAID_TASK_CATEGORIES = [];
+
+let loadedAtMs = 0;
+let loadedFrom = 'fallback';
+let lastLoadError = null;
+
+function normalizeTaskKey(value) {
+  return String(value ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, '');
+}
 
 function normalizeTaskAliasKey(value) {
   return String(value ?? '')
@@ -112,31 +102,164 @@ function normalizeTaskAliasKey(value) {
     .replace(/[^a-z0-9]/g, '');
 }
 
-export const TASK_ALIASES = Object.freeze(() => {
+function replaceObject(target, source) {
+  for (const key of Object.keys(target)) delete target[key];
+  Object.assign(target, source);
+}
+
+function replaceArray(target, source) {
+  target.splice(0, target.length, ...source);
+}
+
+function formatCategoryLabel(key) {
+  return String(key ?? '')
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ') || 'Custom';
+}
+
+function normalizeRows(rows = []) {
+  return rows
+    .map((row) => {
+      const key = normalizeTaskKey(row.key);
+      if (!key) return null;
+
+      return {
+        key,
+        display_name: String(row.display_name || key).trim(),
+        points: Math.max(0, Math.floor(Number(row.points ?? 0) || 0)),
+        category: normalizeTaskKey(row.category || 'generic') || 'generic',
+        active: row.active !== false,
+        description: row.description ?? null,
+        map_names: Array.isArray(row.map_names) ? row.map_names.map(String).map((v) => v.trim()).filter(Boolean) : [],
+        aliases: Array.isArray(row.aliases) ? row.aliases.map(String).map((v) => v.trim()).filter(Boolean) : [],
+        sort_order: Math.floor(Number(row.sort_order ?? 0) || 0),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => {
+      const aIndex = CATEGORY_ORDER.includes(a.category) ? CATEGORY_ORDER.indexOf(a.category) : CATEGORY_ORDER.length;
+      const bIndex = CATEGORY_ORDER.includes(b.category) ? CATEGORY_ORDER.indexOf(b.category) : CATEGORY_ORDER.length;
+      const catDiff = aIndex - bIndex;
+      if (catDiff) return catDiff;
+      const categoryNameDiff = a.category.localeCompare(b.category);
+      if (categoryNameDiff) return categoryNameDiff;
+      return (a.sort_order - b.sort_order) || a.key.localeCompare(b.key);
+    });
+}
+
+function applyTaskRows(rows, { source = 'database', error = null } = {}) {
+  const activeRows = normalizeRows(rows).filter((row) => row.active);
+  const taskListsByCategory = {
+    dailies: DAILIES_LIST,
+    weeklies: WEEKLIES_LIST,
+    templeshrine: TEMPLESHRINE_LIST,
+    originul: ORIGINUL_LIST,
+    legion: LEGION_LIST,
+    other_seven: OTHERS_SEVEN_LIST,
+    generic: GENERIC_TASKS_LIST,
+  };
+  const pointsConfig = {};
+  const displayNames = {};
   const aliases = {};
+  const joinPrefixes = {};
+  const categoryByTask = {};
+  const displayPoints = [];
 
-  // Always accept canonical keys (even if the user types spaces/punctuation).
-  for (const key of Object.keys(POINTS_CONFIG)) {
-    aliases[normalizeTaskAliasKey(key)] = key;
+  for (const list of Object.values(taskListsByCategory)) replaceArray(list, []);
+
+  for (const row of activeRows) {
+    pointsConfig[row.key] = row.points;
+    displayNames[row.key] = row.display_name;
+    categoryByTask[row.key] = row.category;
+    displayPoints.push(`${row.key} = ${row.points} EXP`);
+
+    if (!taskListsByCategory[row.category]) taskListsByCategory[row.category] = [];
+    taskListsByCategory[row.category].push(row.key);
+
+    const mapNames = row.map_names.length ? row.map_names : [row.key];
+    joinPrefixes[row.key] = mapNames;
+
+    const aliasInputs = [
+      row.key,
+      row.display_name,
+      ...row.aliases,
+      ...mapNames,
+    ];
+
+    for (const alias of aliasInputs) {
+      const aliasKey = normalizeTaskAliasKey(alias);
+      if (aliasKey) aliases[aliasKey] = row.key;
+    }
   }
 
-  // Accept display names as aliases (e.g. "Templeshrine Left").
-  for (const [key, display] of Object.entries(TASK_DISPLAY_NAMES)) {
-    aliases[normalizeTaskAliasKey(display)] = key;
+  replaceObject(POINTS_CONFIG, pointsConfig);
+  replaceObject(TASK_DISPLAY_NAMES, displayNames);
+  replaceObject(TASK_ALIASES, aliases);
+  replaceObject(TASK_JOIN_PREFIXES, joinPrefixes);
+  replaceObject(TASK_CATEGORY_BY_TASK, categoryByTask);
+  replaceArray(DISPLAY_POINTS_LIST, displayPoints);
+
+  const categories = CATEGORY_ORDER
+    .filter((key) => taskListsByCategory[key]?.length)
+    .map((key) => ({
+      key,
+      label: CATEGORY_LABELS[key] ?? key,
+      tasks: taskListsByCategory[key],
+    }));
+
+  const extraCategoryKeys = Object.keys(taskListsByCategory)
+    .filter((key) => !CATEGORY_ORDER.includes(key) && taskListsByCategory[key]?.length)
+    .sort();
+
+  for (const key of extraCategoryKeys) {
+    categories.push({ key, label: CATEGORY_LABELS[key] ?? formatCategoryLabel(key), tasks: taskListsByCategory[key] });
   }
 
-  // Extra friendly aliases (not necessarily shown in UI).
-  aliases[normalizeTaskAliasKey('Temple Shrine Left')] = 'tsleft';
-  aliases[normalizeTaskAliasKey('Temple Shrine Mid')] = 'tsmid';
-  aliases[normalizeTaskAliasKey('Temple Shrine Right')] = 'tsright';
-  aliases[normalizeTaskAliasKey('Temple Shrine (Left)')] = 'tsleft';
-  aliases[normalizeTaskAliasKey('Temple Shrine (Mid)')] = 'tsmid';
-  aliases[normalizeTaskAliasKey('Temple Shrine (Right)')] = 'tsright';
+  replaceArray(RAID_TASK_CATEGORIES, categories);
 
-  aliases[normalizeTaskAliasKey('Void Flibbi')] = 'voidflibbi';
-  aliases[normalizeTaskAliasKey('Void Nightbane')] = 'voidnightbane';
-  aliases[normalizeTaskAliasKey('Void Xyfrag')] = 'voidxyfrag';
+  loadedAtMs = Date.now();
+  loadedFrom = source;
+  lastLoadError = error;
+}
 
-  return aliases;
-})();
+export async function loadRaidTasksCache({ fallbackOnError = true } = {}) {
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from('raid_tasks')
+      .select('key,display_name,points,category,active,description,map_names,aliases,sort_order')
+      .order('category', { ascending: true })
+      .order('sort_order', { ascending: true })
+      .order('key', { ascending: true });
 
+    if (error) throw error;
+
+    const rows = data?.length ? data : FALLBACK_TASK_ROWS;
+    applyTaskRows(rows, { source: data?.length ? 'database' : 'fallback' });
+  } catch (error) {
+    if (!fallbackOnError) throw error;
+    applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', error });
+    console.warn('Failed to load raid tasks from database; using fallback constants:', error?.message || error);
+  }
+
+  return getRaidTasksCacheState();
+}
+
+export function getRaidTasksCacheState() {
+  return {
+    loadedAtMs,
+    loadedFrom,
+    lastLoadError,
+    taskCount: Object.keys(POINTS_CONFIG).length,
+  };
+}
+
+export function getJoinPrefixesForTask(taskKey) {
+  const key = normalizeTaskKey(taskKey);
+  return TASK_JOIN_PREFIXES[key] || [key];
+}
+
+// Populate synchronously so imported constants are usable before startup refreshes from Supabase.
+applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback' });

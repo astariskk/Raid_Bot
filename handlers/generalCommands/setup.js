@@ -34,6 +34,7 @@ import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
 import { loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
 import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
 import { handleChartsCrudInteraction, maybeHandleEditChartMessage } from './chartsCrud.js';
+import { maybeHandleRaidTaskCrudMessage } from './raidTasksCrud.js';
 import {
     handleChartShowInteraction,
     handleChartsBrowseInteraction,
@@ -172,6 +173,8 @@ export function setupGeneralCommandsHandler(client) {
         if (await maybeHandleChartTriggerMessage(message)) return;
 
         if (await maybeHandleGifCommandCrudMessage(message)) return;
+
+        if (await maybeHandleRaidTaskCrudMessage(message)) return;
 
         if (await maybeHandleGifTextCommands(message)) return;
 

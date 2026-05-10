@@ -1,3 +1,4 @@
+@ -1,157 +0,0 @@
 -- Supabase schema for Raid_Bot (testing)
 
 -- --------------------

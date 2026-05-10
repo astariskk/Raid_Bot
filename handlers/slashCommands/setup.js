@@ -9,6 +9,7 @@ import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
 import { getCombinedTasksAndPointsEmbed } from '../../Embeds/generalCommandsEmbeds.js';
 import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
 import { getGifCommand } from '../../utils/gifCommandsStore.js';
+import { formatRaidTaskSummary, updateRaidTask, upsertRaidTask } from '../../utils/raidTasksStore.js';
 import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
 import { postChartToChannel, startChartBrowseInteraction } from '../charts/charts.js';
 
@@ -219,7 +220,8 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
-    case 'addgif': {
+    case 'addgif':
+    case 'addcommand': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
 
       const raw = interaction.options.getString('command', true);
@@ -246,6 +248,66 @@ export async function handleSlashCommandInteraction(interaction, client) {
           content: error?.message || 'Failed to start GIF creation.',
           flags: MessageFlags.Ephemeral,
         }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'addtask': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+
+        const task = await upsertRaidTask({
+          key: interaction.options.getString('key') ?? undefined,
+          displayName: interaction.options.getString('display_name', true),
+          points: interaction.options.getInteger('points', true),
+          category: interaction.options.getString('category', true),
+          available: interaction.options.getBoolean('available') ?? true,
+          mapName: interaction.options.getString('map_name') ?? undefined,
+          taskAlias: interaction.options.getString('task_alias') ?? undefined,
+          description: interaction.options.getString('description') ?? undefined,
+          sortOrder: interaction.options.getInteger('sort_order') ?? undefined,
+        });
+
+        await interaction.editReply({ content: `Task saved.\n${formatRaidTaskSummary(task)}` });
+      } catch (error) {
+        console.error('Error handling /addtask:', error);
+        const content = error?.message || 'Failed to add task.';
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content }).catch(() => {});
+        } else {
+          await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+      }
+      return;
+    }
+
+    case 'edittask': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      try {
+        await interaction.deferReply({ flags: MessageFlags.Ephemeral }).catch(() => {});
+
+        const task = await updateRaidTask(interaction.options.getString('task', true), {
+          points: interaction.options.getInteger('points') ?? undefined,
+          available: interaction.options.getBoolean('available') ?? undefined,
+          mapName: interaction.options.getString('map_name') ?? undefined,
+          taskAlias: interaction.options.getString('task_alias') ?? undefined,
+          category: interaction.options.getString('category') ?? undefined,
+          description: interaction.options.getString('description') ?? undefined,
+          sortOrder: interaction.options.getInteger('sort_order') ?? undefined,
+        });
+
+        await interaction.editReply({ content: `Task updated.\n${formatRaidTaskSummary(task)}` });
+      } catch (error) {
+        console.error('Error handling /edittask:', error);
+        const content = error?.message || 'Failed to edit task.';
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content }).catch(() => {});
+        } else {
+          await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
       }
       return;
     }

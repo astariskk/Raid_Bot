@@ -766,9 +766,12 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             return match[0].replace(/[)>.,]+$/, '');
         };
 
-        await interaction.reply({
-            content: 'Send the proof image (upload) or a proof link in the **same channel** within 1 minute.',
-            flags: MessageFlags.Ephemeral
+        const originalContent = interaction.message?.content ?? '';
+        const proofPrompt = 'Send the proof image (upload) or a proof link in the same channel within 1 minute.';
+
+        await interaction.update({
+            content: `${originalContent}\n\n${proofPrompt}`.trim(),
+            components: interaction.message?.components ?? [],
         });
 
         try {
@@ -793,10 +796,11 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             const selectRow = createHelperSelectRow(maxHelpers);
             const btnRow = createCloseButtonsRow({ isConfirmEnabled: selectedIds.length > 0, proofImageUrl: proofUrl });
 
-            await interaction.message.edit({ components: [selectRow, btnRow] });
+            await interaction.message.edit({ content: originalContent, components: [selectRow, btnRow] });
             await interaction.followUp({ content: 'Proof saved!', flags: MessageFlags.Ephemeral });
         } catch (err) {
             console.error('Proof capture failed:', err);
+            await interaction.message.edit({ content: originalContent }).catch(() => {});
             await interaction.followUp({
                 content: 'Timed out or no attachment/link received. Press `Attach Proof` again and upload the image in this channel.',
                 flags: MessageFlags.Ephemeral

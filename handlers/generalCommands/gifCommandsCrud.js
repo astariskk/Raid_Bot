@@ -221,14 +221,14 @@ function parseStartCommand(contentRaw) {
   const content = String(contentRaw ?? '').trim();
   const parts = content.split(/\s+/);
   const cmd = parts[0]?.toLowerCase();
-  if (cmd !== '!addgif' && cmd !== '!editgif') return null;
+  if (!['!addgif', '!editgif', '!addcommand', '!editcommand'].includes(cmd)) return null;
 
   const command = String(parts[1] ?? '').trim().toLowerCase().replace(/^\//, '');
   return { cmd, command, presetKind: null };
 }
 
-export async function startGifCommandCrudSession({ channel, guild, member, ownerId, command, kind, pingUserIds = undefined }) {
-  if (!channel) {
+export async function startGifCommandCrudSession({ channel, guild, member, ownerId, command, kind, pingUserIds = undefined, message = null }) {
+  if (!channel && !message?.channel) {
     throw new Error('No channel available to start GIF command CRUD.');
   }
   if (!guild || !member) {
@@ -266,14 +266,52 @@ export async function startGifCommandCrudSession({ channel, guild, member, owner
   const row = await getGifCommand(normalizedCommand);
   const embed = buildPreviewEmbed({ command: normalizedCommand, kind: normalizedKind, row });
 
-  const sent = await channel.send({
-    embeds: [embed],
-    components: [],
-  });
+  const sent = message || await channel.send({ embeds: [embed], components: [] });
 
   sessions.set(sent.id, { command: normalizedCommand, kind: normalizedKind, ownerId: ownerId ?? null });
-  await sent.edit({ components: buildButtonsRows(sent.id, { kind: normalizedKind }) });
+  await sent.edit({ content: '', embeds: [embed], components: buildButtonsRows(sent.id, { kind: normalizedKind }) });
   return sent;
+}
+
+async function buildGifCommandCrudPayload({ messageId, guild, member, ownerId, command, kind, pingUserIds = undefined }) {
+  if (!guild || !member) {
+    throw new Error('GIF command CRUD can only be used in a server.');
+  }
+  if (!isAdminMember(member)) {
+    throw new Error('You do not have permission to manage GIF commands.');
+  }
+
+  const normalizedCommand = String(command ?? '').trim().toLowerCase();
+  if (!normalizedCommand) throw new Error('Missing command name.');
+
+  const normalizedKind = kind === 'text' ? 'text' : 'gif';
+  const existing = await getGifCommand(normalizedCommand);
+
+  if (!existing) {
+    await upsertGifCommand({
+      command: normalizedCommand,
+      kind: normalizedKind,
+      title: normalizedKind === 'gif' ? normalizedCommand : null,
+      footer: null,
+      textContent: null,
+      pingUserIds: normalizedKind === 'text' ? (pingUserIds ?? []) : undefined,
+      textLabel: normalizedKind === 'text' ? '' : undefined,
+      textDescription: normalizedKind === 'text' ? '' : undefined,
+      enabled: true,
+    });
+  } else if (normalizedKind === 'text' && pingUserIds !== undefined) {
+    await updateGifCommand(normalizedCommand, { ping_user_ids: pingUserIds });
+  }
+
+  const row = await getGifCommand(normalizedCommand);
+  const embed = buildPreviewEmbed({ command: normalizedCommand, kind: normalizedKind, row });
+  sessions.set(messageId, { command: normalizedCommand, kind: normalizedKind, ownerId: ownerId ?? null });
+
+  return {
+    content: '',
+    embeds: [embed],
+    components: buildButtonsRows(messageId, { kind: normalizedKind }),
+  };
 }
 
 function buildTypeWizardEmbed({ command, kind }) {
@@ -437,7 +475,6 @@ export async function startAddGifWizardInteraction(interaction, { command, prese
   await interaction.reply({
     embeds: [buildTypeWizardEmbed({ command: normalizedCommand, kind: presetKind })],
     components: buildTypeWizardComponents(sessionId, { kind: presetKind }),
-    flags: MessageFlags.Ephemeral,
   });
 }
 
@@ -469,16 +506,16 @@ export async function maybeHandleGifCommandCrudMessage(message) {
   }
 
   if (!parsed.command) {
-    await message.reply({ content: 'Usage: `!addgif <triggerword>` or `!editgif <triggerword>`' });
+    await message.reply({ content: 'Usage: `!addgif <triggerword>`, `!addcommand <triggerword>`, or `!editgif <triggerword>`' });
     return true;
   }
 
   const normalized = sanitizeCommandName(parsed.command);
 
   const existing = await getGifCommand(normalized).catch(() => null);
-  if (parsed.cmd === '!editgif') {
+  if (parsed.cmd === '!editgif' || parsed.cmd === '!editcommand') {
     if (!existing) {
-      await message.reply({ content: `\`/${normalized}\` does not exist yet. Use \`!addgif ${normalized}\` to create it.` });
+      await message.reply({ content: `\`/${normalized}\` does not exist yet. Use \`!addcommand ${normalized}\` to create it.` });
       return true;
     }
 
@@ -696,11 +733,9 @@ export async function handleGifCommandCrudInteraction(interaction) {
       return true;
     }
 
-    createWizards.delete(sessionId);
-
     try {
-      const sent = await startGifCommandCrudSession({
-        channel: interaction.channel,
+      const payload = await buildGifCommandCrudPayload({
+        messageId: interaction.message.id,
         guild: interaction.guild,
         member: interaction.member,
         ownerId: interaction.user.id,
@@ -709,15 +744,8 @@ export async function handleGifCommandCrudInteraction(interaction) {
         pingUserIds: session.kind === 'text' ? (session.pingUserIds || []) : undefined,
       });
 
-      const row = await getGifCommand(session.command);
-      const modal = buildInitialEditModal({ previewMessageId: sent.id, kind: session.kind, row });
-
-      // Best-effort cleanup for non-ephemeral wizard message.
-      if (interaction.message && interaction.message.deletable) {
-        interaction.message.delete().catch(() => {});
-      }
-
-      await interaction.showModal(modal);
+      createWizards.delete(sessionId);
+      await interaction.update(payload);
     } catch (error) {
       console.error('Error starting GIF command CRUD from wizard:', error);
       await interaction.reply({ content: 'Failed to start the editor. Please try again.', flags: MessageFlags.Ephemeral }).catch(() => {});
@@ -776,9 +804,13 @@ export async function handleGifCommandCrudInteraction(interaction) {
 
   if (interaction.isButton()) {
     if (action === 'close') {
+      const command = session.command;
       sessions.delete(messageId);
       await interaction.deferUpdate().catch(() => {});
-      await interaction.message.delete().catch(() => {});
+      await interaction.message.delete().catch(async () => {
+        await interaction.message.edit({ content: '', embeds: [], components: [] }).catch(() => {});
+      });
+      await interaction.followUp({ content: `\`${command}\` command has been saved`, flags: MessageFlags.Ephemeral }).catch(() => {});
       return true;
     }
 
@@ -959,7 +991,7 @@ export async function handleGifCommandCrudInteraction(interaction) {
       const row = await getGifCommand(modalSession.command);
       const embed = buildPreviewEmbed({ command: modalSession.command, kind: modalSession.kind, row });
       await interaction.reply({ content: 'Updated.', flags: MessageFlags.Ephemeral });
-      await interaction.message?.edit({ embeds: [embed] }).catch(() => {});
+      await editPreviewMessage(interaction.channel, modalMessageId, { embeds: [embed], components: buildButtonsRows(modalMessageId, { kind: modalSession.kind }) });
       return true;
     }
 
