@@ -23,6 +23,16 @@ const CATEGORY_ORDER = [
   'generic',
 ];
 
+const FALLBACK_CATEGORY_ROWS = [
+  { key: 'dailies', display_name: 'Dailies', sort_order: 10 },
+  { key: 'weeklies', display_name: 'Weeklies', sort_order: 20 },
+  { key: 'templeshrine', display_name: 'Temple Shrine', sort_order: 30 },
+  { key: 'originul', display_name: 'Originul', sort_order: 40 },
+  { key: 'legion', display_name: 'Legion', sort_order: 50 },
+  { key: 'other_seven', display_name: 'Other 7-man', sort_order: 60 },
+  { key: 'generic', display_name: 'Other Tasks', sort_order: 70 },
+];
+
 const FALLBACK_TASK_ROWS = [
   { key: 'ezrajal', display_name: 'Ultra Ezrajal', points: 1000, category: 'dailies', active: true, map_names: ['ultraezrajal'], aliases: [], sort_order: 10 },
   { key: 'warden', display_name: 'Ultra Warden', points: 1000, category: 'dailies', active: true, map_names: ['ultrawarden'], aliases: [], sort_order: 20 },
@@ -119,7 +129,31 @@ function formatCategoryLabel(key) {
     .join(' ') || 'Custom';
 }
 
-function normalizeRows(rows = []) {
+function normalizeCategoryRows(rows = []) {
+  return rows
+    .map((row) => {
+      const key = normalizeTaskKey(row.key);
+      if (!key) return null;
+      return {
+        key,
+        display_name: String(row.display_name || CATEGORY_LABELS[key] || formatCategoryLabel(key)).trim(),
+        sort_order: Math.floor(Number(row.sort_order ?? 0) || 0),
+      };
+    })
+    .filter(Boolean)
+    .sort((a, b) => (a.sort_order - b.sort_order) || a.display_name.localeCompare(b.display_name) || a.key.localeCompare(b.key));
+}
+
+function getCategoryMeta(categoryRows = []) {
+  const normalized = normalizeCategoryRows(categoryRows.length ? categoryRows : FALLBACK_CATEGORY_ROWS);
+  const map = new Map(normalized.map((row) => [row.key, row]));
+  return { rows: normalized, map };
+}
+
+function normalizeRows(rows = [], categoryRows = []) {
+  const { rows: normalizedCategories, map: categoryMap } = getCategoryMeta(categoryRows);
+  const categoryIndex = new Map(normalizedCategories.map((row, index) => [row.key, index]));
+
   return rows
     .map((row) => {
       const key = normalizeTaskKey(row.key);
@@ -139,8 +173,12 @@ function normalizeRows(rows = []) {
     })
     .filter(Boolean)
     .sort((a, b) => {
-      const aIndex = CATEGORY_ORDER.includes(a.category) ? CATEGORY_ORDER.indexOf(a.category) : CATEGORY_ORDER.length;
-      const bIndex = CATEGORY_ORDER.includes(b.category) ? CATEGORY_ORDER.indexOf(b.category) : CATEGORY_ORDER.length;
+      const aIndex = categoryIndex.has(a.category)
+        ? categoryIndex.get(a.category)
+        : (CATEGORY_ORDER.includes(a.category) ? normalizedCategories.length + CATEGORY_ORDER.indexOf(a.category) : normalizedCategories.length + CATEGORY_ORDER.length);
+      const bIndex = categoryIndex.has(b.category)
+        ? categoryIndex.get(b.category)
+        : (CATEGORY_ORDER.includes(b.category) ? normalizedCategories.length + CATEGORY_ORDER.indexOf(b.category) : normalizedCategories.length + CATEGORY_ORDER.length);
       const catDiff = aIndex - bIndex;
       if (catDiff) return catDiff;
       const categoryNameDiff = a.category.localeCompare(b.category);
@@ -149,8 +187,9 @@ function normalizeRows(rows = []) {
     });
 }
 
-function applyTaskRows(rows, { source = 'database', error = null } = {}) {
-  const activeRows = normalizeRows(rows).filter((row) => row.active);
+function applyTaskRows(rows, { source = 'database', error = null, categoryRows = [] } = {}) {
+  const { rows: normalizedCategories, map: categoryMap } = getCategoryMeta(categoryRows);
+  const activeRows = normalizeRows(rows, normalizedCategories).filter((row) => row.active);
   const taskListsByCategory = {
     dailies: DAILIES_LIST,
     weeklies: WEEKLIES_LIST,
@@ -201,20 +240,30 @@ function applyTaskRows(rows, { source = 'database', error = null } = {}) {
   replaceObject(TASK_CATEGORY_BY_TASK, categoryByTask);
   replaceArray(DISPLAY_POINTS_LIST, displayPoints);
 
-  const categories = CATEGORY_ORDER
-    .filter((key) => taskListsByCategory[key]?.length)
-    .map((key) => ({
-      key,
-      label: CATEGORY_LABELS[key] ?? key,
-      tasks: taskListsByCategory[key],
-    }));
+  const categories = [];
+  const seenCategories = new Set();
+  for (const category of normalizedCategories) {
+    if (!taskListsByCategory[category.key]?.length) continue;
+    seenCategories.add(category.key);
+    categories.push({
+      key: category.key,
+      label: category.display_name || CATEGORY_LABELS[category.key] || formatCategoryLabel(category.key),
+      tasks: taskListsByCategory[category.key],
+    });
+  }
 
   const extraCategoryKeys = Object.keys(taskListsByCategory)
-    .filter((key) => !CATEGORY_ORDER.includes(key) && taskListsByCategory[key]?.length)
-    .sort();
+    .filter((key) => !seenCategories.has(key) && taskListsByCategory[key]?.length)
+    .sort((a, b) => {
+      const aMeta = categoryMap.get(a);
+      const bMeta = categoryMap.get(b);
+      if (aMeta || bMeta) return (aMeta?.sort_order ?? 9999) - (bMeta?.sort_order ?? 9999);
+      return a.localeCompare(b);
+    });
 
   for (const key of extraCategoryKeys) {
-    categories.push({ key, label: CATEGORY_LABELS[key] ?? formatCategoryLabel(key), tasks: taskListsByCategory[key] });
+    const meta = categoryMap.get(key);
+    categories.push({ key, label: meta?.display_name || CATEGORY_LABELS[key] || formatCategoryLabel(key), tasks: taskListsByCategory[key] });
   }
 
   replaceArray(RAID_TASK_CATEGORIES, categories);
@@ -227,20 +276,28 @@ function applyTaskRows(rows, { source = 'database', error = null } = {}) {
 export async function loadRaidTasksCache({ fallbackOnError = true } = {}) {
   try {
     const supabase = getSupabase();
-    const { data, error } = await supabase
+    const [{ data, error }, { data: categoryData, error: categoryError }] = await Promise.all([
+      supabase
       .from('raid_tasks')
       .select('key,display_name,points,category,active,description,map_names,aliases,sort_order')
       .order('category', { ascending: true })
       .order('sort_order', { ascending: true })
-      .order('key', { ascending: true });
+        .order('key', { ascending: true }),
+      supabase
+        .from('raid_task_categories')
+        .select('key,display_name,sort_order')
+        .order('sort_order', { ascending: true })
+        .order('display_name', { ascending: true }),
+    ]);
 
     if (error) throw error;
+    if (categoryError) throw categoryError;
 
     const rows = data?.length ? data : FALLBACK_TASK_ROWS;
-    applyTaskRows(rows, { source: data?.length ? 'database' : 'fallback' });
+    applyTaskRows(rows, { source: data?.length ? 'database' : 'fallback', categoryRows: categoryData?.length ? categoryData : FALLBACK_CATEGORY_ROWS });
   } catch (error) {
     if (!fallbackOnError) throw error;
-    applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', error });
+    applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', error, categoryRows: FALLBACK_CATEGORY_ROWS });
     console.warn('Failed to load raid tasks from database; using fallback constants:', error?.message || error);
   }
 
@@ -262,4 +319,4 @@ export function getJoinPrefixesForTask(taskKey) {
 }
 
 // Populate synchronously so imported constants are usable before startup refreshes from Supabase.
-applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback' });
+applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', categoryRows: FALLBACK_CATEGORY_ROWS });

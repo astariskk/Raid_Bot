@@ -1,7 +1,7 @@
 import { registerSlashCommands as registerCommands } from './register.js';
 import { handleSlashCommandInteraction } from './setup.js';
 import { handleChartsAutocompleteInteraction } from '../charts/charts.js';
-import { handleEditGifAutocompleteInteraction, handleEditTaskAutocompleteInteraction } from './autocomplete.js';
+import { handleEditGifAutocompleteInteraction } from './autocomplete.js';
 
 export async function registerSlashCommands(client) {
     await registerCommands(client);
@@ -15,9 +15,6 @@ export function setupSlashCommandsHandler(client) {
             }
             if (interaction.commandName === 'editgif') {
                 await handleEditGifAutocompleteInteraction(interaction);
-            }
-            if (interaction.commandName === 'edittask') {
-                await handleEditTaskAutocompleteInteraction(interaction);
             }
             return;
         }

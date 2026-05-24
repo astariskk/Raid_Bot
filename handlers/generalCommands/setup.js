@@ -34,7 +34,7 @@ import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
 import { loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
 import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
 import { handleChartsCrudInteraction, maybeHandleEditChartMessage } from './chartsCrud.js';
-import { maybeHandleRaidTaskCrudMessage } from './raidTasksCrud.js';
+import { handleRaidTaskCrudInteraction, maybeHandleRaidTaskCrudMessage } from './raidTasksCrud.js';
 import {
     handleChartShowInteraction,
     handleChartsBrowseInteraction,
@@ -49,6 +49,7 @@ import {
     getInitialButtonsRow,
     getLeaderboardCommandsEmbed,
     getModeratorCommandsEmbed,
+    getRaidTasksPageComponents,
     getRaidRulesEmbed,
 } from '../../Embeds/generalCommandsEmbeds.js';
 
@@ -213,11 +214,12 @@ export function setupGeneralCommandsHandler(client) {
 
         // --- Handle the !raidtasks command ---
         if (commandContent === '!raidtasks' && message.channel.id === RAID_CHANNEL_ID) {
-            const tasksEmbed = getCombinedTasksAndPointsEmbed();
+            const tasksEmbed = getCombinedTasksAndPointsEmbed(0);
             try {
                 await message.channel.send({
                     content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
                     embeds: tasksEmbed,
+                    components: getRaidTasksPageComponents(0),
                 });
             } catch (error) {
                 console.error('Error sending !raidtasks embed:', error);
@@ -317,6 +319,18 @@ export function setupGeneralCommandsHandler(client) {
         if (await handleChartShowInteraction(interaction)) return;
         if (await handleChartsBrowseInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
+        if (await handleRaidTaskCrudInteraction(interaction)) return;
+
+        if (interaction.customId.startsWith('raidtasks_prev_') || interaction.customId.startsWith('raidtasks_next_')) {
+            const isNext = interaction.customId.startsWith('raidtasks_next_');
+            const current = Number(interaction.customId.split('_').pop()) || 0;
+            const page = Math.max(0, current + (isNext ? 1 : -1));
+            await interaction.update({
+                embeds: getCombinedTasksAndPointsEmbed(page),
+                components: getRaidTasksPageComponents(page),
+            });
+            return;
+        }
 
         if (interaction.customId === 'startRaidWizard_btn') {
             if (!interaction.member.roles.cache.has(RAID_HELPER_ROLE_ID)) {
@@ -468,10 +482,11 @@ export function setupGeneralCommandsHandler(client) {
             }
 
             case 'seeRaidTasks_btn': {
-                const tasksEmbed = getCombinedTasksAndPointsEmbed();
+                const tasksEmbed = getCombinedTasksAndPointsEmbed(0);
                 await interaction.reply({
                     content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
                     embeds: tasksEmbed,
+                    components: getRaidTasksPageComponents(0),
                     flags: MessageFlags.Ephemeral,
                 });
                 break;
@@ -492,6 +507,7 @@ export function setupGeneralCommandsHandler(client) {
         if (!interaction.isModalSubmit()) return;
         if (await handleChartsCrudInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
+        if (await handleRaidTaskCrudInteraction(interaction)) return;
     });
 
     client.on('interactionCreate', async (interaction) => {
@@ -501,6 +517,7 @@ export function setupGeneralCommandsHandler(client) {
         if (await handleChartsBrowseInteraction(interaction)) return;
         // CRUD modal submits land on the same interactionCreate event, but we already handle them above via the button listener.
         if (await handleGifCommandCrudInteraction(interaction)) return;
+        if (await handleRaidTaskCrudInteraction(interaction)) return;
 
         if (interaction.customId.startsWith('raidWizard_category_')) {
             const sessionId = interaction.customId.slice('raidWizard_category_'.length);
@@ -590,5 +607,6 @@ export function setupGeneralCommandsHandler(client) {
         if (!interaction.isUserSelectMenu()) return;
         if (await handleChartsCrudInteraction(interaction)) return;
         if (await handleGifCommandCrudInteraction(interaction)) return;
+        if (await handleRaidTaskCrudInteraction(interaction)) return;
     });
 }

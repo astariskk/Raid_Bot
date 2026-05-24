@@ -25,6 +25,14 @@ create table if not exists public.raid_tasks (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.raid_task_categories (
+  key text primary key,
+  display_name text not null,
+  sort_order integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 -- Safe alters for existing installs.
 alter table public.raid_tasks add column if not exists display_name text;
 alter table public.raid_tasks add column if not exists points integer not null default 0;
@@ -34,6 +42,10 @@ alter table public.raid_tasks add column if not exists description text null;
 alter table public.raid_tasks add column if not exists map_names text[] not null default '{}'::text[];
 alter table public.raid_tasks add column if not exists aliases text[] not null default '{}'::text[];
 alter table public.raid_tasks add column if not exists sort_order integer not null default 0;
+
+alter table public.raid_task_categories add column if not exists display_name text;
+alter table public.raid_task_categories add column if not exists sort_order integer not null default 0;
+alter table public.raid_task_categories drop column if exists description;
 
 update public.raid_tasks
 set category = 'generic', active = false
@@ -47,6 +59,9 @@ create index if not exists raid_tasks_category_idx
 create index if not exists raid_tasks_active_idx
   on public.raid_tasks (active);
 
+create index if not exists raid_task_categories_sort_idx
+  on public.raid_task_categories (sort_order, display_name, key);
+
 create index if not exists raid_tasks_map_names_gin_idx
   on public.raid_tasks using gin (map_names);
 
@@ -58,6 +73,26 @@ create trigger trg_raid_tasks_updated_at
 before update on public.raid_tasks
 for each row
 execute function public.set_updated_at();
+
+drop trigger if exists trg_raid_task_categories_updated_at on public.raid_task_categories;
+create trigger trg_raid_task_categories_updated_at
+before update on public.raid_task_categories
+for each row
+execute function public.set_updated_at();
+
+insert into public.raid_task_categories (key, display_name, sort_order)
+values
+  ('dailies', 'Dailies', 10),
+  ('weeklies', 'Weeklies', 20),
+  ('templeshrine', 'Temple Shrine', 30),
+  ('originul', 'Originul', 40),
+  ('legion', 'Legion', 50),
+  ('other_seven', 'Other 7-Man', 60),
+  ('generic', 'Generic', 70)
+on conflict (key) do update
+set
+  display_name = excluded.display_name,
+  sort_order = excluded.sort_order;
 
 -- Seed current built-in tasks. Safe to rerun; existing rows are updated.
 insert into public.raid_tasks
