@@ -61,7 +61,7 @@ export function setupRaidHandlers(client) {
 
         // Lifecycle (Edit, Cancel)
         if (
-            ['editRequest_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
+            ['editRequest_btn', 'editRequest_tasks_btn', 'editRequest_details_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
             interaction.customId.startsWith('editRequest_') ||
             interaction.customId.startsWith('raidWizardEdit_') ||
             interaction.customId.startsWith('raidWizardEditDetailsModal_')
@@ -71,7 +71,7 @@ export function setupRaidHandlers(client) {
         }
 
         // Commands (Maps)
-        if (interaction.customId.includes('raidmaps')) {
+        if (interaction.customId === 'joinRaidTicket' || interaction.customId.includes('raidmaps') || interaction.customId.startsWith('kickRaidHelper_')) {
             const fullRaidInfo = await getRaidInfo(interaction.channel?.id);
             await handleCommandInteractions(interaction, fullRaidInfo ?? raidInfo);
             return;

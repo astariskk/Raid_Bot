@@ -111,3 +111,34 @@ Handlers are organized like the raid ticket handler:
   - Use `Manage Order` from a category to reorder tasks in that category.
 - `!managetasks` / `!modifytasks`
   - Text-command shortcut for the same task manager.
+
+## Spamming Raids
+
+Spamming is a selectable raid task category. It adds time-based EXP on top of normal task EXP.
+
+- Spamming EXP is `300 EXP` per joined minute.
+- Spamming EXP is capped at `10000 EXP` per helper.
+- Normal task EXP still applies normally.
+- The total request cap remains `30000 EXP`.
+
+Example:
+- `drakath` is worth `2000 EXP`.
+- A helper joins a spamming raid for 30 minutes.
+- Spamming gives `9000 EXP`.
+- The helper receives `11000 EXP` before the global cap is checked.
+
+Helpers must press `Join Ticket` so the bot can record their join time. The `Maps` button replies privately and only works for users who joined the ticket.
+
+### Staff Helper Cleanup
+
+- `/removehelper user:<helper>`
+  - Use inside a raid ticket.
+  - Removes the helper from the joined helper list.
+  - Updates the ticket embed.
+
+
+### to do:
+
+- add moderation role embed selector thing
+- add which role to ping
+- ping helper button only 30 minutes/rule, mods have no timer

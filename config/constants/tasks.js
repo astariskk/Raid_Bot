@@ -11,6 +11,7 @@ const CATEGORY_LABELS = {
   legion: 'Legion',
   other_seven: 'Other 7-man',
   generic: 'Other Tasks',
+  spamming: 'Spamming',
 };
 
 const CATEGORY_ORDER = [
@@ -21,6 +22,7 @@ const CATEGORY_ORDER = [
   'legion',
   'other_seven',
   'generic',
+  'spamming',
 ];
 
 const FALLBACK_CATEGORY_ROWS = [
@@ -31,6 +33,7 @@ const FALLBACK_CATEGORY_ROWS = [
   { key: 'legion', display_name: 'Legion', sort_order: 50 },
   { key: 'other_seven', display_name: 'Other 7-man', sort_order: 60 },
   { key: 'generic', display_name: 'Other Tasks', sort_order: 70 },
+  { key: 'spamming', display_name: 'Spamming', sort_order: 80 },
 ];
 
 const FALLBACK_TASK_ROWS = [
@@ -74,6 +77,7 @@ const FALLBACK_TASK_ROWS = [
   { key: 'simple', display_name: 'Simple', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['easy'], sort_order: 10 },
   { key: 'moderate', display_name: 'Moderate', points: 5000, category: 'generic', active: true, map_names: [], aliases: ['medium'], sort_order: 20 },
   { key: 'difficult', display_name: 'Difficult', points: 10000, category: 'generic', active: true, map_names: [], aliases: ['hard'], sort_order: 30 },
+  { key: 'spamming', display_name: 'Spamming', points: 0, category: 'spamming', active: true, map_names: [], aliases: [], sort_order: 10 },
 ];
 
 export const POINTS_CONFIG = {};
@@ -91,6 +95,7 @@ export const OTHERS_FOUR_LIST = [];
 export const OTHERS_SEVEN_LIST = [];
 export const GENERIC_TASKS_LIST = [];
 export const LEGION_LIST = [];
+export const SPAMMING_TASKS_LIST = [];
 
 export const RAID_TASK_CATEGORIES = [];
 
@@ -198,6 +203,7 @@ function applyTaskRows(rows, { source = 'database', error = null, categoryRows =
     legion: LEGION_LIST,
     other_seven: OTHERS_SEVEN_LIST,
     generic: GENERIC_TASKS_LIST,
+    spamming: SPAMMING_TASKS_LIST,
   };
   const pointsConfig = {};
   const displayNames = {};

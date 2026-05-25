@@ -112,6 +112,7 @@ async function buildTaskEmbed(session) {
     { name: 'Available', value: task.active ? 'Yes' : 'No', inline: true },
     { name: 'Category', value: `\`${task.category}\``, inline: true },
     { name: 'Order', value: String(task.sort_order), inline: true },
+    { name: 'Maps', value: task.map_names?.length ? task.map_names.map((map) => `\`${map}\``).join(', ').slice(0, 1024) : `\`${task.key}\``, inline: false },
   );
 
   if (session?.notice) embed.setFooter({ text: session.notice.slice(0, 2048) });
@@ -241,10 +242,11 @@ function buildTaskButtons(messageId) {
       new ButtonBuilder().setCustomId(newCustomId('editname', messageId)).setLabel('Edit Name').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(newCustomId('editpoints', messageId)).setLabel('Edit Points').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(newCustomId('editdesc', messageId)).setLabel('Edit Description').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId(newCustomId('editmaps', messageId)).setLabel('Edit Maps').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(newCustomId('toggle', messageId)).setLabel('Toggle Available').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId(newCustomId('changecat', messageId)).setLabel('Change Category').setStyle(ButtonStyle.Secondary),
     ),
     new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(newCustomId('changecat', messageId)).setLabel('Change Category').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(newCustomId('moveup', messageId)).setLabel('Move Up').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(newCustomId('movedown', messageId)).setLabel('Move Down').setStyle(ButtonStyle.Secondary),
       new ButtonBuilder().setCustomId(newCustomId('delete', messageId)).setLabel('Delete').setStyle(ButtonStyle.Danger),
@@ -335,6 +337,7 @@ function buildFieldModal(messageId, field, task) {
     name: ['Display name', TextInputStyle.Short, task.display_name],
     points: ['Points', TextInputStyle.Short, String(task.points ?? 0)],
     desc: ['Description', TextInputStyle.Paragraph, task.description || ''],
+    maps: ['Maps', TextInputStyle.Paragraph, (task.map_names || []).join(', ')],
   };
   const [label, style, value] = labels[field] || labels.name;
   const input = new TextInputBuilder().setCustomId('value').setLabel(label).setStyle(style).setRequired(field !== 'desc');
@@ -651,6 +654,7 @@ export async function handleRaidTaskCrudInteraction(interaction) {
       patch.points = points;
     }
     if (field === 'desc') patch.description = value;
+    if (field === 'maps') patch.mapNames = value;
 
     await updateRaidTask(session.taskKey, patch);
     session.notice = 'Task updated.';

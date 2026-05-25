@@ -12,8 +12,10 @@ import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
 import { EMBED_COLOR, MAX_HELPERS, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config/constants.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
+import { calculateSpammingPoints, listRaidHelpers } from '../../utils/raidParticipationStore.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
+import { getNormalTaskString, getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage, SPAMMING_EXP_CAP, SPAMMING_RATE_PER_MINUTE } from './raidTicketPresentation.js';
 import {
     consumePartialHelperSession,
     createPartialHelperSession,
@@ -812,10 +814,12 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     /* ---------- CONFIRM CLOSING ---------- */
     if (interaction.customId === 'confirmCloseSelection') {
         const currentRaidInfo = await getRaidInfo(interaction.channel.id);
+        const joinedHelpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
         const selectedIds = currentRaidInfo.pendingHelperIds || [];
         const partialHelpers = normalizePartialHelpers(currentRaidInfo);
         const partialIds = partialHelpers.map((e) => e.helperId);
-        const allHelperIds = [...new Set([...selectedIds, ...partialIds])]
+        const joinedIds = joinedHelpers.map((helper) => helper.helperId);
+        const allHelperIds = [...new Set([...selectedIds, ...partialIds, ...joinedIds])]
             .filter(Boolean)
             .filter((id) => id !== currentRaidInfo.requesterId);
 
@@ -834,18 +838,32 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             return;
         }
 
-        const { originalTotalCalculatedPoints } = calculateTaskPointsWithMultiplier(currentRaidInfo.task);
+        const spamming = isSpammingRaid(currentRaidInfo);
+        const endedAt = new Date();
+        const normalTaskString = getNormalTaskString(currentRaidInfo.task);
+        const { originalTotalCalculatedPoints } = calculateTaskPointsWithMultiplier(normalTaskString || currentRaidInfo.task);
+        const joinedById = new Map(joinedHelpers.map((helper) => [helper.helperId, helper]));
 
         const pointsMap = {};
         for (const uid of allHelperIds) {
             const partial = partialHelpers.find((e) => e.helperId === uid);
+            let normalPoints = originalTotalCalculatedPoints;
             if (partial?.tasks?.length) {
-                const subset = partial.tasks.join(', ');
+                const subset = partial.tasks.filter((task) => String(task).toLowerCase() !== 'spamming').join(', ');
                 const { originalTotalCalculatedPoints: subsetPoints } = calculateTaskPointsWithMultiplier(subset);
-                pointsMap[uid] = Math.min(subsetPoints, MAX_XP_PER_RAID);
-            } else {
-                pointsMap[uid] = Math.min(originalTotalCalculatedPoints, MAX_XP_PER_RAID);
+                normalPoints = subsetPoints;
             }
+
+            const spammingPoints = spamming && joinedById.has(uid)
+                ? calculateSpammingPoints({
+                    joinedAt: joinedById.get(uid).joinedAt,
+                    endedAt,
+                    ratePerMinute: SPAMMING_RATE_PER_MINUTE,
+                    cap: SPAMMING_EXP_CAP,
+                })
+                : 0;
+
+            pointsMap[uid] = Math.min(normalPoints + spammingPoints, MAX_XP_PER_RAID);
         }
 
         await finalizeAdminReview(client, interaction.channel, currentRaidInfo, pointsMap, interaction.user.id, 'completed');
@@ -861,16 +879,38 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     /* ---------- ABORT ---------- */
     if (interaction.customId === 'abortCloseRaid') {
         await safeDeferUpdate(interaction);
-        await updateRaid(interaction.channel.id, { isAwaitingCompletion: false, pendingHelperIds: null, awaitingCompletionRequesterId: null });
+        const joinedHelpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
+        const restoredStatus = isSpammingRaid(raidInfo)
+            ? getRaidStatusForHelpers({ isSpamming: true, helperCount: joinedHelpers.filter((helper) => helper.helperId !== raidInfo.requesterId).length })
+            : RAID_STATUS.WAITING;
+        await updateRaid(interaction.channel.id, { isAwaitingCompletion: false, pendingHelperIds: null, awaitingCompletionRequesterId: null, status: restoredStatus });
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: { ...raidInfo, status: restoredStatus },
+            helpers: joinedHelpers,
+        });
         await interaction.message.edit({ content: 'Closing aborted.', components: [] }).catch(() => {});
         return;
     }
 
     /* ---------- START CLOSE PROCESS ---------- */
     if (interaction.customId === 'closeRaidTicket') {
-        await updateRaid(interaction.channel.id, { isAwaitingCompletion: true, pendingHelperIds: [] });
+        const joinedHelpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
+        const helperIds = joinedHelpers
+            .map((helper) => helper.helperId)
+            .filter((id) => id && id !== raidInfo.requesterId)
+            .slice(0, MAX_HELPERS);
+
+        await updateRaid(interaction.channel.id, { isAwaitingCompletion: true, pendingHelperIds: helperIds, status: RAID_STATUS.AWAITING_COMPLETION });
 
         const updatedRaidInfo = await getRaidInfo(interaction.channel.id);
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: updatedRaidInfo ?? { ...raidInfo, status: RAID_STATUS.AWAITING_COMPLETION },
+            helpers: joinedHelpers,
+        });
         const payload = buildCloseMessagePayload(updatedRaidInfo ?? raidInfo);
 
         await interaction.reply({

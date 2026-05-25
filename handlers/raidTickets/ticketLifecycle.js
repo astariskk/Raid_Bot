@@ -12,11 +12,11 @@ import {
 
 import {
     updateRaid,
-    updateRaidLogEmbed,
     getRaidInfo
 } from '../../activeRaidState.js';
 
-import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TASK_DISPLAY_NAMES, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
 import { requireAuth } from './ticketUtils.js';
@@ -25,6 +25,7 @@ import { consumeRaidWizardSession, createRaidWizardSession, getRaidWizardSession
 import { getRaidWizardCategoryDef, getRaidWizardEditCategorySelectRow, getRaidWizardEditDetailsModal, getRaidWizardEditNavRow, getRaidWizardEditTasksSelectRow, getRaidWizardTaskOptionsCount } from './embeds/raidWizardUi.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { normalizeRoomNumber } from '../../utils/roomNumber.js';
+import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
 
 const EDIT_REQUEST_TTL_MS = 10 * 60 * 1000;
 const editRequestSessions = new Map(); // sessionId -> { userId, channelId, kind, createdAtMs, updatedAtMs }
@@ -92,7 +93,7 @@ function parseTaskRunsMap(taskString) {
 
 
 
-async function startEditTasksWizard(interaction, raidInfo) {
+async function startEditTasksWizard(interaction, raidInfo, { reply = false } = {}) {
     const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
 
     const existingTokens = parseRaidTasks(raidInfo.task || '');
@@ -133,13 +134,43 @@ async function startEditTasksWizard(interaction, raidInfo) {
         embed.addFields({ name: 'Selected Categories', value: labels.map((l) => `• **${l}**`).join('\n').slice(0, 1024), inline: false });
     }
 
-    await interaction.update({
+    const payload = {
         embeds: [embed],
         components: [
             getRaidWizardEditCategorySelectRow(sessionId, categoryKeys),
             getRaidWizardEditNavRow(sessionId, { step: 'category', canContinue: categoryKeys.length > 0 && getRaidWizardTaskOptionsCount(categoryKeys) <= 25 }),
         ],
+    };
+
+    if (reply) {
+        await replyEphemeralSafe(interaction, payload);
+    } else {
+        await interaction.update(payload);
+    }
+}
+
+async function showEditDetailsModal(interaction, raidInfo) {
+    const wizardSessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
+    const { order } = parseTaskRunsMap(raidInfo.task || '');
+    const categoryKeys = inferCategoryKeysFromTasks(order);
+
+    updateRaidWizardSession(wizardSessionId, {
+        mode: 'edit',
+        channelId: interaction.channel.id,
+        step: 'tasks',
+        categoryKeys,
+        tasks: order,
+        defaults: {
+            mapName: raidInfo.mapName ?? '',
+            mapNumber: raidInfo.mapNumber ?? '',
+            server: raidInfo.server ?? '',
+            description: raidInfo.description ?? '',
+        },
     });
+
+    const mapNameRequired = ((order || []).some((t) => GENERIC_TASKS_LIST.includes(t)) || isSpammingRaid(order || [])) ?? false;
+    const defaults = getRaidWizardSession(wizardSessionId)?.defaults ?? {};
+    await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { mapNameRequired, defaults }));
 }
 
 /* -------------------- MAIN HANDLER -------------------- */
@@ -164,6 +195,16 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
     if (fullRaidInfo) raidInfo = fullRaidInfo;
 
     /* ---------- EDIT REQUEST (START) ---------- */
+    if (interaction.customId === "editRequest_tasks_btn") {
+        await startEditTasksWizard(interaction, raidInfo, { reply: true });
+        return;
+    }
+
+    if (interaction.customId === "editRequest_details_btn") {
+        await showEditDetailsModal(interaction, raidInfo);
+        return;
+    }
+
     if (interaction.customId === "editRequest_btn") {
         const sessionId = newEditRequestSessionId(interaction.user.id);
         editRequestSessions.set(sessionId, {
@@ -250,27 +291,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         }
 
         if (kind === 'details') {
-            const wizardSessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
-            const { order } = parseTaskRunsMap(raidInfo.task || '');
-            const categoryKeys = inferCategoryKeysFromTasks(order);
-
-            updateRaidWizardSession(wizardSessionId, {
-                mode: 'edit',
-                channelId: interaction.channel.id,
-                step: 'tasks',
-                categoryKeys,
-                tasks: order,
-                defaults: {
-                    mapName: raidInfo.mapName ?? '',
-                    mapNumber: raidInfo.mapNumber ?? '',
-                    server: raidInfo.server ?? '',
-                    description: raidInfo.description ?? '',
-                },
-            });
-
-            const mapNameRequired = (order || []).some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
-            const defaults = getRaidWizardSession(wizardSessionId)?.defaults ?? {};
-            await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { mapNameRequired, defaults }));
+            await showEditDetailsModal(interaction, raidInfo);
             consumeEditRequestSession(sessionId);
             return;
         }
@@ -431,7 +452,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 return;
             }
 
-            const mapNameRequired = session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
+            const mapNameRequired = (session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) || isSpammingRaid(session.tasks || [])) ?? false;
             const defaults = session.defaults ?? {};
 
             await interaction.showModal(getRaidWizardEditDetailsModal(continueSessionId, { mapNameRequired, defaults }));
@@ -466,9 +487,9 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             return;
         }
 
-        const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
+        const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t)) || isSpammingRaid(resolvedTasks);
         if (isMapNameRequired && !String(mapName ?? '').trim()) {
-            await interaction.reply({ content: 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).', flags: MessageFlags.Ephemeral });
+            await interaction.reply({ content: 'Map Name is required for other/spamming tasks.', flags: MessageFlags.Ephemeral });
             return;
         }
 
@@ -482,15 +503,12 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
         await updateRaid(interaction.channel.id, updates);
 
-        await updateRaidLogEmbed(client, interaction.channel.id, {
-            title: 'Raid Request',
-            fields: [
-                { name: 'Task(s)', value: resolvedTasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') },
-                { name: 'Map', value: `${updates.mapName}` },
-                { name: 'Room Number', value: `${updates.mapNumber}`, inline: true },
-                { name: 'Server', value: updates.server, inline: true },
-                { name: 'Description', value: updates.description },
-            ],
+        const helpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: { ...raidInfo, ...updates },
+            helpers,
         });
 
         const updatedContent = 'Raid updated.';

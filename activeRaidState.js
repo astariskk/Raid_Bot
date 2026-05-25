@@ -1,8 +1,9 @@
 // activeRaidState.js
 
 import { EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
-import { EMBED_COLOR, STATUS_COLORS } from './config/constants.js';
 import { createRaidState, deleteRaidState, getRaidState, getRaidStateMinimal, updateRaidState } from './utils/dbOps.js';
+import { listRaidHelpers } from './utils/raidParticipationStore.js';
+import { buildRaidRequestMessagePayload } from './handlers/raidTickets/raidTicketPresentation.js';
 
 // Cache for active raid tickets to reduce database reads.
 const raidStateCache = new Map();
@@ -131,35 +132,20 @@ export async function updateRaidStatus(client, channelId, newStatus) {
     }
 
     try {
+        await updateRaid(channelId, { status: newStatus });
+
         const channel = await client.channels.fetch(raidInfo.originalChannelId);
         const message = await channel.messages.fetch(raidInfo.messageId);
-        const originalEmbed = message.embeds[0];
+        const requester = await channel.guild?.members?.fetch(raidInfo.requesterId).catch(() => null);
+        const helpers = await listRaidHelpers(channelId).catch(() => []);
 
-        if (!originalEmbed) {
-            console.error(`Original embed not found for message ${raidInfo.messageId}`);
-            return;
-        }
-
-        const nextColor = STATUS_COLORS?.[newStatus] ?? EMBED_COLOR;
-
-        const updatedEmbed = new EmbedBuilder(originalEmbed.data)
-            .setFields(
-                originalEmbed.fields.map(field => {
-                    if (field.name === 'Status') {
-                        return { name: 'Status', value: newStatus, inline: true };
-                    }
-                    return field;
-                })
-            )
-            .setColor(nextColor)
-            .setTimestamp(); 
+        await message.edit(buildRaidRequestMessagePayload({
+            requester,
+            raidInfo: { ...raidInfo, status: newStatus },
+            helpers,
+        }));
         
-        await message.edit({ embeds: [updatedEmbed] });
         console.log(`Updated status to "${newStatus}" for raid in ticket ${channelId}`);
-
-        await updateRaid(channelId, { status: newStatus });
-        
-
     } catch (error) {
         console.error(`Failed to update raid status for ticket ${channelId}:`, error);
     }

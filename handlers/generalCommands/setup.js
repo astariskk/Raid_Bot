@@ -23,6 +23,7 @@ import {
 } from '../raidTickets/embeds/raidWizardUi.js';
 
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
+import { isSpammingRaid } from '../raidTickets/raidTicketPresentation.js';
 import {
     consumeRaidWizardSession,
     createRaidWizardSession,
@@ -422,9 +423,10 @@ export function setupGeneralCommandsHandler(client) {
                 }
 
                 const includesGeneric = session.tasks?.some((t) => ['simple', 'moderate', 'difficult'].includes(t)) ?? false;
+                const includesSpamming = isSpammingRaid(session.tasks || []);
                 const mapNameRequired = includesGeneric;
 
-                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { mapNameRequired }));
+                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { mapNameRequired: mapNameRequired || includesSpamming }));
                 return;
             }
         }

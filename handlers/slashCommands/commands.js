@@ -103,6 +103,20 @@ export const commands = [
     ],
   },
   {
+    name: 'removehelper',
+    description: 'Remove a helper from the current raid ticket (staff only).',
+    dm_permission: false,
+    default_member_permissions: PermissionFlagsBits.ManageMessages.toString(),
+    options: [
+      {
+        name: 'user',
+        description: 'Helper to remove from this raid ticket',
+        type: ApplicationCommandOptionType.User,
+        required: true,
+      },
+    ],
+  },
+  {
     name: 'addcommand',
     description: 'Create a new GIF/Text command (staff only).',
     dm_permission: false,

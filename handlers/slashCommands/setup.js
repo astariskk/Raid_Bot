@@ -12,6 +12,9 @@ import { getGifCommand } from '../../utils/gifCommandsStore.js';
 import { startRaidTaskManagerInteraction } from '../generalCommands/raidTasksCrud.js';
 import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
 import { postChartToChannel, startChartBrowseInteraction } from '../charts/charts.js';
+import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
+import { listRaidHelpers, removeRaidHelper } from '../../utils/raidParticipationStore.js';
+import { getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage } from '../raidTickets/raidTicketPresentation.js';
 
 function getMentionedUserIds(usersString = '') {
   const input = String(usersString ?? '');
@@ -170,6 +173,39 @@ export async function handleSlashCommandInteraction(interaction, client) {
           content: 'Failed to remove XP. Please try again later.',
           flags: MessageFlags.Ephemeral,
         });
+      }
+      return;
+    }
+
+    case 'removehelper': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      const target = interaction.options.getUser('user', true);
+      try {
+        const raidInfo = await getRaidInfo(interaction.channelId);
+        if (!raidInfo) {
+          await interaction.reply({ content: 'Use this command inside an active raid ticket.', flags: MessageFlags.Ephemeral });
+          return;
+        }
+
+        await removeRaidHelper(interaction.channelId, target.id, interaction.user.id);
+        const helpers = await listRaidHelpers(interaction.channelId);
+        if (Array.isArray(raidInfo.pendingHelperIds) && raidInfo.pendingHelperIds.includes(target.id)) {
+          await updateRaid(interaction.channelId, {
+            pendingHelperIds: raidInfo.pendingHelperIds.filter((id) => id !== target.id),
+          });
+        }
+        const spamming = isSpammingRaid(raidInfo);
+        const nextStatus = spamming ? getRaidStatusForHelpers({ isSpamming: true, helperCount: helpers.length }) : raidInfo.status;
+        if (spamming && nextStatus !== raidInfo.status) await updateRaid(interaction.channelId, { status: nextStatus });
+        await refreshRaidRequestMessage({ client, channel: interaction.channel, raidInfo: { ...raidInfo, status: nextStatus }, helpers });
+        await interaction.reply({ content: `Removed <@${target.id}> from this raid ticket.`, flags: MessageFlags.Ephemeral });
+      } catch (error) {
+        console.error('Error handling /removehelper:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to remove helper.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
       }
       return;
     }

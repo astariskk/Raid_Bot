@@ -1,10 +1,10 @@
-import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags, WebhookClient } from 'discord.js';
-import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
+import { ChannelType, PermissionFlagsBits, MessageFlags, WebhookClient } from 'discord.js';
+import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, GENERIC_TASKS_LIST, RAID_STATUS } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
-import { threadActionRow } from './buttons/threadButtons.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
 import { normalizeRoomNumber } from '../../utils/roomNumber.js';
+import { buildRaidRequestMessagePayload, isSpammingRaid } from './raidTicketPresentation.js';
 
 export async function handleRaidCreation(interaction) {
     if (!interaction.isModalSubmit()) return;
@@ -66,9 +66,12 @@ export async function handleRaidCreation(interaction) {
         return;
     }
 
-    const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
+    const isSpamming = isSpammingRaid(resolvedTasks);
+    const isMapNameRequired = isSpamming || resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
     if (isMapNameRequired && !String(mapName ?? '').trim()) {
-        const msg = 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).';
+        const msg = isSpamming
+            ? 'Map Name is required for spamming raids.'
+            : 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).';
         if (interaction.replied || interaction.deferred) {
             await interaction.editReply({ content: msg }).catch(() => {});
         } else {
@@ -93,37 +96,8 @@ export async function handleRaidCreation(interaction) {
             ]
         });
 
-        // Build Embed
-        const displayTasks = resolvedTasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t);
-        const embed = new EmbedBuilder()
-            .setColor(STATUS_COLORS?.[RAID_STATUS.WAITING] ?? EMBED_COLOR)
-            .setTitle('Raid Request')
-            .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
-            .addFields(
-                { name: 'Task(s)', value: displayTasks.join(', '), inline: false },
-                { name: 'Map', value: `${mapName || 'Auto (based on task)'}`, inline: false},
-                { name: 'Room Number', value: `${mapNumber}`, inline: true },
-                { name: 'Server', value: server, inline: true },
-                { name: 'Status', value: RAID_STATUS.WAITING, inline: true },
-                { name: 'Description', value: description || 'No description provided.' }
-            );
-
-        const sentMsg = await ticketChannel.send({
-            content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}`,
-            embeds: [embed]
-        });
-        
-        await ticketChannel.send({
-            content: `You can type **!waiting** **!ongoing** or **!full** to update the raid status\n`+
-                `Use the buttons below to manage your raid.`,
-            components: [threadActionRow]
-        });
-
-        await sentMsg.pin();
-
-        // Save to DB
-        await createRaid(ticketChannel.id, {
-            messageId: sentMsg.id,
+        const raidDetails = {
+            messageId: null,
             originalChannelId: ticketChannel.id,
             task: resolvedTasks.join(', '),
             requesterId: interaction.user.id,
@@ -136,7 +110,25 @@ export async function handleRaidCreation(interaction) {
             isAwaitingCompletion: false,
             partialHelpers: [],
             originalName: baseName,
+        };
+
+        const requestPayload = buildRaidRequestMessagePayload({
+            requester: interaction.member,
+            raidInfo: raidDetails,
+            helpers: [],
         });
+
+        const sentMsg = await ticketChannel.send({
+            content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}\n\n` +
+                `You can type **!waiting** **!ongoing** or **!full** to update the raid status. Status will also update automatically for spamming raids.\n` +
+                `Use the buttons below to manage your raid.`,
+            ...requestPayload,
+        });
+
+        await sentMsg.pin();
+
+        // Save to DB
+        await createRaid(ticketChannel.id, { ...raidDetails, messageId: sentMsg.id });
 
         const createdContent = `Ticket has been created: <#${ticketChannel.id}>`;
 

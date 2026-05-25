@@ -88,7 +88,8 @@ values
   ('originul', 'Originul', 40),
   ('legion', 'Legion', 50),
   ('other_seven', 'Other 7-Man', 60),
-  ('generic', 'Generic', 70)
+  ('generic', 'Generic', 70),
+  ('spamming', 'Spamming', 80)
 on conflict (key) do update
 set
   display_name = excluded.display_name,
@@ -145,7 +146,9 @@ values
   -- Generic custom tasks
   ('simple', 'Simple', 1000, 'generic', true, 'Generic custom task.', '{}'::text[], ARRAY['easy']::text[], 10),
   ('moderate', 'Moderate', 5000, 'generic', true, 'Generic custom task.', '{}'::text[], ARRAY['medium']::text[], 20),
-  ('difficult', 'Difficult', 10000, 'generic', true, 'Generic custom task.', '{}'::text[], ARRAY['hard']::text[], 30)
+  ('difficult', 'Difficult', 10000, 'generic', true, 'Generic custom task.', '{}'::text[], ARRAY['hard']::text[], 30),
+  -- Time-based spamming
+  ('spamming', 'Spamming', 0, 'spamming', true, 'Time-based helper EXP: 300 EXP per minute, capped at 10000 EXP.', '{}'::text[], '{}'::text[], 10)
 on conflict (key) do update
 set
   display_name = excluded.display_name,

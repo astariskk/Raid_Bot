@@ -46,7 +46,7 @@ export function getCommandsEmbed() {
         name: 'Inside Raid Tickets',
         value:
           '`!waiting` / `!ongoing` / `!full` - update raid status (requester/staff)\n' +
-          '`!raidmaps <number>` or `!maps <number>` - show join maps for this ticket\n' +
+          '`!raidmaps <number>` - show join maps for this ticket\n' +
           '`!charts` or `/chart` - find available charts for ultras',
         inline: false,
       },
@@ -284,6 +284,7 @@ Then use the buttons on the preview message: \`Edit\`, \`Change Image\`, \`Delet
 **Raid Tasks**
 \`/modifytasks\` or \`!managetasks\`: open the interactive raid task manager.
 Use it to create categories, add/edit tasks, edit task names/points/descriptions, toggle availability, move tasks between categories, and manage task order.
+\`/removehelper\`: remove a joined helper from the current raid ticket.
 `,
     })
     .setTimestamp()
