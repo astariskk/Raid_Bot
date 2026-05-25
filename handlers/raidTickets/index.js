@@ -61,10 +61,12 @@ export function setupRaidHandlers(client) {
 
         // Lifecycle (Edit, Cancel)
         if (
-            ['editRequest_btn', 'editRequest_tasks_btn', 'editRequest_details_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
+            ['editRequest_btn', 'editRequest_tasks_btn', 'editRequest_details_btn', 'editRequest_description_btn', 'cancelRaidTicket'].includes(interaction.customId) ||
             interaction.customId.startsWith('editRequest_') ||
             interaction.customId.startsWith('raidWizardEdit_') ||
-            interaction.customId.startsWith('raidWizardEditDetailsModal_')
+            interaction.customId.startsWith('raidWizardEditDetailsModal_') ||
+            interaction.customId === 'editRequestDescriptionModal' ||
+            interaction.customId === 'cancelRaidModal'
         ) {
             await handleLifecycleInteractions(interaction, raidInfo, client);
             return;

@@ -4,7 +4,7 @@ import { updateRaidStatus } from '../../activeRaidState.js';
 import { RAID_STATUS, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
 import { generateRaidMapsEmbed, parseRaidTasks } from '../../utils/raidMaps.js';
 import { joinRaidHelper, listRaidHelpers, removeRaidHelper } from '../../utils/raidParticipationStore.js';
-import { getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
+import { getRaidHelperCapacity, getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
 import { requireAuth } from './ticketUtils.js';
 
 // --- Main Message Handler ---
@@ -59,10 +59,10 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
     const helpers = await listRaidHelpers(interaction.channel.id);
-    const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId).length;
+    const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId && !helper.removedAt).length;
     const spamming = isSpammingRaid(raidInfo);
     const nextStatus = spamming
-      ? getRaidStatusForHelpers({ isSpamming: true, helperCount })
+      ? getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: getRaidHelperCapacity(raidInfo) })
       : raidInfo.status;
 
     if (spamming && nextStatus !== raidInfo.status) {
@@ -105,11 +105,11 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     }
 
     await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
-    const helpers = await listRaidHelpers(interaction.channel.id);
-    const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId).length;
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: Boolean(raidInfo.isAwaitingCompletion) });
+    const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId && !helper.removedAt).length;
     const spamming = isSpammingRaid(raidInfo);
     const nextStatus = spamming
-      ? getRaidStatusForHelpers({ isSpamming: true, helperCount })
+      ? getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: getRaidHelperCapacity(raidInfo) })
       : raidInfo.status;
 
     if (spamming && nextStatus !== raidInfo.status) {

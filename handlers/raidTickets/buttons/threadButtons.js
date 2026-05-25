@@ -25,6 +25,11 @@ export const editServerButton = new ButtonBuilder()
     .setLabel('Edit Server')
     .setStyle(ButtonStyle.Secondary);
 
+export const editDescriptionButton = new ButtonBuilder()
+    .setCustomId('editRequest_description_btn')
+    .setLabel('Edit Description')
+    .setStyle(ButtonStyle.Secondary);
+
 export const cancelTicketButton = new ButtonBuilder()
     .setCustomId('cancelRaidTicket')
     .setLabel('Cancel Raid')
@@ -38,7 +43,7 @@ export const raidmapsButton = new ButtonBuilder()
 export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, closeTicketButton, cancelTicketButton, raidmapsButton);
 
 export function getEditRequestRow() {
-    return new ActionRowBuilder().addComponents(editTasksButton, editServerButton);
+    return new ActionRowBuilder().addComponents(editTasksButton, editServerButton, editDescriptionButton);
 }
 
 export function getThreadActionRow() {
@@ -47,18 +52,22 @@ export function getThreadActionRow() {
 
 export function getHelperKickRows(helpers = []) {
     const rows = [];
-    const helperIds = helpers
-        .map((helper) => String(helper?.helperId ?? '').trim())
-        .filter(Boolean)
+    const helperEntries = helpers
+        .map((helper) => ({
+            helperId: String(helper?.helperId ?? '').trim(),
+            displayName: String(helper?.displayName ?? '').trim(),
+        }))
+        .filter((helper) => helper.helperId)
         .slice(0, 10);
 
-    for (let i = 0; i < helperIds.length; i += 5) {
+    for (let i = 0; i < helperEntries.length; i += 5) {
         const row = new ActionRowBuilder();
-        helperIds.slice(i, i + 5).forEach((helperId, index) => {
+        helperEntries.slice(i, i + 5).forEach((helper, index) => {
+            const name = helper.displayName || `Helper ${i + index + 1}`;
             row.addComponents(
                 new ButtonBuilder()
-                    .setCustomId(`kickRaidHelper_${helperId}`)
-                    .setLabel(`Kick Helper ${i + index + 1}`)
+                    .setCustomId(`kickRaidHelper_${helper.helperId}`)
+                    .setLabel(`Kick ${name}`.slice(0, 80))
                     .setStyle(ButtonStyle.Secondary),
             );
         });
@@ -71,7 +80,33 @@ export function getHelperKickRows(helpers = []) {
 export function buildRaidRequestComponents(helpers = []) {
     return [
         getEditRequestRow(),
-        getThreadActionRow(),
         ...getHelperKickRows(helpers),
+        getThreadActionRow(),
     ].slice(0, 5);
+}
+
+export function getCloseConfirmRow({ proofImageUrl } = {}) {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('confirmCloseSelection')
+            .setLabel('Confirm Close')
+            .setStyle(ButtonStyle.Success),
+        new ButtonBuilder()
+            .setCustomId('abortCloseRaid')
+            .setLabel('Cancel Closing')
+            .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+            .setCustomId('provideProof')
+            .setLabel(proofImageUrl ? 'Proof Attached' : 'Attach Proof')
+            .setStyle(ButtonStyle.Secondary),
+    );
+}
+
+export function getKickHelperButton(helper, fallbackLabel = 'Helper') {
+    const helperId = String(helper?.helperId ?? '').trim();
+    const name = String(helper?.displayName ?? fallbackLabel).trim() || fallbackLabel;
+    return new ButtonBuilder()
+        .setCustomId(`kickRaidHelper_${helperId}`)
+        .setLabel(`Kick ${name}`.slice(0, 80))
+        .setStyle(ButtonStyle.Secondary);
 }

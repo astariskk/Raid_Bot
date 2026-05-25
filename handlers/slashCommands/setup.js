@@ -14,7 +14,7 @@ import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js'
 import { postChartToChannel, startChartBrowseInteraction } from '../charts/charts.js';
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
 import { listRaidHelpers, removeRaidHelper } from '../../utils/raidParticipationStore.js';
-import { getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage } from '../raidTickets/raidTicketPresentation.js';
+import { getRaidHelperCapacity, getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage } from '../raidTickets/raidTicketPresentation.js';
 
 function getMentionedUserIds(usersString = '') {
   const input = String(usersString ?? '');
@@ -189,14 +189,15 @@ export async function handleSlashCommandInteraction(interaction, client) {
         }
 
         await removeRaidHelper(interaction.channelId, target.id, interaction.user.id);
-        const helpers = await listRaidHelpers(interaction.channelId);
+        const helpers = await listRaidHelpers(interaction.channelId, { includeRemoved: Boolean(raidInfo.isAwaitingCompletion) });
         if (Array.isArray(raidInfo.pendingHelperIds) && raidInfo.pendingHelperIds.includes(target.id)) {
           await updateRaid(interaction.channelId, {
             pendingHelperIds: raidInfo.pendingHelperIds.filter((id) => id !== target.id),
           });
         }
         const spamming = isSpammingRaid(raidInfo);
-        const nextStatus = spamming ? getRaidStatusForHelpers({ isSpamming: true, helperCount: helpers.length }) : raidInfo.status;
+        const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId && !helper.removedAt).length;
+        const nextStatus = spamming ? getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: getRaidHelperCapacity(raidInfo) }) : raidInfo.status;
         if (spamming && nextStatus !== raidInfo.status) await updateRaid(interaction.channelId, { status: nextStatus });
         await refreshRaidRequestMessage({ client, channel: interaction.channel, raidInfo: { ...raidInfo, status: nextStatus }, helpers });
         await interaction.reply({ content: `Removed <@${target.id}> from this raid ticket.`, flags: MessageFlags.Ephemeral });

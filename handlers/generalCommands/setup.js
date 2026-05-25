@@ -143,7 +143,7 @@ function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
 
     embed.addFields({
         name: 'Selected Tasks',
-        value: tasks.length ? tasks.map((t) => (TASK_DISPLAY_NAMES?.[t] ? `\`${t}\` — ${TASK_DISPLAY_NAMES[t]}` : `\`${t}\``)).join(', ') : '*None*',
+        value: tasks.length ? tasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') : '*None*',
         inline: false,
     });
 

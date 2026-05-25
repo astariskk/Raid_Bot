@@ -15,7 +15,7 @@ import {
     getRaidInfo
 } from '../../activeRaidState.js';
 
-import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TASK_DISPLAY_NAMES, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
 import { isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
@@ -173,6 +173,38 @@ async function showEditDetailsModal(interaction, raidInfo) {
     await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { mapNameRequired, defaults }));
 }
 
+function getEditDescriptionModal(raidInfo) {
+    return new ModalBuilder()
+        .setCustomId('editRequestDescriptionModal')
+        .setTitle('Edit Description')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('descriptionInput')
+                    .setLabel('Description')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(false)
+                    .setValue(String(raidInfo?.description ?? '').slice(0, 4000)),
+            ),
+        );
+}
+
+function getCancelRaidModal() {
+    return new ModalBuilder()
+        .setCustomId('cancelRaidModal')
+        .setTitle('Cancel Raid')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('confirmCancelInput')
+                    .setLabel('Type YES to cancel this raid')
+                    .setStyle(TextInputStyle.Short)
+                    .setRequired(true)
+                    .setPlaceholder('YES'),
+            ),
+        );
+}
+
 /* -------------------- MAIN HANDLER -------------------- */
 export async function handleLifecycleInteractions(interaction, raidInfo, client) {
 
@@ -202,6 +234,11 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
     if (interaction.customId === "editRequest_details_btn") {
         await showEditDetailsModal(interaction, raidInfo);
+        return;
+    }
+
+    if (interaction.customId === "editRequest_description_btn") {
+        await interaction.showModal(getEditDescriptionModal(raidInfo));
         return;
     }
 
@@ -435,7 +472,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                     .setColor(EMBED_COLOR)
                     .setTitle('Edit Raid')
                     .setDescription(`Page 2/2: Select task(s) for **${label || 'selected categories'}**.`)
-                    .addFields({ name: 'Selected Tasks', value: updated.tasks?.length ? updated.tasks.map((t) => `\`${t}\``).join(', ') : '*None*', inline: false });
+                    .addFields({ name: 'Selected Tasks', value: updated.tasks?.length ? updated.tasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') : '*None*', inline: false });
 
                 await interaction.update({
                     embeds: [embed],
@@ -532,6 +569,22 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         return;
     }
 
+    if (interaction.isModalSubmit() && interaction.customId === 'editRequestDescriptionModal') {
+        const description = interaction.fields.getTextInputValue('descriptionInput') || 'No description.';
+        await updateRaid(interaction.channel.id, { description });
+
+        const helpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: { ...raidInfo, description },
+            helpers,
+        });
+
+        await interaction.reply({ content: 'Description updated.', flags: MessageFlags.Ephemeral });
+        return;
+    }
+
     /* ---------- EDIT WIZARD (SELECT MENUS) ---------- */
     if (interaction.isStringSelectMenu() && interaction.customId.startsWith('raidWizardEdit_')) {
         const pick = (prefix) => (interaction.customId.startsWith(prefix) ? interaction.customId.slice(prefix.length) : null);
@@ -591,7 +644,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 .setColor(EMBED_COLOR)
                 .setTitle('Edit Raid')
                 .setDescription(`Page 2/2: Select task(s) for **${label || 'selected categories'}**.`)
-                .addFields({ name: 'Selected Tasks', value: tasks.length ? tasks.map((t) => `\`${t}\``).join(', ') : '*None*', inline: false });
+                .addFields({ name: 'Selected Tasks', value: tasks.length ? tasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') : '*None*', inline: false });
 
             await interaction.update({
                 embeds: [embed],
@@ -606,30 +659,18 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
     /* ---------- 3. CANCEL RAID ---------- */
     if (interaction.customId === "cancelRaidTicket") {
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("confirmCancelRaid")
-                .setLabel("Confirm Cancel")
-                .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-                .setCustomId("abortCancelRaid")
-                .setLabel("Abort")
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        await interaction.reply({
-            content: "Cancel this raid?",
-            components: [row],
-            flags: MessageFlags.Ephemeral
-        });
+        await interaction.showModal(getCancelRaidModal());
         return;
     }
 
-    if (interaction.customId === "confirmCancelRaid") {
-        await interaction.update({
-            content: "Raid will now be cancelled.",
-            components: []
-        });
+    if (interaction.isModalSubmit() && interaction.customId === "cancelRaidModal") {
+        const confirmation = interaction.fields.getTextInputValue('confirmCancelInput');
+        if (String(confirmation ?? '').trim().toLowerCase() !== 'yes') {
+            await interaction.reply({ content: 'Cancellation aborted.', flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        await interaction.reply({ content: 'The raid ticket got canceled. This ticket will now close.' });
 
         await finalizeAdminReview(
             client,
@@ -639,14 +680,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             interaction.user.id,
             "cancelled"
         );
-        return;
-    }
-
-    if (interaction.customId === "abortCancelRaid") {
-        await interaction.update({
-            content: "Cancelled.",
-            components: []
-        });
         return;
     }
 }

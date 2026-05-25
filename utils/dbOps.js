@@ -184,6 +184,7 @@ export async function getRaidState(channelId) {
         pendingHelperIds: closing.pendingHelperIds ?? closing.pending_helper_ids ?? null,
         proofImage: closing.proofImage ?? closing.proof_image ?? null,
         partialHelpers: closing.partialHelpers ?? closing.partial_helpers ?? [],
+        previousStatus: closing.previousStatus ?? closing.previous_status ?? null,
         awaitingCompletionRequesterId: closing.awaitingCompletionRequesterId ?? closing.awaiting_completion_requester_id ?? null,
         pointsAwarded: closing.pointsAwarded ?? closing.points_awarded ?? null,
         expLairMessageLink: closing.expLairMessageLink ?? closing.exp_lair_message_link ?? null,
@@ -226,6 +227,7 @@ export async function createRaidState(channelId, raidDetails) {
         pendingHelperIds: raidDetails.pendingHelperIds ?? null,
         proofImage: raidDetails.proofImage ?? null,
         awaitingCompletionRequesterId: raidDetails.awaitingCompletionRequesterId ?? null,
+        previousStatus: raidDetails.previousStatus ?? null,
         pointsAwarded: raidDetails.pointsAwarded ?? null,
         expLairMessageLink: raidDetails.expLairMessageLink ?? null,
         partialHelpers: raidDetails.partialHelpers ?? [],
@@ -263,6 +265,7 @@ export async function updateRaidState(channelId, updates) {
     const closureKeys = new Set([
         'pendingHelperIds',
         'proofImage',
+        'previousStatus',
         'awaitingCompletionRequesterId',
         'pointsAwarded',
         'expLairMessageLink',

@@ -119,9 +119,7 @@ export async function handleRaidCreation(interaction) {
         });
 
         const sentMsg = await ticketChannel.send({
-            content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}\n\n` +
-                `You can type **!waiting** **!ongoing** or **!full** to update the raid status. Status will also update automatically for spamming raids.\n` +
-                `Use the buttons below to manage your raid.`,
+            content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}`,
             ...requestPayload,
         });
 

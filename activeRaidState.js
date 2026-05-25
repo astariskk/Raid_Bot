@@ -138,11 +138,17 @@ export async function updateRaidStatus(client, channelId, newStatus) {
         const message = await channel.messages.fetch(raidInfo.messageId);
         const requester = await channel.guild?.members?.fetch(raidInfo.requesterId).catch(() => null);
         const helpers = await listRaidHelpers(channelId).catch(() => []);
+        const displayHelpers = await Promise.all(
+            helpers.map(async (helper) => {
+                const member = await channel.guild?.members?.fetch(helper.helperId).catch(() => null);
+                return { ...helper, displayName: member?.displayName || helper.helperId };
+            }),
+        );
 
         await message.edit(buildRaidRequestMessagePayload({
             requester,
             raidInfo: { ...raidInfo, status: newStatus },
-            helpers,
+            helpers: displayHelpers,
         }));
         
         console.log(`Updated status to "${newStatus}" for raid in ticket ${channelId}`);
