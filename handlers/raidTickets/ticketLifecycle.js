@@ -189,20 +189,17 @@ function getEditDescriptionModal(raidInfo) {
         );
 }
 
-function getCancelRaidModal() {
-    return new ModalBuilder()
-        .setCustomId('cancelRaidModal')
-        .setTitle('Cancel Raid')
-        .addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('confirmCancelInput')
-                    .setLabel('Type YES to cancel this raid')
-                    .setStyle(TextInputStyle.Short)
-                    .setRequired(true)
-                    .setPlaceholder('YES'),
-            ),
-        );
+function getCancelRaidConfirmRow() {
+    return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+            .setCustomId('confirmCancelRaid_yes')
+            .setLabel('Yes')
+            .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+            .setCustomId('confirmCancelRaid_no')
+            .setLabel('No')
+            .setStyle(ButtonStyle.Secondary),
+    );
 }
 
 /* -------------------- MAIN HANDLER -------------------- */
@@ -657,20 +654,23 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         return;
     }
 
-    /* ---------- 3. CANCEL RAID ---------- */
+/* ---------- 3. CANCEL RAID ---------- */
     if (interaction.customId === "cancelRaidTicket") {
-        await interaction.showModal(getCancelRaidModal());
+        const embed = new EmbedBuilder()
+            .setColor(EMBED_COLOR)
+            .setTitle('Cancel Raid')
+            .setDescription('Are you sure you want to cancel this raid? This will close the ticket.');
+        await interaction.reply({
+            embeds: [embed],
+            components: [getCancelRaidConfirmRow()],
+            flags: MessageFlags.Ephemeral,
+        });
         return;
     }
 
-    if (interaction.isModalSubmit() && interaction.customId === "cancelRaidModal") {
-        const confirmation = interaction.fields.getTextInputValue('confirmCancelInput');
-        if (String(confirmation ?? '').trim().toLowerCase() !== 'yes') {
-            await interaction.reply({ content: 'Cancellation aborted.', flags: MessageFlags.Ephemeral });
-            return;
-        }
-
-        await interaction.reply({ content: 'The raid ticket got canceled. This ticket will now close.' });
+    if (interaction.customId === 'confirmCancelRaid_yes') {
+        if (!await requireAuth(interaction, raidInfo)) return;
+        await interaction.update({ content: 'The raid ticket got canceled. This ticket will now close.', embeds: [], components: [] });
 
         await finalizeAdminReview(
             client,
@@ -680,6 +680,11 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             interaction.user.id,
             "cancelled"
         );
+        return;
+    }
+
+    if (interaction.customId === 'confirmCancelRaid_no') {
+        await interaction.update({ content: 'Cancel aborted.', embeds: [], components: [] });
         return;
     }
 }

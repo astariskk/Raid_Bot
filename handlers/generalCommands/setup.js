@@ -1,4 +1,16 @@
-import { EmbedBuilder, MessageFlags } from 'discord.js';
+import {
+    ActionRowBuilder,
+    ButtonBuilder,
+    ButtonStyle,
+    ContainerBuilder,
+    EmbedBuilder,
+    MessageFlags,
+    SectionBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    StringSelectMenuBuilder,
+    TextDisplayBuilder,
+} from 'discord.js';
 
 import {
     EMBED_COLOR,
@@ -159,6 +171,67 @@ function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
     }
 
     return embed;
+}
+
+function text(content) {
+    return new TextDisplayBuilder().setContent(String(content || '\u200b').slice(0, 4000));
+}
+
+function separator() {
+    return new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
+}
+
+function getWizardCategoryV2(sessionId, categoryKeys) {
+    const categories = categoryKeys.map(getRaidWizardCategoryDef).filter(Boolean);
+    const categoryText = categories.length ? categories.map((c) => `• **${c.label}**`).join('\n') : '*None*';
+
+    const optionCount = getRaidWizardTaskOptionsCount(categoryKeys);
+    const canContinue = categoryKeys.length > 0 && optionCount <= 25;
+    const taskCountText = canContinue
+        ? `This selection will show **${optionCount}** options on Page 2.`
+        : categoryKeys.length > 0
+            ? `Too many tasks (**${optionCount}** options). Select fewer categories (max 25 options).`
+            : '*Select categories to continue*';
+
+    return new ContainerBuilder()
+        .setAccentColor(EMBED_COLOR)
+        .addTextDisplayComponents(text('### Start Raid - Page 1/2'))
+        .addTextDisplayComponents(text('Select a task category.'))
+        .addTextDisplayComponents(text(`**Selected Categories**\n${categoryText}`))
+        .addTextDisplayComponents(text(`**Task Count**\n${taskCountText}`))
+        .addActionRowComponents(getRaidWizardCategorySelectRow(sessionId, categoryKeys))
+        .addSeparatorComponents(separator())
+        .addActionRowComponents(getRaidWizardNavRow(sessionId, { step: 'category', canContinue }));
+}
+
+function getWizardTasksV2(sessionId, categoryKeys, tasks) {
+    const categories = categoryKeys.map(getRaidWizardCategoryDef).filter(Boolean);
+    const categoryLabel = categories.length ? categories.map((c) => c.label).join(', ') : categoryKeys.join(', ');
+    const taskText = tasks.length ? tasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') : '*None*';
+
+    const components = [
+        text('### Start Raid - Page 2/2'),
+        text(`Select task(s) for **${categoryLabel || 'selected categories'}**.`),
+        text(`**Selected Tasks**\n${taskText}`),
+    ];
+
+    if ((categoryKeys || []).includes('generic')) {
+        components.push(
+            text(`**Other Tasks (Time Guide)**\n• \`simple\` — 7-man, ~1–5 minutes 1000 EXP\n• \`moderate\` — ~5–20 minutes 5000 EXP\n• \`difficult\` — ~20–60 minutes 10000 EXP`),
+        );
+    }
+
+    const container = new ContainerBuilder()
+        .setAccentColor(EMBED_COLOR);
+
+    for (const c of components) {
+        container.addTextDisplayComponents(c);
+    }
+
+    return container
+        .addActionRowComponents(getRaidWizardTasksSelectRow(sessionId, categoryKeys, tasks))
+        .addSeparatorComponents(separator())
+        .addActionRowComponents(getRaidWizardNavRow(sessionId, { step: 'tasks', canContinue: tasks.length > 0 }));
 }
 
 export function setupGeneralCommandsHandler(client) {
@@ -345,12 +418,8 @@ export function setupGeneralCommandsHandler(client) {
             const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
 
             await interaction.reply({
-                embeds: [getWizardCategoryEmbed()],
-                components: [
-                    getRaidWizardCategorySelectRow(sessionId, []),
-                    getRaidWizardNavRow(sessionId, { step: 'category', canContinue: false }),
-                ],
-                flags: MessageFlags.Ephemeral,
+                components: [getWizardCategoryV2(sessionId, [])],
+                flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
             });
 
             // Store the interaction token so the modal submit handler can edit this ephemeral wizard message later.
@@ -374,20 +443,17 @@ export function setupGeneralCommandsHandler(client) {
                 return;
             }
 
-            if (cancelSessionId) {
+if (cancelSessionId) {
                 consumeRaidWizardSession(cancelSessionId);
-                await interaction.update({ content: 'Raid creation cancelled.', embeds: [], components: [] });
+                await interaction.update({ components: [], flags: MessageFlags.IsComponentsV2 });
                 return;
             }
 
             if (backSessionId) {
                 const updated = updateRaidWizardSession(backSessionId, { step: 'category' });
                 await interaction.update({
-                    embeds: [getWizardCategoryEmbed({ categoryKeys: updated.categoryKeys })],
-                    components: [
-                        getRaidWizardCategorySelectRow(backSessionId, updated.categoryKeys),
-                        getRaidWizardNavRow(backSessionId, { step: 'category', canContinue: (updated.categoryKeys?.length ?? 0) > 0 }),
-                    ],
+                    components: [getWizardCategoryV2(backSessionId, updated.categoryKeys)],
+                    flags: MessageFlags.IsComponentsV2,
                 });
                 return;
             }
@@ -408,11 +474,8 @@ export function setupGeneralCommandsHandler(client) {
                     const updated = updateRaidWizardSession(continueSessionId, { step: 'tasks' });
 
                     await interaction.update({
-                        embeds: [getWizardTasksEmbed({ categoryKeys: updated.categoryKeys, tasks: updated.tasks })],
-                        components: [
-                            getRaidWizardTasksSelectRow(continueSessionId, updated.categoryKeys, updated.tasks),
-                            getRaidWizardNavRow(continueSessionId, { step: 'tasks', canContinue: (updated.tasks?.length ?? 0) > 0 }),
-                        ],
+                        components: [getWizardTasksV2(continueSessionId, updated.categoryKeys, updated.tasks)],
+                        flags: MessageFlags.IsComponentsV2,
                     });
                     return;
                 }
@@ -537,33 +600,18 @@ export function setupGeneralCommandsHandler(client) {
 
             const updated = updateRaidWizardSession(sessionId, { categoryKeys, step: nextStep, tasks: [] });
 
-            // Auto-advance to Page 2 when the category selection is valid.
+// Auto-advance to Page 2 when the category selection is valid.
             if (canContinue) {
                 await interaction.update({
-                    embeds: [getWizardTasksEmbed({ categoryKeys: updated.categoryKeys, tasks: [] })],
-                    components: [
-                        getRaidWizardTasksSelectRow(sessionId, updated.categoryKeys, []),
-                        getRaidWizardNavRow(sessionId, { step: 'tasks', canContinue: false }),
-                    ],
+                    components: [getWizardTasksV2(sessionId, updated.categoryKeys, [])],
+                    flags: MessageFlags.IsComponentsV2,
                 });
                 return;
             }
 
-            await interaction.update({
-                embeds: [
-                    getWizardCategoryEmbed({ categoryKeys: updated.categoryKeys })
-                        .addFields({
-                            name: 'Task Count',
-                            value: optionCount <= 25
-                                ? `This selection will show **${optionCount}** options on Page 2.`
-                                : `Too many tasks (**${optionCount}** options). Select fewer categories (max 25 options).`,
-                            inline: false,
-                        }),
-                ],
-                components: [
-                    getRaidWizardCategorySelectRow(sessionId, updated.categoryKeys),
-                    getRaidWizardNavRow(sessionId, { step: 'category', canContinue: false }),
-                ],
+await interaction.update({
+                components: [getWizardCategoryV2(sessionId, updated.categoryKeys)],
+                flags: MessageFlags.IsComponentsV2,
             });
             return;
         }
@@ -596,11 +644,8 @@ export function setupGeneralCommandsHandler(client) {
             const updated = updateRaidWizardSession(sessionId, { tasks, step: 'tasks' });
 
             await interaction.update({
-                embeds: [getWizardTasksEmbed({ categoryKeys: updated.categoryKeys, tasks })],
-                components: [
-                    getRaidWizardTasksSelectRow(sessionId, updated.categoryKeys, tasks),
-                    getRaidWizardNavRow(sessionId, { step: 'tasks', canContinue: tasks.length > 0 }),
-                ],
+                components: [getWizardTasksV2(sessionId, updated.categoryKeys, tasks)],
+                flags: MessageFlags.IsComponentsV2,
             });
         }
     });

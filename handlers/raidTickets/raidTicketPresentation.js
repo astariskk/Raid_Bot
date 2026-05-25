@@ -140,17 +140,14 @@ export function buildRaidRequestEmbeds({ requester, raidInfo, helpers = [] }) {
   const statusEmbed = new EmbedBuilder()
     .setColor(color);
 
-  if (!isClosing) {
-    statusEmbed
-      .setDescription(
-        'You can type `!waiting`, `!ongoing`, or `!full` to update the raid status. Status will also update automatically for spamming raids.\n' +
-        'Use the buttons below to manage your raid.',
-      )
-      .addFields(
-        { name: 'Current Status', value: status, inline: false },
-        { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers), inline: false },
-      );
-    return [detailsEmbed, statusEmbed];
+if (!isClosing) {
+     statusEmbed
+       .addFields(
+         { name: 'Current Status', value: status, inline: false },
+         { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers), inline: false },
+       )
+       .addFields({ name: '\u200b', value: 'You can type `!waiting`, `!ongoing`, or `!full` to update the raid status. Status will also update automatically for spamming raids.\nUse the buttons below to manage your raid.', inline: false });
+     return [detailsEmbed, statusEmbed];
   }
 
   statusEmbed.addFields(
@@ -214,21 +211,22 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
     )
     .addSeparatorComponents(separator());
 
-  if (!isClosing) {
-    container
-      .addTextDisplayComponents(text('You can type `!waiting`, `!ongoing`, or `!full` to update the raid status. Status will also update automatically for spamming raids.\nUse the buttons below to manage your raid.'))
-      .addTextDisplayComponents(text(`**Current Status**\n${status}`))
-      .addTextDisplayComponents(text(`**Helpers: ${activeHelpers.length}/${helperCapacity}**`));
+if (!isClosing) {
+     container
+       .addTextDisplayComponents(text(`**Current Status**\n${status}`))
+       .addTextDisplayComponents(text(`**Helpers: ${activeHelpers.length}/${helperCapacity}**`));
 
-    if (!activeHelpers.length) {
-      container.addTextDisplayComponents(text('No helpers yet.'));
-    } else {
-      activeHelpers.slice(0, 10).forEach((helper, index) => {
-        container.addSectionComponents(section(`<@${helper.helperId}>`, getKickHelperButton(helper, `Helper ${index + 1}`)));
-      });
-    }
+     if (!activeHelpers.length) {
+       container.addTextDisplayComponents(text('No helpers yet.'));
+     } else {
+       activeHelpers.slice(0, 10).forEach((helper, index) => {
+         container.addSectionComponents(section(`<@${helper.helperId}>`, getKickHelperButton(helper, `Helper ${index + 1}`)));
+       });
+     }
 
-    container.addActionRowComponents(buildMainActionRow());
+     container
+       .addTextDisplayComponents(text('\nYou can type `!waiting`, `!ongoing`, or `!full` to update the raid status. Status will also update automatically for spamming raids.\nUse the buttons below to manage your raid.'))
+       .addActionRowComponents(buildMainActionRow());
   } else {
     container
       .addTextDisplayComponents(text('**Status**\nAwaiting Completion'))

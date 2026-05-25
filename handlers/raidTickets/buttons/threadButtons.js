@@ -2,43 +2,43 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
 export const joinTicketButton = new ButtonBuilder()
     .setCustomId('joinRaidTicket')
-    .setLabel('Join Ticket')
+    .setLabel('➕ Join Raid')
     .setStyle(ButtonStyle.Success);
 
 export const closeTicketButton = new ButtonBuilder()
     .setCustomId('closeRaidTicket')
-    .setLabel('Close Raid')
+    .setLabel('🔒 Close Raid')
     .setStyle(ButtonStyle.Danger);
 
 export const editRequestButton = new ButtonBuilder()
     .setCustomId('editRequest_btn')
-    .setLabel('Edit Request')
+    .setLabel('✏️ Edit Raid')
     .setStyle(ButtonStyle.Secondary);
 
 export const editTasksButton = new ButtonBuilder()
     .setCustomId('editRequest_tasks_btn')
-    .setLabel('Edit Tasks')
+    .setLabel('📋 Edit Tasks')
     .setStyle(ButtonStyle.Secondary);
 
 export const editServerButton = new ButtonBuilder()
     .setCustomId('editRequest_details_btn')
-    .setLabel('Edit Server')
+    .setLabel('🌍 Edit Server')
     .setStyle(ButtonStyle.Secondary);
 
 export const editDescriptionButton = new ButtonBuilder()
     .setCustomId('editRequest_description_btn')
-    .setLabel('Edit Description')
+    .setLabel('📝 Edit Description')
     .setStyle(ButtonStyle.Secondary);
 
 export const cancelTicketButton = new ButtonBuilder()
     .setCustomId('cancelRaidTicket')
-    .setLabel('Cancel Raid')
+    .setLabel('❌ Cancel Raid')
     .setStyle(ButtonStyle.Danger);
 
 export const raidmapsButton = new ButtonBuilder()
     .setCustomId('raidmapsButton')
-    .setLabel('Maps')
-    .setStyle(ButtonStyle.Secondary);
+    .setLabel('🗺️ Show Maps')
+    .setStyle(ButtonStyle.Primary);
 
 export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, closeTicketButton, cancelTicketButton, raidmapsButton);
 
@@ -89,24 +89,23 @@ export function getCloseConfirmRow({ proofImageUrl } = {}) {
     return new ActionRowBuilder().addComponents(
         new ButtonBuilder()
             .setCustomId('confirmCloseSelection')
-            .setLabel('Confirm Close')
+            .setLabel('🔒 Confirm Close')
             .setStyle(ButtonStyle.Success),
         new ButtonBuilder()
             .setCustomId('abortCloseRaid')
-            .setLabel('Cancel Closing')
-            .setStyle(ButtonStyle.Secondary),
+            .setLabel('❌ Cancel Closing')
+            .setStyle(ButtonStyle.Danger),
         new ButtonBuilder()
             .setCustomId('provideProof')
-            .setLabel(proofImageUrl ? 'Proof Attached' : 'Attach Proof')
-            .setStyle(ButtonStyle.Secondary),
+            .setLabel(proofImageUrl ? '✅ Proof Attached' : ' 📸 Attach Proof')
+            .setStyle(ButtonStyle.Primary),
     );
 }
 
 export function getKickHelperButton(helper, fallbackLabel = 'Helper') {
     const helperId = String(helper?.helperId ?? '').trim();
-    const name = String(helper?.displayName ?? fallbackLabel).trim() || fallbackLabel;
     return new ButtonBuilder()
         .setCustomId(`kickRaidHelper_${helperId}`)
-        .setLabel(`Kick ${name}`.slice(0, 80))
-        .setStyle(ButtonStyle.Secondary);
+        .setLabel('❌ Kick Helper')
+        .setStyle(ButtonStyle.Danger);
 }

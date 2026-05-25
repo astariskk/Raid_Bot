@@ -865,7 +865,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         return;
     }
 
-    /* ---------- ABORT ---------- */
+/* ---------- ABORT ---------- */
     if (interaction.customId === 'abortCloseRaid') {
         await safeDeferUpdate(interaction);
         const joinedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
@@ -883,13 +883,20 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             previousStatus: null,
             status: restoredStatus,
         });
+        
+        const updatedRaidInfo = await getRaidInfo(interaction.channel.id);
         await refreshRaidRequestMessage({
             client,
             channel: interaction.channel,
-            raidInfo: { ...raidInfo, status: restoredStatus },
+            raidInfo: updatedRaidInfo,
             helpers: joinedHelpers,
         });
-        await interaction.followUp({ content: 'Closing cancelled.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        
+        try {
+            await interaction.editReply({ content: 'Closing cancelled.', embeds: [], components: [] });
+        } catch {
+            await interaction.followUp({ content: 'Closing cancelled.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
         return;
     }
 
