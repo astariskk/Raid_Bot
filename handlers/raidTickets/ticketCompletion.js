@@ -2,9 +2,11 @@ import {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
+    ContainerBuilder,
     EmbedBuilder,
     MessageFlags,
     StringSelectMenuBuilder,
+    TextDisplayBuilder,
     MentionableSelectMenuBuilder,
 } from 'discord.js';
 
@@ -424,7 +426,7 @@ function buildPartialHelperTasksRow(sessionId, taskKeys, selectedTasks) {
     const menu = new StringSelectMenuBuilder()
         .setCustomId(`partialHelper_tasks_${sessionId}`)
         .setPlaceholder('Select task(s)')
-        .setMinValues(0)
+        .setMinValues(1)
         .setMaxValues(Math.max(1, options.length))
         .addOptions(options);
 

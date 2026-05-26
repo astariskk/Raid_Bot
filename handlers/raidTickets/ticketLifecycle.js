@@ -14,6 +14,10 @@ import {
     TextInputStyle,
 } from 'discord.js';
 
+function text(content) {
+    return new TextDisplayBuilder().setContent(String(content || '\u200b').slice(0, 4000));
+}
+
 import {
     updateRaid,
     getRaidInfo
@@ -344,7 +348,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
         if (cancelSessionId) {
             consumeRaidWizardSession(cancelSessionId);
-            await interaction.update({ content: 'Edit cancelled.', embeds: [], components: [] });
+            await interaction.update({
+                components: [text('Edit cancelled.')],
+                flags: MessageFlags.IsComponentsV2,
+            });
             return;
         }
 
@@ -404,7 +411,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
             try {
                 if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
-                    await interaction.update({ content: 'Raid updated.', embeds: [], components: [] });
+                    await interaction.update({
+                        components: [text('Raid updated.')],
+                        flags: MessageFlags.IsComponentsV2,
+                    });
                 } else {
                     await interaction.reply({ content: 'Raid updated.', flags: MessageFlags.Ephemeral });
                 }
@@ -467,14 +477,13 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         });
 
         const updatedContent = 'Raid updated.';
-        const updatedEmbed = new EmbedBuilder()
-            .setColor(EMBED_COLOR)
-            .setTitle('Edit Raid')
-            .setDescription(updatedContent);
 
         try {
             if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
-                await interaction.update({ content: null, embeds: [updatedEmbed], components: [] });
+                await interaction.update({
+                    components: [text(updatedContent)],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             } else {
                 await interaction.reply({ content: updatedContent, flags: MessageFlags.Ephemeral });
             }

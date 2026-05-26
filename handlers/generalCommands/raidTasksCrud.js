@@ -377,8 +377,6 @@ async function buildPayload(messageId, session, { ephemeral = true } = {}) {
   }
 
   return {
-    content: null,
-    embeds: [],
     flags: ephemeral ? (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) : MessageFlags.IsComponentsV2,
     components: [container],
   };
@@ -586,7 +584,7 @@ export async function handleRaidTaskCrudInteraction(interaction) {
   if (interaction.isButton()) {
     if (action === 'close') {
       sessions.delete(messageId);
-      await interaction.update({ content: 'Saved.', embeds: [], components: [] }).catch(() => {});
+      await interaction.update({ components: [], flags: MessageFlags.Ephemeral }).catch(() => {});
       return true;
     }
 

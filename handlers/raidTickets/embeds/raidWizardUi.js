@@ -56,7 +56,7 @@ function buildRaidWizardDetailsModal({ customId, title, includeMapName = false, 
             .setLabel('Map Name (optional):')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
-            .setPlaceholder('Comma-separated map names for generic/spamming tasks.')
+            .setPlaceholder('Comma-separated e.g., doomwood, necropolis')
             .setValue(defaults.mapName ?? '');
         rows.unshift(new ActionRowBuilder().addComponents(mapNameInput));
     }
@@ -109,7 +109,7 @@ export function getRaidWizardEditDetailsModal(sessionId, { includeMapName = fals
             .setLabel('Map Name (optional):')
             .setStyle(TextInputStyle.Short)
             .setRequired(false)
-            .setPlaceholder('Comma-separated map names for generic/spamming tasks.')
+            .setPlaceholder('Comma-separated e.g., doomwood, necropolis')
             .setValue(defaults.mapName ?? '');
         rows.unshift(new ActionRowBuilder().addComponents(mapNameInput));
     }
