@@ -15,14 +15,17 @@ import {
   GENERIC_TASKS_LIST,
   LEGION_LIST,
   RAID_TASK_CATEGORIES,
+  TASK_DISPLAY_NAMES,
 } from '../config/constants.js';
 
 function formatTasksForEmbed(taskList, pointsConfig) {
   if (!taskList || taskList.length === 0) return 'N/A';
   return taskList
     .map((task) => {
-      const points = pointsConfig[String(task).toLowerCase()];
-      return `\`${task}\`: ${points !== undefined ? `${points} EXP` : 'N/A'}`;
+      const key = String(task).toLowerCase();
+      const points = pointsConfig[key];
+      const displayName = TASK_DISPLAY_NAMES?.[key] ?? task;
+      return `\`${task}\` (${displayName}): ${points !== undefined ? `${points} EXP` : 'N/A'}`;
     })
     .join('\n');
 }
@@ -46,7 +49,6 @@ export function getCommandsEmbed() {
         name: 'Inside Raid Tickets',
         value:
           '`!waiting` / `!ongoing` / `!full` - update raid status (requester/staff)\n' +
-          '`!raidmaps <number>` - show join maps for this ticket\n' +
           '`!charts` or `/chart` - find available charts for ultras',
         inline: false,
       },
@@ -77,7 +79,7 @@ export function getHowToUseEmbed() {
       {
         name: '3) During the Raid',
         value:
-          'In the ticket you can type `!waiting`, `!ongoing`, or `!full` to update the status.\n' +
+          'The status is automatically updated within the ticket. you can also type `!waiting`, `!ongoing`, or `!full` to update the status manually.\n' +
           '* The requester can also update the task or details if needed.\n' +
           '* Helpers can use **Kick** on their own row to leave the ticket.',
         inline: false,
@@ -91,7 +93,7 @@ export function getHowToUseEmbed() {
       },
       {
         name: '5) Leaderboard',
-        value: `Use \`!leaderboard\` / \`!lb\` in <#${LEADERBOARD_CHANNEL_ID}>.`,
+        value: `Use \`!leaderboard\`, \`!lbcheck\`, \`!lbcommands\` or \`/lb\` in <#${LEADERBOARD_CHANNEL_ID}>.`,
         inline: false,
       },
     );
@@ -136,14 +138,25 @@ export function getRaidTasksPageComponents(page = 0) {
 
   return [
     new ActionRowBuilder().addComponents(
+            
+      new ButtonBuilder()
+        .setCustomId(`raidtasks_first_${safePage}`)
+        .setLabel('<<')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(safePage <= 0),
       new ButtonBuilder()
         .setCustomId(`raidtasks_prev_${safePage}`)
-        .setLabel('Previous')
+        .setLabel('<')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage <= 0),
       new ButtonBuilder()
         .setCustomId(`raidtasks_next_${safePage}`)
-        .setLabel('Next')
+        .setLabel('>')
+        .setStyle(ButtonStyle.Secondary)
+        .setDisabled(safePage >= pageCount - 1),
+      new ButtonBuilder()
+        .setCustomId(`raidtasks_last_${safePage}`)
+        .setLabel('>>')
         .setStyle(ButtonStyle.Secondary)
         .setDisabled(safePage >= pageCount - 1),
     ),
@@ -157,8 +170,8 @@ export function getCombinedTasksAndPointsEmbed(page = 0) {
     { label: 'Temple Shrine', tasks: TEMPLESHRINE_LIST },
     { label: 'Originul', tasks: ORIGINUL_LIST },
     { label: 'Legion', tasks: LEGION_LIST },
-    { label: 'Other 7-Man', tasks: OTHERS_SEVEN_LIST },
-    { label: 'Other Tasks', tasks: GENERIC_TASKS_LIST },
+    { label: '7-Man Extra', tasks: OTHERS_SEVEN_LIST },
+    { label: 'Generic', tasks: GENERIC_TASKS_LIST },
   ];
   const categories = RAID_TASK_CATEGORIES?.length ? RAID_TASK_CATEGORIES : fallbackCategories;
   const pageCount = Math.max(1, Math.ceil(categories.length / 3));
@@ -168,7 +181,7 @@ export function getCombinedTasksAndPointsEmbed(page = 0) {
   const embed = new EmbedBuilder()
     .setColor(EMBED_COLOR)
     .setTitle('Raid Tasks')
-    .setDescription(`Use these task keys in \`Start Raid\` or in calculations.\nPage ${safePage + 1}/${pageCount}`);
+    .setDescription(`Use these task keys in /calculateTask or !calculatetask.\nPage ${safePage + 1}/${pageCount}`);
 
   for (const category of pageCategories) {
     embed.addFields({
@@ -184,22 +197,22 @@ export function getCombinedTasksAndPointsEmbed(page = 0) {
 export function getInitialButtonsRow() {
   const startRaidButton = new ButtonBuilder()
     .setCustomId('startRaidWizard_btn')
-    .setLabel('Start Raid')
+    .setLabel('⚔️ Start Raid')
     .setStyle(ButtonStyle.Primary);
 
   const getHelpRoleButton = new ButtonBuilder()
     .setCustomId('getHelpRole_btn')
-    .setLabel('Get Help Role')
+    .setLabel('📯 Get Help Role')
     .setStyle(ButtonStyle.Secondary);
 
   const seeRaidTasksButton = new ButtonBuilder()
     .setCustomId('seeRaidTasks_btn')
-    .setLabel('Raid Tasks')
+    .setLabel('📘 Raid Tasks')
     .setStyle(ButtonStyle.Secondary);
 
   const showAllCommandsButton = new ButtonBuilder()
     .setCustomId('showAllCommands_btn')
-    .setLabel('Commands List')
+    .setLabel('🏳️ Commands List')
     .setStyle(ButtonStyle.Secondary);
 
   return new ActionRowBuilder().addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);
@@ -263,30 +276,34 @@ export function getModeratorCommandsEmbed() {
     .setColor(EMBED_COLOR)
     .setTitle('Moderator Commands List')
     .setDescription('This is shown using `!modcommands`.\nHere are the commands for moderation:')
-    .addFields({
-      name: 'Moderator Commands (Administrator/Officer/Manager Only)',
-      value: `
-\`!addxp @user @user <amount>\`: Manually add EXP to user(s).
-\`/addxp\`: slash command version
-\`!removexp @user @user <amount>\`: Manually remove EXP from user(s).
-\`/removexp\`: slash command version
-\`!resetlb [all]\`: Resets the leaderboard (monthly automatic or force with \`all\`).
-\`!restorelb\`: Restore leaderboard totals from a JSON backup (staff only). Then upload the JSON file as your next message.
-
-**GIF/Text command**
-\`!addgif <triggerword>\` / \`/addgif\`: create a new GIF/Text command
-\`!editgif <triggerword>\` / \`/editgif\`: edit an existing GIF/Text command
-Then use the buttons on the preview message: \`Edit\`, \`Change Image\`, \`Delete\`, \`Save and Close\`.
-
-**Charts**
-\`!editchart\` or \`/editchart\`: create/edit multi-page chart images
-
-**Raid Tasks**
-\`/modifytasks\` or \`!managetasks\`: open the interactive raid task manager.
-Use it to create categories, add/edit tasks, edit task names/points/descriptions, toggle availability, move tasks between categories, and manage task order.
-\`/removehelper\`: remove a joined helper from the current raid ticket.
-`,
-    })
+    .addFields(
+      {
+        name: 'EXP Commands',
+        value:
+          '`/addxp @user <amount>` - Manually add EXP to user(s).\n' +
+          '`/removexp @user <amount>` - Manually remove EXP from user(s).\n' +
+          '`!resetlb [all]` - Resets the leaderboard (monthly automatic or force with `all`).\n' +
+          '`!restorelb` - Restore leaderboard totals from a JSON backup (staff only).',
+        inline: false,
+      },
+      {
+        name: 'GIF/Text Commands',
+        value:
+          '`!addgif <triggerword>` / `/addgif` - Create a new GIF/Text command\n' +
+          '`!editgif <triggerword>` / `/editgif` - Edit an existing GIF/Text command',
+        inline: false,
+      },
+      {
+        name: 'Charts',
+        value: '`!editchart` or `/editchart` - Create/edit multi-page chart images',
+        inline: false,
+      },
+      {
+        name: 'Raid Tasks',
+        value: '`/modifytasks` or `!managetasks` - Open the interactive raid task manager.\n`!removehelper` - Remove a joined helper from the current raid ticket.',
+        inline: false,
+      },
+    )
     .setTimestamp()
     .setFooter({ text: 'Raid Helper Bot | Moderator Commands' });
 }

@@ -20,10 +20,13 @@ export const editTasksButton = new ButtonBuilder()
     .setLabel('📋 Edit Tasks')
     .setStyle(ButtonStyle.Secondary);
 
-export const editServerButton = new ButtonBuilder()
+export const editMapServerButton = new ButtonBuilder()
     .setCustomId('editRequest_details_btn')
-    .setLabel('🌍 Edit Server')
+    .setLabel('🗺️ Edit Map & Server')
     .setStyle(ButtonStyle.Secondary);
+
+/** @deprecated use editMapServerButton */
+export const editServerButton = editMapServerButton;
 
 export const editDescriptionButton = new ButtonBuilder()
     .setCustomId('editRequest_description_btn')
@@ -116,7 +119,7 @@ export function getKickHelperButton(helper, fallbackLabel = 'Helper') {
     const helperId = String(helper?.helperId ?? '').trim();
     return new ButtonBuilder()
         .setCustomId(`kickRaidHelper_${helperId}`)
-        .setLabel('❌ Kick')
+        .setLabel('Kick Helper')
         .setStyle(ButtonStyle.Danger);
 }
 
@@ -124,7 +127,7 @@ export function getTaskHelpedButton(helper) {
     const helperId = String(helper?.helperId ?? '').trim();
     return new ButtonBuilder()
         .setCustomId(`taskHelped_${helperId}`)
-        .setLabel('📋 Task Helped')
+        .setLabel('Task Helped')
         .setStyle(ButtonStyle.Secondary);
 }
 

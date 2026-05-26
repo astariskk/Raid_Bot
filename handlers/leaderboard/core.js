@@ -9,6 +9,7 @@ import {
   getLeaderboardData as fetchLeaderboardFromDB,
   setLeaderboardData as writeLeaderboardToDB,
   updateUserExp as updateExpInDB,
+  getCompletedRaidsCount,
 } from '../../utils/dbOps.js';
 
 const CACHE_LIFETIME_MS = 5 * 60 * 1000;
@@ -94,7 +95,7 @@ function createPaginationRow(prefix, currentPage, totalPages, originalRequesterI
 }
 
 export async function createPaginatedLeaderboardEmbed(sessionData, client, guild) {
-  const { currentPage, totalPages, usersData, resetInfo, originalRequesterId, timestamp } = sessionData;
+  const { currentPage, totalPages, usersData, resetInfo, raidsCompleted, originalRequesterId, timestamp } = sessionData;
   const usersPerPage = 10;
   const startIndex = (currentPage - 1) * usersPerPage;
   const endIndex = Math.min(startIndex + usersPerPage, usersData.length);
@@ -102,7 +103,8 @@ export async function createPaginatedLeaderboardEmbed(sessionData, client, guild
 
   const monthLabel = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
   const headerDescription = `Raid leaderboard rankings for ${monthLabel}`;
-  const description = resetInfo ? `${resetInfo}\n${headerDescription}` : headerDescription;
+  const raidCountLine = raidsCompleted !== undefined ? `\nA total of **${raidsCompleted}** raids were completed for this month.` : '';
+  const description = resetInfo ? `${resetInfo}${raidCountLine}\n${headerDescription}` : headerDescription;
   const formatExp = (value) => {
     const n = typeof value === 'number' ? value : Number(value);
     if (!Number.isFinite(n)) return String(value);
@@ -215,19 +217,24 @@ export async function sendPreviousLeaderboardAnnouncement(client, isManualTrigge
     const totalPages = Math.ceil(allSortedPlayers.length / 10);
     const targetMonth = new Date(now.getFullYear(), now.getMonth() - (isManualTrigger ? 0 : 1), 1);
     const displayMonthYear = targetMonth.toLocaleString('en-US', { month: 'long', year: 'numeric' });
-    const resetInfoDescription = `Final Leaderboard for ${displayMonthYear}`;
+    
+    const raidsCompletedCount = await getCompletedRaidsCount(targetMonth);
 
     if (allSortedPlayers.length === 0) {
-      await managementChannel.send(`Monthly Raid Leaderboard for ${displayMonthYear}: No raids were recorded last month.`);
+      const noRaidsMsg = await managementChannel.send(`Monthly Raid Leaderboard for ${displayMonthYear}: No raids were recorded last month.`);
+      await noRaidsMsg.pin().catch(() => {});
       return;
     }
 
-    const initialMessage = await managementChannel.send(`## Monthly Raid Leaderboard for ${displayMonthYear}`);
+    const initialMessage = await managementChannel.send(`## Monthly Raid Leaderboard for ${displayMonthYear}\nA total of **${raidsCompletedCount}** raids were completed for this month.`);
+    await initialMessage.pin().catch(() => {});
     const threadChannel = await initialMessage.startThread({
       name: `Raid Leaderboard - ${displayMonthYear}`,
       autoArchiveDuration: 1440,
       reason: `Monthly leaderboard announcement for ${displayMonthYear}`,
     });
+
+    const resetInfoDescription = `Final Leaderboard for ${displayMonthYear}`;
 
     for (let page = 1; page <= totalPages; page += 1) {
       const sessionData = {
@@ -235,12 +242,14 @@ export async function sendPreviousLeaderboardAnnouncement(client, isManualTrigge
         totalPages,
         usersData: allSortedPlayers,
         resetInfo: resetInfoDescription,
+        raidsCompleted: raidsCompletedCount,
         originalRequesterId: 'scheduled_reset',
         timestamp: Date.now(),
       };
 
       const { embeds } = await createPaginatedLeaderboardEmbed(sessionData, client, guild);
-      await threadChannel.send({ embeds });
+      const threadMsg = await threadChannel.send({ embeds });
+      if (page === 1) await threadMsg.pin().catch(() => {});
     }
   } catch (error) {
     console.error('Error sending previous leaderboard announcement:', error);

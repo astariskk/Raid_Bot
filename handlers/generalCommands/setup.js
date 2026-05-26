@@ -63,6 +63,7 @@ import {
     getInitialButtonsRow,
     getLeaderboardCommandsEmbed,
     getModeratorCommandsEmbed,
+    getRaidTasksPageCount,
     getRaidTasksPageComponents,
     getRaidRulesEmbed,
 } from '../../Embeds/generalCommandsEmbeds.js';
@@ -395,10 +396,18 @@ export function setupGeneralCommandsHandler(client) {
         if (await handleGifCommandCrudInteraction(interaction)) return;
         if (await handleRaidTaskCrudInteraction(interaction)) return;
 
-        if (interaction.customId.startsWith('raidtasks_prev_') || interaction.customId.startsWith('raidtasks_next_')) {
+        if (
+            interaction.customId.startsWith('raidtasks_first_')
+            || interaction.customId.startsWith('raidtasks_prev_')
+            || interaction.customId.startsWith('raidtasks_next_')
+            || interaction.customId.startsWith('raidtasks_last_')
+        ) {
+            const isFirst = interaction.customId.startsWith('raidtasks_first_');
             const isNext = interaction.customId.startsWith('raidtasks_next_');
+            const isLast = interaction.customId.startsWith('raidtasks_last_');
             const current = Number(interaction.customId.split('_').pop()) || 0;
-            const page = Math.max(0, current + (isNext ? 1 : -1));
+            const lastPage = Math.max(0, getRaidTasksPageCount() - 1);
+            const page = isFirst ? 0 : isLast ? lastPage : Math.max(0, Math.min(lastPage, current + (isNext ? 1 : -1)));
             await interaction.update({
                 embeds: getCombinedTasksAndPointsEmbed(page),
                 components: getRaidTasksPageComponents(page),

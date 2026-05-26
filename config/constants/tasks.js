@@ -13,7 +13,7 @@ const CATEGORY_LABELS = {
   void_aura_daily: 'Void Aura Daily',
   originul: 'Originul',
   legion: 'Legion',
-  other_seven: 'Other 7-Man',
+  other_seven: '7-Man Extra',
   generic: 'Generic',
   spamming: 'Spamming',
 };
@@ -43,7 +43,7 @@ const FALLBACK_CATEGORY_ROWS = [
   { key: 'void_aura_daily', display_name: 'Void Aura Daily', sort_order: 70 },
   { key: 'originul', display_name: 'Originul', sort_order: 80 },
   { key: 'legion', display_name: 'Legion', sort_order: 90 },
-  { key: 'other_seven', display_name: 'Other 7-Man', sort_order: 100 },
+  { key: 'other_seven', display_name: '7-Man Extra', sort_order: 100 },
   { key: 'generic', display_name: 'Generic', sort_order: 110 },
   { key: 'spamming', display_name: 'Spamming', sort_order: 120 },
 ];

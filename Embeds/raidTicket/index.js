@@ -4,3 +4,4 @@ export * from './messagePayloads.js';
 export * from './mainTicket.js';
 export * from './helperNotifications.js';
 export * from './taskHelpedModal.js';
+export * from './closePartialTasksModal.js';

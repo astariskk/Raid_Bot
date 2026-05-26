@@ -61,6 +61,31 @@ function buildRaidWizardDetailsModal({ customId, title, includeMapName = false, 
     return modal;
 }
 
+function getRaidWizardEditDetailsModalFields(defaults = {}) {
+    const mapNumberInput = new TextInputBuilder()
+        .setCustomId('mapNumberInput')
+        .setLabel('Map Number:')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder('e.g., 2323, 1212')
+        .setValue(defaults.mapNumber ?? '');
+
+    const serverInput = new TextInputBuilder()
+        .setCustomId('serverInput')
+        .setLabel('Server:')
+        .setStyle(TextInputStyle.Short)
+        .setRequired(true)
+        .setPlaceholder('e.g., Artix, Yorumi, Safiria')
+        .setValue(defaults.server ?? '');
+
+    const rows = [
+        new ActionRowBuilder().addComponents(mapNumberInput),
+        new ActionRowBuilder().addComponents(serverInput),
+    ];
+
+    return rows;
+}
+
 export function getRaidWizardDetailsModal(sessionId, { includeMapName = false, defaults = {} } = {}) {
     return buildRaidWizardDetailsModal({
         customId: `raidWizardDetailsModal_${sessionId}`,
@@ -71,12 +96,23 @@ export function getRaidWizardDetailsModal(sessionId, { includeMapName = false, d
 }
 
 export function getRaidWizardEditDetailsModal(sessionId, { includeMapName = false, defaults = {} } = {}) {
-    return buildRaidWizardDetailsModal({
-        customId: `raidWizardEditDetailsModal_${sessionId}`,
-        title: 'Edit Raid Request',
-        includeMapName,
-        defaults,
-    });
+    const rows = getRaidWizardEditDetailsModalFields(defaults);
+
+    if (includeMapName) {
+        const mapNameInput = new TextInputBuilder()
+            .setCustomId('mapNameInput')
+            .setLabel('Map Name (optional):')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+            .setPlaceholder('Comma-separated map names for generic/spamming tasks.')
+            .setValue(defaults.mapName ?? '');
+        rows.unshift(new ActionRowBuilder().addComponents(mapNameInput));
+    }
+
+    return new ModalBuilder()
+        .setCustomId(`raidWizardEditDetailsModal_${sessionId}`)
+        .setTitle('Edit Server')
+        .addComponents(...rows);
 }
 
 const CATEGORY_DEFS = RAID_TASK_CATEGORIES;

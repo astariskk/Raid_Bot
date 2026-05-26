@@ -1,6 +1,6 @@
 import { MessageFlags } from 'discord.js';
 
-import { updateRaid, updateRaidStatus } from '../../activeRaidState.js';
+import { getRaidInfo, updateRaid, updateRaidStatus } from '../../activeRaidState.js';
 import { RAID_STATUS, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
 import {
   ADD_HELPER_MODAL_ID,
@@ -239,6 +239,15 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     }
 
     await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
+
+    const currentRaidInfo = await getRaidInfo(interaction.channel.id).catch(() => raidInfo);
+    const partialHelpers = (Array.isArray(currentRaidInfo?.partialHelpers) ? currentRaidInfo.partialHelpers : [])
+      .filter((entry) => String(entry?.helperId) !== String(helperId));
+    if (partialHelpers.length !== (currentRaidInfo?.partialHelpers?.length ?? 0)) {
+      await updateRaid(interaction.channel.id, { partialHelpers });
+      raidInfo = { ...raidInfo, partialHelpers };
+    }
+
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const refreshedRaidInfo = await refreshRaidWithHelpers(interaction, raidInfo, helpers);
 

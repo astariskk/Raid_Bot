@@ -513,7 +513,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         const mapNumberRaw = interaction.fields.getTextInputValue('mapNumberInput');
         const mapNumber = normalizeRoomNumber(mapNumberRaw);
         const server = interaction.fields.getTextInputValue('serverInput');
-        const description = interaction.fields.getTextInputValue('descriptionInput') || 'No description.';
 
         if (!mapNumber) {
             await interaction.reply({ content: 'Room Number must contain at least one digit.', flags: MessageFlags.Ephemeral });
@@ -525,7 +524,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             mapName: mapName || 'Auto (based on task)',
             mapNumber,
             server,
-            description,
         };
 
         await updateRaid(interaction.channel.id, updates);

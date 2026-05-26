@@ -327,9 +327,27 @@ export async function updateRaidState(channelId, updates) {
 }
 
 export async function deleteRaidState(channelId) {
-    await connectDB();
-    const supabase = getSupabase();
+  await connectDB();
+  const supabase = getSupabase();
 
-    const { error } = await supabase.from('raid_states').delete().eq('id', String(channelId));
-    if (error) throw error;
+  const { error } = await supabase.from('raid_states').delete().eq('id', String(channelId));
+  if (error) throw error;
+}
+
+export async function getCompletedRaidsCount(targetMonthDate) {
+  await connectDB();
+  const supabase = getSupabase();
+
+  const monthStart = new Date(Date.UTC(targetMonthDate.getFullYear(), targetMonthDate.getMonth(), 1));
+  const monthEnd = new Date(Date.UTC(targetMonthDate.getFullYear(), targetMonthDate.getMonth() + 1, 0, 23, 59, 59, 999));
+
+  const { count, error } = await supabase
+    .from('raid_states')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'admin_review')
+    .gte('created_at', monthStart.toISOString())
+    .lte('created_at', monthEnd.toISOString());
+
+  if (error) throw error;
+  return count ?? 0;
 }
