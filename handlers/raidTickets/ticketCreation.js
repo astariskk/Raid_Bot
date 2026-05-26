@@ -73,7 +73,7 @@ export async function handleRaidCreation(interaction) {
 
     try {
         const guild = interaction.guild;
-        const baseName = `${interaction.member.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
+        const baseName = `🎟️︱${interaction.member.displayName.toLowerCase().replace(/[^a-z0-9]/g, '-')}-raid`;
 
         // Create Channel
         const ticketChannel = await guild.channels.create({
