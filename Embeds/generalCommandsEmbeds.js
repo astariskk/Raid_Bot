@@ -202,7 +202,7 @@ export function getInitialButtonsRow() {
 
   const getHelpRoleButton = new ButtonBuilder()
     .setCustomId('getHelpRole_btn')
-    .setLabel('📯 Get Help Role')
+    .setLabel('📣 Get Help Role')
     .setStyle(ButtonStyle.Secondary);
 
   const seeRaidTasksButton = new ButtonBuilder()
@@ -212,7 +212,7 @@ export function getInitialButtonsRow() {
 
   const showAllCommandsButton = new ButtonBuilder()
     .setCustomId('showAllCommands_btn')
-    .setLabel('🏳️ Commands List')
+    .setLabel('📙 Commands List')
     .setStyle(ButtonStyle.Secondary);
 
   return new ActionRowBuilder().addComponents(startRaidButton, getHelpRoleButton, seeRaidTasksButton, showAllCommandsButton);

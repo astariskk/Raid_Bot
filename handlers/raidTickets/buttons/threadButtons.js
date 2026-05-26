@@ -2,7 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 
 export const joinTicketButton = new ButtonBuilder()
     .setCustomId('joinRaidTicket')
-    .setLabel('➕ Join Raid')
+    .setLabel('⚔️ Join Raid')
     .setStyle(ButtonStyle.Success);
 
 export const closeTicketButton = new ButtonBuilder()

@@ -147,6 +147,7 @@ export async function sendHelperLeftNotification({
   guildId,
   raidInfo,
   helperId,
+  activeHelperCount,
 }) {
   if (!channel || !raidInfo?.messageId) return;
 
@@ -154,11 +155,14 @@ export async function sendHelperLeftNotification({
   const member = guild ? await guild.members.fetch(helperId).catch(() => null) : null;
   const displayName = member?.displayName || member?.user?.globalName || member?.user?.username || 'A helper';
 
+  const count = activeHelperCount ?? (await listRaidHelpers(channel.id, { includeRemoved: true }).catch(() => [])).filter((h) => !h.removedAt).length;
+
   await sendHelperLeftNotificationEmbed({
     channel,
     guildId,
     raidInfo,
     helperDisplayName: displayName,
+    activeHelperCount: count,
   });
 }
 

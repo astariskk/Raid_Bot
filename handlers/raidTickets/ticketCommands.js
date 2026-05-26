@@ -1,4 +1,4 @@
-import { ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
 
 import { getRaidInfo, updateRaid, updateRaidStatus } from '../../activeRaidState.js';
 import { RAID_STATUS, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
@@ -201,6 +201,13 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    const alreadyJoined = helpers.some((helper) => helper.helperId === interaction.user.id && !helper.removedAt);
+    if (alreadyJoined) {
+      await interaction.reply({ content: 'You are already in the ticket.', flags: MessageFlags.Ephemeral });
+      return;
+    }
+
     // Reply first to avoid interaction timeout, then do async operations
     const replyContent = raidInfo.mapNumber
       ? { content: 'You joined this raid ticket.', embeds: [generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber)], flags: MessageFlags.Ephemeral }
@@ -211,25 +218,31 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     // Then do async operations
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
-    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const freshRaidInfo = await getRaidInfo(interaction.channel.id).catch(() => raidInfo);
-    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: freshRaidInfo, helpers });
+    const updatedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    const activeHelperCount = getVisibleHelpers(updatedHelpers, freshRaidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(freshRaidInfo));
 
-    const requestMessageUrl = interaction.guildId && raidInfo.messageId
-      ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${raidInfo.messageId}`
+    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: freshRaidInfo, helpers: updatedHelpers });
+
+    const requestMessageUrl = interaction.guildId && freshRaidInfo.messageId
+      ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${freshRaidInfo.messageId}`
       : null;
     if (requestMessageUrl) {
+      const components = [
+        new ContainerBuilder().addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`<@${interaction.user.id}> joined this raid ticket.`),
+        ),
+      ];
+      components.push(new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setLabel(`View Raid Ticket — **${activeHelperCount}/${helperCapacity}**`)
+          .setStyle(ButtonStyle.Link)
+          .setURL(requestMessageUrl),
+      ));
       await interaction.channel.send({
-        content: null,
-        embeds: [],
         flags: MessageFlags.IsComponentsV2,
-        components: [
-          new ContainerBuilder().addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `<@${interaction.user.id}> joined this raid ticket. [**View Raid Ticket**](${requestMessageUrl})`
-            ),
-          ),
-        ],
+        components,
       }).catch(() => {});
     }
 
@@ -266,6 +279,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     }
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    const activeHelperCount = getVisibleHelpers(helpers, currentRaidInfo.requesterId).filter((h) => !h.removedAt).length;
     await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: currentRaidInfo, helpers });
 
     await sendHelperLeftNotification({
@@ -273,6 +287,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       guildId: interaction.guildId,
       raidInfo: currentRaidInfo,
       helperId,
+      activeHelperCount,
     }).catch(() => {});
     return;
   }
