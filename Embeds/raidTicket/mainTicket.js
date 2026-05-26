@@ -67,7 +67,7 @@ function getHelperTaskLabel(helper, partialHelpers, { isPartial = false } = {}) 
   if (!isPartial) return 'All tasks';
   const entry = partialHelpers.find((e) => String(e.helperId) === String(helper.helperId));
   if (entry?.tasks?.length) return getRaidTaskFieldDisplay(entry.tasks.join(', '));
-  return 'Partial tasks';
+  return 'No task helped';
 }
 
 function addClosingHelperRow(container, helper, { partialHelpers, showSpamTime, showKick = true, showTaskHelped = false }) {

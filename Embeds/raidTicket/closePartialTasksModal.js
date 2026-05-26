@@ -15,7 +15,7 @@ function buildTaskSelect(helperId, taskKeys) {
   return new StringSelectMenuBuilder()
     .setCustomId(`closePartialTasks_${helperId}`)
     .setPlaceholder('Select tasks this helper covered…')
-    .setMinValues(0)
+    .setMinValues(1)
     .setMaxValues(Math.max(1, keys.length))
     .addOptions(
       [

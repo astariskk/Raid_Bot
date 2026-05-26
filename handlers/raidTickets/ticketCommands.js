@@ -207,12 +207,13 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       : { content: 'You joined this raid ticket. No map number is set yet.', flags: MessageFlags.Ephemeral };
 
     // Fire off reply immediately
-    const replyTask = interaction.reply(replyContent);
+    const replyTask = interaction.reply(replyContent).catch(() => {});
 
     // Then do async operations
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    await refreshRaidWithHelpers(interaction, raidInfo, helpers);
+    const freshRaidInfo = await getRaidInfo(interaction.channel.id).catch(() => raidInfo);
+    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: freshRaidInfo, helpers });
 
     const requestMessageUrl = interaction.guildId && raidInfo.messageId
       ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${raidInfo.messageId}`
@@ -225,7 +226,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
         components: [
           new ContainerBuilder().addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `${interaction.user} joined this raid ticket. [**View Raid Ticket**](${requestMessageUrl})`
+              `<@${interaction.user.id}> joined this raid ticket. [**View Raid Ticket**](${requestMessageUrl})`
             ),
           ),
         ],
@@ -264,13 +265,13 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       await updateRaid(interaction.channel.id, { partialHelpers });
     }
 
-    const helpers = await listRaidHelpers(interaction.channelId, { includeRemoved: true });
-    const refreshedRaidInfo = await refreshRaidWithHelpers(interaction, currentRaidInfo, helpers);
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: currentRaidInfo, helpers });
 
     await sendHelperLeftNotification({
       channel: interaction.channel,
       guildId: interaction.guildId,
-      raidInfo: refreshedRaidInfo,
+      raidInfo: currentRaidInfo,
       helperId,
     }).catch(() => {});
     return;

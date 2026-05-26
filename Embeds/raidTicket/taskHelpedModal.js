@@ -18,7 +18,7 @@ export function buildTaskHelpedModal(helperId, taskKeys, selectedTasks = []) {
   const taskSelect = new StringSelectMenuBuilder()
     .setCustomId('taskHelpedTasks')
     .setPlaceholder('Select tasks this helper covered…')
-    .setMinValues(0)
+    .setMinValues(1)
     .setMaxValues(Math.max(1, keys.length))
     .addOptions(
       [

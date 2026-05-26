@@ -83,7 +83,7 @@ function formatPartialHelpersBlock(raidInfo) {
 
   const lines = partial
     .map((e) => {
-      const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No tasks';
+      const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No task helped';
       // Avoid pinging partial helpers in the admin review embed.
       return `- \`${e.helperId}\`: ${tasks}`;
     })

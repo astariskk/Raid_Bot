@@ -154,7 +154,7 @@ function formatPartialHelpersForClose(raidInfo) {
         .map((e) => {
             const tasks = e.tasks?.length
                 ? getRaidTaskFieldDisplay(e.tasks.join(', '))
-                : 'No tasks';
+                : 'No task helped';
             return `* <@${e.helperId}>: ${tasks}`;
         })
         .join('\n')
@@ -267,10 +267,8 @@ function getRemovedPartialHelpers(joinedHelpers = [], requesterId = null) {
 
 function getPartialHelpersMissingTasks(raidInfo, joinedHelpers = []) {
     const partialHelpers = normalizePartialHelpers(raidInfo);
-    return getRemovedPartialHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => {
-        const entry = partialHelpers.find((e) => e.helperId === helper.helperId);
-        return !entry?.tasks?.length;
-    });
+    const partialIds = new Set(partialHelpers.map(e => e.helperId));
+    return getRemovedPartialHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => !partialIds.has(helper.helperId));
 }
 
 async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelpers) {
@@ -284,8 +282,8 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
         .filter(Boolean)
         .filter((id) => id !== currentRaidInfo.requesterId);
 
-    const hasPartialHelpersWithTasks = partialHelpers.some(e => e.tasks?.length > 0);
-    if (!allHelperIds.length && !hasPartialHelpersWithTasks) {
+    const hasPartialHelpers = partialHelpers.length > 0;
+    if (!allHelperIds.length && !hasPartialHelpers) {
         const noHelpersPayload = { content: 'No helpers selected.', flags: MessageFlags.Ephemeral };
         if (interaction.deferred || interaction.replied) {
             await interaction.followUp(noHelpersPayload).catch(() => interaction.editReply(noHelpersPayload).catch(() => {}));
@@ -303,11 +301,16 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
     const pointsMap = {};
     for (const uid of allHelperIds) {
         const partial = partialHelpers.find((e) => e.helperId === uid);
-        let normalPoints = originalTotalCalculatedPoints;
-        if (partial?.tasks?.length) {
-            const subset = partial.tasks.filter((task) => String(task).toLowerCase() !== 'spamming').join(', ');
-            const { originalTotalCalculatedPoints: subsetPoints } = calculateTaskPointsWithMultiplier(subset);
-            normalPoints = subsetPoints;
+        let normalPoints = 0;
+
+        if (partial) {
+            if (partial.tasks?.length) {
+                const subset = partial.tasks.filter((task) => String(task).toLowerCase() !== 'spamming').join(', ');
+                const { originalTotalCalculatedPoints: subsetPoints } = calculateTaskPointsWithMultiplier(subset);
+                normalPoints = subsetPoints;
+            }
+        } else {
+            normalPoints = originalTotalCalculatedPoints;
         }
 
         const spammingPoints = spamming && joinedById.has(uid)
@@ -337,7 +340,7 @@ function formatPartialHelpersList(partialHelpers) {
     if (!partialHelpers.length) return '*None*';
     return partialHelpers
         .map((e) => {
-            const tasks = e.tasks?.length ? e.tasks.map((t) => `\`${t}\``).join(', ') : '*No tasks*';
+            const tasks = e.tasks?.length ? e.tasks.map((t) => `\`${t}\``).join(', ') : 'No task helped';
             return `- <@${e.helperId}>: ${tasks}`.slice(0, 1024);
         })
         .join('\n')
@@ -568,7 +571,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         const selectedTasks = hasNone ? [] : [...new Set(rawSelected.map((task) => String(task).toLowerCase()).filter((task) => task !== '__none__'))];
         const partialHelpers = normalizePartialHelpers(raidInfo);
         const next = partialHelpers.filter((entry) => entry.helperId !== helperId);
-        if (selectedTasks.length) next.push({ helperId, tasks: selectedTasks });
+        next.push({ helperId, tasks: selectedTasks });
         await updateRaid(interaction.channel.id, { partialHelpers: next });
 
         const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
@@ -804,7 +807,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                 return;
             }
 
-            const tasks = [...new Set(session.selectedTasks.map((t) => String(t).toLowerCase()).filter((t) => t !== '__none__'))].filter(Boolean);
+            const tasks = [...new Set((session.selectedTasks || []).map((t) => String(t).toLowerCase()).filter((t) => t !== '__none__'))].filter(Boolean);
             const originalHelperId = session.selectedEntryHelperId && session.selectedEntryHelperId !== '__new__' ? session.selectedEntryHelperId : null;
 
             const next = partialHelpers.filter(
