@@ -1,4 +1,5 @@
 import { ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
+import { getRaidHelperCapacity } from '../../handlers/raidTickets/raidTicketLogic.js';
 
 export function getRaidTicketMessageUrl(guildId, channelId, messageId) {
   if (!guildId || !channelId || !messageId) return null;
@@ -16,9 +17,7 @@ export async function sendHelperLeftNotification({
 
   const ticketUrl = getRaidTicketMessageUrl(guildId ?? channel.guild?.id, channel.id, raidInfo.messageId);
   const name = String(helperDisplayName || 'A helper').trim();
-  const helperCapacity = raidInfo?.mapNumber?.toString().length >= 4
-    ? Math.max(1, parseInt(raidInfo.mapNumber.toString().charAt(0), 10))
-    : 4;
+  const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
 
   const components = [
     new ContainerBuilder()
