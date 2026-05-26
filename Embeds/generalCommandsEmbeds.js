@@ -78,7 +78,8 @@ export function getHowToUseEmbed() {
         name: '3) During the Raid',
         value:
           'In the ticket you can type `!waiting`, `!ongoing`, or `!full` to update the status.\n' +
-          '* The requester can also update the task or details if needed.',
+          '* The requester can also update the task or details if needed.\n' +
+          '* Helpers can use **Kick** on their own row to leave the ticket.',
         inline: false,
       },
       {

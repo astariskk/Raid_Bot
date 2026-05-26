@@ -43,12 +43,12 @@ export const raidmapsButton = new ButtonBuilder()
 export const pingHelpersButton = new ButtonBuilder()
     .setCustomId('pingHelpersButton')
     .setLabel('📣 Ping Helpers')
-    .setStyle(ButtonStyle.Primary);
+    .setStyle(ButtonStyle.Secondary);
 
 export const addHelperButton = new ButtonBuilder()
     .setCustomId('addHelperButton')
     .setLabel('➕ Add Helper')
-    .setStyle(ButtonStyle.Primary);
+    .setStyle(ButtonStyle.Secondary);
 
 export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, raidmapsButton, closeTicketButton, cancelTicketButton);
 

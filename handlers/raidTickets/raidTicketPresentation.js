@@ -6,15 +6,10 @@ import {
 } from '../../config/constants.js';
 import { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
 import {
-  buildDescriptionMessage,
-  buildHelpMessage,
-  buildMentionMessage,
   buildRaidRequestMessagePayload,
-  getRaidTicketMessageUrl,
-  refreshDescriptionMessage,
   sendHelperLeftNotification as sendHelperLeftNotificationEmbed,
-  sendRaidTicketMessages,
 } from '../../Embeds/raidTicket/index.js';
+import { recordHelperRoleMention } from './helperRoleMention.js';
 import {
   getRaidHelperCapacity,
   getRaidTaskFieldDisplay,
@@ -44,12 +39,13 @@ export {
 export {
   buildMentionMessage,
   buildHelpMessage,
-  buildDescriptionMessage,
   buildRaidRequestMessagePayload,
   buildMainTicketMessagePayload,
   sendRaidTicketMessages,
   getRaidTicketMessageUrl,
 } from '../../Embeds/raidTicket/index.js';
+
+export { getHelperRoleMentionCooldownRemainingMs as getHelperPingCooldownRemainingMs } from './helperRoleMention.js';
 
 function getRequesterDisplay(requester) {
   return requester?.displayName || requester?.user?.globalName || requester?.user?.username || requester?.tag || requester?.id || 'Requester';
@@ -143,13 +139,6 @@ export function buildRaidRequestEmbeds({ requester, raidInfo, helpers = [] }) {
   return [detailsEmbed, statusEmbed];
 }
 
-export function getHelperPingCooldownRemainingMs(raidInfo) {
-  const lastPing = raidInfo?.lastHelperPingAt;
-  if (!lastPing) return 0;
-  const elapsed = Date.now() - new Date(lastPing).getTime();
-  return Math.max(0, HELPER_PING_COOLDOWN_MS - elapsed);
-}
-
 export function formatCooldownMinutes(remainingMs) {
   return Math.max(1, Math.ceil(remainingMs / 60000));
 }
@@ -177,6 +166,8 @@ export async function sendHelperLeftNotification({
     activeHelperCount: activeCount,
     helperCapacity: capacity,
   });
+
+  await recordHelperRoleMention(channel.id).catch(() => {});
 }
 
 export function buildRaidRequestEmbed(args) {
@@ -213,5 +204,4 @@ export async function refreshRaidRequestMessage({ client, channel, raidInfo, hel
     helpers: visibleHelpers,
     isClosing,
   }));
-  await refreshDescriptionMessage({ channel: targetChannel, raidInfo });
 }

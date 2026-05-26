@@ -3,3 +3,4 @@ export * from './addHelperModal.js';
 export * from './messagePayloads.js';
 export * from './mainTicket.js';
 export * from './helperNotifications.js';
+export * from './taskHelpedModal.js';

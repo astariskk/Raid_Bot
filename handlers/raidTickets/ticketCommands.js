@@ -20,7 +20,8 @@ import {
   refreshRaidRequestMessage,
   sendHelperLeftNotification,
 } from './raidTicketPresentation.js';
-import { requireAuth } from './ticketUtils.js';
+import { recordHelperRoleMention } from './helperRoleMention.js';
+import { requireAuth, requireWarrior, hasWarriorRole } from './ticketUtils.js';
 
 async function filterToWarriorHelperIds(interaction, selectedIds, requesterId) {
   const guild = interaction.guild;
@@ -184,12 +185,13 @@ export async function handleCommandInteractions(interaction, raidInfo) {
   }
 
   if (interaction.customId === 'joinRaidTicket') {
-    if (!interaction.member?.roles?.cache?.has(RAID_HELPER_ROLE_ID) && interaction.user.id !== raidInfo.requesterId) {
+    const isRequester = interaction.user.id === raidInfo.requesterId;
+    if (!isRequester && !hasWarriorRole(interaction.member)) {
       await interaction.reply({ content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to join this ticket.`, flags: MessageFlags.Ephemeral });
       return;
     }
 
-    if (interaction.user.id === raidInfo.requesterId) {
+    if (isRequester) {
       if (raidInfo.mapNumber) {
         const embed = generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber);
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -223,11 +225,16 @@ export async function handleCommandInteractions(interaction, raidInfo) {
   }
 
   if (interaction.customId?.startsWith('kickRaidHelper_')) {
-    if (!await requireAuth(interaction, raidInfo)) return;
-
     const helperId = interaction.customId.slice('kickRaidHelper_'.length);
     if (!helperId) {
       await interaction.reply({ content: 'Could not identify that helper.', flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const isSelfKick = interaction.user.id === helperId;
+    if (isSelfKick) {
+      if (!await requireWarrior(interaction)) return;
+    } else if (!await requireAuth(interaction, raidInfo)) {
       return;
     }
 
@@ -243,7 +250,10 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       helpers,
     });
 
-    await interaction.reply({ content: `Removed <@${helperId}> from this raid ticket.`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({
+      content: isSelfKick ? 'You left this raid ticket.' : `Removed <@${helperId}> from this raid ticket.`,
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
 
@@ -253,44 +263,38 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     const remainingMs = getHelperPingCooldownRemainingMs(raidInfo);
     if (remainingMs > 0) {
       await interaction.reply({
-        content: `You can ping helpers again in ${formatCooldownMinutes(remainingMs)} minute(s).`,
+        content: `You can ping <@&${RAID_HELPER_ROLE_ID}> again in ${formatCooldownMinutes(remainingMs)} minute(s).`,
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
-    const activeHelpers = (await listRaidHelpers(interaction.channel.id)).filter(
-      (helper) => helper.helperId !== raidInfo.requesterId,
-    );
-    if (!activeHelpers.length) {
-      await interaction.reply({ content: 'No joined helpers to ping yet.', flags: MessageFlags.Ephemeral });
-      return;
-    }
-
-    const helperIds = activeHelpers.map((helper) => helper.helperId);
     const ticketUrl = getRaidTicketMessageUrl(interaction.guildId, interaction.channel.id, raidInfo.messageId);
-    const pingLine = helperIds.map((id) => `<@${id}>`).join(' ');
-
     await interaction.channel.send({
       content: ticketUrl
-        ? `${pingLine}\nReminder from the raid requester: [raid ticket](${ticketUrl})`
-        : `${pingLine}\nReminder from the raid requester.`,
-      allowedMentions: { users: helperIds },
+        ? `<@&${RAID_HELPER_ROLE_ID}> Reminder from the raid requester: [raid ticket](${ticketUrl})`
+        : `<@&${RAID_HELPER_ROLE_ID}> Reminder from the raid requester.`,
+      allowedMentions: { roles: [RAID_HELPER_ROLE_ID] },
     });
 
-    await updateRaid(interaction.channel.id, { lastHelperPingAt: new Date().toISOString() });
-    raidInfo.lastHelperPingAt = new Date().toISOString();
+    const mentionedAt = await recordHelperRoleMention(interaction.channel.id);
+    raidInfo.lastHelperRoleMentionAt = mentionedAt;
+    raidInfo.lastHelperPingAt = mentionedAt;
 
-    await interaction.reply({ content: `Pinged ${helperIds.length} helper(s).`, flags: MessageFlags.Ephemeral });
+    await interaction.reply({ content: 'Pinged the helper role.', flags: MessageFlags.Ephemeral });
     return;
   }
 
   if (interaction.customId === 'raidmapsButton') {
+    const isRequester = interaction.user.id === raidInfo.requesterId;
     const helpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
     const joined = helpers.some((helper) => helper.helperId === interaction.user.id);
-    if (!joined && interaction.user.id !== raidInfo.requesterId) {
-      await interaction.reply({ content: 'Join this ticket first to view maps.', flags: MessageFlags.Ephemeral });
-      return;
+    if (!isRequester) {
+      if (!joined) {
+        await interaction.reply({ content: 'Join this ticket first to view maps.', flags: MessageFlags.Ephemeral });
+        return;
+      }
+      if (!await requireWarrior(interaction)) return;
     }
     if (!raidInfo.mapNumber) {
       await interaction.reply({ content: 'No map number set. Use Edit Server to add one.', flags: MessageFlags.Ephemeral });

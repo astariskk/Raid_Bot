@@ -9,6 +9,7 @@ import {
 } from 'discord.js';
 import {
   EMBED_COLOR,
+  RAID_HELPER_ROLE_ID,
   RAID_STATUS,
   STATUS_COLORS,
 } from '../../config/constants.js';
@@ -66,15 +67,17 @@ function formatDuration(startValue, endValue = new Date()) {
   return `${minutes}m`;
 }
 
-function formatPartialHelperMentions(helpers = []) {
-  if (!helpers.length) return '*None yet*';
-  return helpers.map((helper) => `* <@${helper.helperId}>`).join('\n');
+function formatDescriptionBody(raidInfo) {
+  const description = String(raidInfo?.description ?? '').trim() || 'No description provided.';
+  return `**Description**\n${description}`;
 }
 
-function addHelperSections(container, helpers, { isClosing, includeTime = false }) {
+function addHelperSections(container, helpers, { isClosing, includeTime = false, showTaskHelped = false }) {
   helpers.slice(0, 10).forEach((helper, index) => {
-    if (isClosing) {
-      const duration = includeTime ? formatDuration(helper.joinedAt, helper.removedAt || new Date()) : null;
+    const duration = includeTime ? formatDuration(helper.joinedAt, helper.removedAt || new Date()) : null;
+    const showControls = isClosing || showTaskHelped;
+
+    if (showControls) {
       const body = `<@${helper.helperId}>${duration ? `\n- Time: ${duration}` : ''}`;
       container.addTextDisplayComponents(text(body));
       container.addActionRowComponents(getHelperControlRow(helper, { showTaskHelped: true }));
@@ -84,6 +87,17 @@ function addHelperSections(container, helpers, { isClosing, includeTime = false 
     container.addSectionComponents(
       section(`<@${helper.helperId}>`, getKickHelperButton(helper, `Helper ${index + 1}`)),
     );
+  });
+}
+
+function addPartialHelperSections(container, partials, { includeTime = true } = {}) {
+  partials.slice(0, 10).forEach((helper) => {
+    const duration = includeTime
+      ? formatDuration(helper.joinedAt, helper.removedAt || new Date())
+      : null;
+    const body = `<@${helper.helperId}>${duration ? `\n- Time: ${duration}` : ''}`;
+    container.addTextDisplayComponents(text(body));
+    container.addActionRowComponents(getHelperControlRow(helper, { showTaskHelped: true }));
   });
 }
 
@@ -108,8 +122,8 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
     .addSectionComponents(
       section(`**Task**\n${taskFieldValue}`, editTasksButton),
       section(`**Server**\n${raidInfo?.server || 'None'}`, editServerButton),
-      section('**Description**\n*Posted in a separate message below.*', editDescriptionButton),
-      section('**Ping Helpers**\nRemind joined helpers (once every 30 minutes).', pingHelpersButton),
+      section(formatDescriptionBody(raidInfo), editDescriptionButton),
+      section(`**Ping Helpers**\nPing <@&${RAID_HELPER_ROLE_ID}> (once every 30 minutes since the last role ping).`, pingHelpersButton),
     )
     .addSeparatorComponents(separator())
     .addTextDisplayComponents(text(isClosing ? CLOSE_HELPER_HINT : HELPER_MANAGEMENT_HINT));
@@ -128,9 +142,8 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
     }
 
     if (midRunPartials.length) {
-      mainContainer.addTextDisplayComponents(
-        text(`**Partial Helpers**\n${formatPartialHelperMentions(midRunPartials)}`),
-      );
+      mainContainer.addTextDisplayComponents(text('**Partial Helpers**'));
+      addPartialHelperSections(mainContainer, midRunPartials);
     }
 
     mainContainer.addActionRowComponents(buildMainActionRow());
@@ -146,9 +159,8 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
     }
 
     if (midRunPartials.length) {
-      mainContainer.addTextDisplayComponents(
-        text(`**Partial Helpers**\n${formatPartialHelperMentions(midRunPartials)}`),
-      );
+      mainContainer.addTextDisplayComponents(text('**Partial Helpers**'));
+      addPartialHelperSections(mainContainer, midRunPartials);
     }
 
     mainContainer.addActionRowComponents(getCloseConfirmRow({ proofImageUrl: raidInfo?.proofImage }));

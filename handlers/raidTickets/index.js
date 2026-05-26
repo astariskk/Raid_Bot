@@ -55,7 +55,7 @@ export function setupRaidHandlers(client) {
             ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid', 'partialHelper_btn'].includes(interaction.customId) ||
             interaction.customId.startsWith('partialHelper_') ||
             interaction.customId.startsWith('taskHelped_') ||
-            interaction.customId.startsWith('taskHelpedSelect_')
+            interaction.customId.startsWith('taskHelpedModal_')
         ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;

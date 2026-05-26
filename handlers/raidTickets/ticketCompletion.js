@@ -10,6 +10,10 @@ import {
 
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
 import { EMBED_COLOR, MAX_HELPERS, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
+import {
+  buildTaskHelpedModal,
+  getTaskHelpedModalSelections,
+} from '../../Embeds/raidTicket/taskHelpedModal.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { calculateSpammingPoints, listRaidHelpers } from '../../utils/raidParticipationStore.js';
@@ -414,17 +418,13 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         }
 
         const existing = normalizePartialHelpers(raidInfo).find((entry) => entry.helperId === helperId);
-        await interaction.reply({
-            content: `Select which tasks <@${helperId}> helped with, then press **Submit** on the menu.`,
-            components: [buildTaskHelpedSelectRow(helperId, taskKeys, existing?.tasks ?? [])],
-            flags: MessageFlags.Ephemeral,
-        });
+        await interaction.showModal(buildTaskHelpedModal(helperId, taskKeys, existing?.tasks ?? []));
         return;
     }
 
-    if (interaction.isStringSelectMenu?.() && interaction.customId.startsWith('taskHelpedSelect_')) {
-        const helperId = interaction.customId.slice('taskHelpedSelect_'.length);
-        const selectedTasks = [...new Set((interaction.values || []).map((task) => String(task).toLowerCase()))];
+    if (interaction.isModalSubmit?.() && interaction.customId.startsWith('taskHelpedModal_')) {
+        const helperId = interaction.customId.slice('taskHelpedModal_'.length);
+        const selectedTasks = [...new Set(getTaskHelpedModalSelections(interaction).map((task) => String(task).toLowerCase()))];
         const partialHelpers = normalizePartialHelpers(raidInfo);
         const next = partialHelpers.filter((entry) => entry.helperId !== helperId);
         if (selectedTasks.length) next.push({ helperId, tasks: selectedTasks });
@@ -439,11 +439,11 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         });
 
         const label = getRaidTaskFieldDisplay(selectedTasks.join(', '));
-        await interaction.update({
+        await interaction.reply({
             content: selectedTasks.length
                 ? `Saved task credit for <@${helperId}>: **${label}**`
                 : `Cleared task credit for <@${helperId}>.`,
-            components: [],
+            flags: MessageFlags.Ephemeral,
         });
         return;
     }
@@ -975,7 +975,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- START CLOSE PROCESS ---------- */
     if (interaction.customId === 'closeRaidTicket') {
-        await safeDeferUpdate(interaction);
+        await interaction.deferUpdate().catch(() => {});
         const joinedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
         const helperIds = joinedHelpers
             .filter((helper) => !helper.removedAt)
@@ -983,21 +983,28 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             .filter((id) => id && id !== raidInfo.requesterId)
             .slice(0, MAX_HELPERS);
 
-        await updateRaid(interaction.channel.id, {
+        const updatedRaidInfo = {
+            ...raidInfo,
             isAwaitingCompletion: true,
             pendingHelperIds: helperIds,
             previousStatus: raidInfo.status || RAID_STATUS.WAITING,
             status: RAID_STATUS.AWAITING_COMPLETION,
+        };
+
+        await updateRaid(interaction.channel.id, {
+            isAwaitingCompletion: true,
+            pendingHelperIds: helperIds,
+            previousStatus: updatedRaidInfo.previousStatus,
+            status: RAID_STATUS.AWAITING_COMPLETION,
         });
 
-        const updatedRaidInfo = await getRaidInfo(interaction.channel.id);
         await refreshRaidRequestMessage({
             client,
             channel: interaction.channel,
-            raidInfo: updatedRaidInfo ?? { ...raidInfo, status: RAID_STATUS.AWAITING_COMPLETION },
+            raidInfo: updatedRaidInfo,
             helpers: joinedHelpers,
         });
-        await interaction.followUp({ content: 'Raid is awaiting completion confirmation.', flags: MessageFlags.Ephemeral }).catch(() => {});
+        return;
     }
     } catch (err) {
         console.error('handleCompletionInteractions error:', err);

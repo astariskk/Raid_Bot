@@ -17,14 +17,6 @@ export function buildMentionMessage(raidInfo) {
   };
 }
 
-/** Plain text message — not a V2 component or embed. */
-export function buildDescriptionMessage(raidInfo) {
-  const description = raidInfo?.description?.trim() || 'No description provided.';
-  return {
-    content: `**Description**\n${description}`,
-  };
-}
-
 export function buildHelpMessage() {
   return {
     content: RAID_TICKET_HELP_TEXT,
@@ -43,20 +35,13 @@ export function buildRaidRequestMessagePayload({ requester, raidInfo, helpers = 
 }
 
 export async function sendRaidTicketMessages(channel, { requester, raidInfo, helpers = [] }) {
+  const mentionedAt = new Date().toISOString();
   await channel.send(buildMentionMessage(raidInfo));
   const mainMessage = await channel.send(buildRaidRequestMessagePayload({ requester, raidInfo, helpers }));
-  const descriptionMessage = await channel.send(buildDescriptionMessage(raidInfo));
   await channel.send(buildHelpMessage());
   await mainMessage.pin().catch(() => {});
   return {
     messageId: mainMessage.id,
-    descriptionMessageId: descriptionMessage.id,
+    lastHelperRoleMentionAt: mentionedAt,
   };
-}
-
-export async function refreshDescriptionMessage({ channel, raidInfo }) {
-  if (!raidInfo?.descriptionMessageId || !channel) return;
-  const message = await channel.messages.fetch(raidInfo.descriptionMessageId).catch(() => null);
-  if (!message) return;
-  await message.edit(buildDescriptionMessage(raidInfo)).catch(() => {});
 }

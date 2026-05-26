@@ -103,14 +103,14 @@ export async function handleRaidCreation(interaction) {
             originalName: baseName,
         };
 
-        const { messageId, descriptionMessageId } = await sendRaidTicketMessages(ticketChannel, {
+        const { messageId, lastHelperRoleMentionAt } = await sendRaidTicketMessages(ticketChannel, {
             requester: interaction.member,
             raidInfo: raidDetails,
             helpers: [],
         });
 
         // Save to DB
-        await createRaid(ticketChannel.id, { ...raidDetails, messageId, descriptionMessageId });
+        await createRaid(ticketChannel.id, { ...raidDetails, messageId, lastHelperRoleMentionAt });
 
         const channelUrl = `https://discord.com/channels/${guild.id}/${ticketChannel.id}`;
         const wizardCompletePayload = {
