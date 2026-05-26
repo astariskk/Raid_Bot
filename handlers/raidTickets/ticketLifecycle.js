@@ -1,40 +1,53 @@
 import {
-    EmbedBuilder,
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    StringSelectMenuBuilder,
+    ContainerBuilder,
+    EmbedBuilder,
+    MessageFlags,
     ModalBuilder,
+    SeparatorBuilder,
+    SeparatorSpacingSize,
+    StringSelectMenuBuilder,
+    TextDisplayBuilder,
     TextInputBuilder,
     TextInputStyle,
-    MessageFlags
 } from 'discord.js';
+
+function text(content) {
+    return new TextDisplayBuilder().setContent(String(content || '\u200b').slice(0, 4000));
+}
 
 import {
     updateRaid,
-    updateRaidLogEmbed,
     getRaidInfo
 } from '../../activeRaidState.js';
 
-import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TASK_DISPLAY_NAMES, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { EMBED_COLOR, TASK_CATEGORY_BY_TASK, TASK_DISPLAY_NAMES, raidNeedsModalMapName } from '../../config/constants.js';
+import { isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
+import { buildCancelRaidConfirmModal, CANCEL_RAID_MODAL_ID } from './embeds/cancelRaidModal.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
 import { consumeRaidWizardSession, createRaidWizardSession, getRaidWizardSession, updateRaidWizardSession } from './raidWizardSession.js';
-import { getRaidWizardCategoryDef, getRaidWizardEditCategorySelectRow, getRaidWizardEditDetailsModal, getRaidWizardEditNavRow, getRaidWizardEditTasksSelectRow, getRaidWizardTaskOptionsCount } from './embeds/raidWizardUi.js';
+import { getRaidWizardCategoryDef, getRaidWizardEditCategorySelectRow, getRaidWizardEditDetailsModal, getRaidWizardEditNavRow, getRaidWizardEditTasksSelectRow, getRaidWizardTaskOptionsCount, getRaidWizardEditCategoryV2, getRaidWizardEditTasksV2 } from './embeds/raidWizardUi.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { normalizeRoomNumber } from '../../utils/roomNumber.js';
+import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
 
 const EDIT_REQUEST_TTL_MS = 10 * 60 * 1000;
 const editRequestSessions = new Map(); // sessionId -> { userId, channelId, kind, createdAtMs, updatedAtMs }
 
 async function replyEphemeralSafe(interaction, payload) {
+    const combinedFlags = payload.flags
+        ? MessageFlags.Ephemeral | payload.flags
+        : MessageFlags.Ephemeral;
     try {
         if (interaction.deferred || interaction.replied) {
-            await interaction.followUp({ ...payload, flags: MessageFlags.Ephemeral });
+            await interaction.followUp({ ...payload, flags: combinedFlags });
         } else {
-            await interaction.reply({ ...payload, flags: MessageFlags.Ephemeral });
+            await interaction.reply({ ...payload, flags: combinedFlags });
         }
         return true;
     } catch (err) {
@@ -92,19 +105,11 @@ function parseTaskRunsMap(taskString) {
 
 
 
-async function startEditTasksWizard(interaction, raidInfo) {
+async function startEditTasksWizard(interaction, raidInfo, { reply = false } = {}) {
     const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
 
     const existingTokens = parseRaidTasks(raidInfo.task || '');
-    const existingExpanded = [];
-    for (const token of existingTokens) {
-        if (token === 'dailies') existingExpanded.push(...DAILIES_LIST);
-        else if (token === 'weeklies') existingExpanded.push(...WEEKLIES_LIST);
-        else if (token === 'templeshrine') existingExpanded.push(...TEMPLESHRINE_LIST);
-        else if (token === 'originul') existingExpanded.push(...ORIGINUL_LIST);
-        else if (token === 'legion') existingExpanded.push(...LEGION_LIST);
-        else existingExpanded.push(token);
-    }
+    const existingExpanded = existingTokens.map((token) => String(token).toLowerCase()).filter(Boolean);
 
     const uniqueExpanded = [...new Set(existingExpanded.map((t) => String(t).toLowerCase()))].filter(Boolean);
     const categoryKeys = inferCategoryKeysFromTasks(uniqueExpanded);
@@ -123,27 +128,74 @@ async function startEditTasksWizard(interaction, raidInfo) {
         },
     });
 
-    const embed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('Edit Request')
-        .setDescription('Page 1/2: Select a category.');
+    const payload = {
+        components: [getRaidWizardEditCategoryV2(sessionId, categoryKeys, uniqueExpanded)],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+    };
 
-    if (categoryKeys.length) {
-        const labels = categoryKeys.map((k) => getRaidWizardCategoryDef(k)?.label ?? k);
-        embed.addFields({ name: 'Selected Categories', value: labels.map((l) => `• **${l}**`).join('\n').slice(0, 1024), inline: false });
+    if (reply) {
+        await replyEphemeralSafe(interaction, payload);
+    } else {
+        await interaction.update(payload);
     }
+}
 
-    await interaction.update({
-        embeds: [embed],
-        components: [
-            getRaidWizardEditCategorySelectRow(sessionId, categoryKeys),
-            getRaidWizardEditNavRow(sessionId, { step: 'category', canContinue: categoryKeys.length > 0 && getRaidWizardTaskOptionsCount(categoryKeys) <= 25 }),
-        ],
+async function showEditDetailsModal(interaction, raidInfo) {
+    const wizardSessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
+    const { order } = parseTaskRunsMap(raidInfo.task || '');
+    const categoryKeys = inferCategoryKeysFromTasks(order);
+
+    updateRaidWizardSession(wizardSessionId, {
+        mode: 'edit',
+        channelId: interaction.channel.id,
+        step: 'tasks',
+        categoryKeys,
+        tasks: order,
+        defaults: {
+            mapName: raidInfo.mapName ?? '',
+            mapNumber: raidInfo.mapNumber ?? '',
+            server: raidInfo.server ?? '',
+            description: raidInfo.description ?? '',
+        },
     });
+
+    const includeMapName = raidNeedsModalMapName(order || []);
+    const defaults = getRaidWizardSession(wizardSessionId)?.defaults ?? {};
+    await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { includeMapName, defaults }));
+}
+
+function getEditDescriptionModal(raidInfo) {
+    return new ModalBuilder()
+        .setCustomId('editRequestDescriptionModal')
+        .setTitle('Edit Description')
+        .addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('descriptionInput')
+                    .setLabel('Description')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setRequired(false)
+                    .setValue(String(raidInfo?.description ?? '').slice(0, 4000)),
+            ),
+        );
 }
 
 /* -------------------- MAIN HANDLER -------------------- */
 export async function handleLifecycleInteractions(interaction, raidInfo, client) {
+
+    if (interaction.isModalSubmit() && interaction.customId === CANCEL_RAID_MODAL_ID) {
+        if (!await requireAuth(interaction, raidInfo)) return;
+        const fullRaidInfo = await getRaidInfo(interaction.channel.id);
+        if (fullRaidInfo) raidInfo = fullRaidInfo;
+
+        await interaction.reply({
+            content: 'The raid ticket was cancelled. This channel will close shortly.',
+            flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+
+        await finalizeAdminReview(client, interaction.channel, raidInfo, {}, interaction.user.id, 'cancelled');
+        return;
+    }
 
     /* ---------- AWAITING COMPLETION LOCK ---------- */
     if (raidInfo?.isAwaitingCompletion) {
@@ -164,6 +216,21 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
     if (fullRaidInfo) raidInfo = fullRaidInfo;
 
     /* ---------- EDIT REQUEST (START) ---------- */
+    if (interaction.customId === "editRequest_tasks_btn") {
+        await startEditTasksWizard(interaction, raidInfo, { reply: true });
+        return;
+    }
+
+    if (interaction.customId === "editRequest_details_btn") {
+        await showEditDetailsModal(interaction, raidInfo);
+        return;
+    }
+
+    if (interaction.customId === "editRequest_description_btn") {
+        await interaction.showModal(getEditDescriptionModal(raidInfo));
+        return;
+    }
+
     if (interaction.customId === "editRequest_btn") {
         const sessionId = newEditRequestSessionId(interaction.user.id);
         editRequestSessions.set(sessionId, {
@@ -250,101 +317,13 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         }
 
         if (kind === 'details') {
-            const wizardSessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
-            const { order } = parseTaskRunsMap(raidInfo.task || '');
-            const categoryKeys = inferCategoryKeysFromTasks(order);
-
-            updateRaidWizardSession(wizardSessionId, {
-                mode: 'edit',
-                channelId: interaction.channel.id,
-                step: 'tasks',
-                categoryKeys,
-                tasks: order,
-                defaults: {
-                    mapName: raidInfo.mapName ?? '',
-                    mapNumber: raidInfo.mapNumber ?? '',
-                    server: raidInfo.server ?? '',
-                    description: raidInfo.description ?? '',
-                },
-            });
-
-            const mapNameRequired = (order || []).some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
-            const defaults = getRaidWizardSession(wizardSessionId)?.defaults ?? {};
-            await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { mapNameRequired, defaults }));
+            await showEditDetailsModal(interaction, raidInfo);
             consumeEditRequestSession(sessionId);
             return;
         }
 
         await interaction.update({ content: 'Unknown edit option.', embeds: [], components: [] }).catch(() => {});
         consumeEditRequestSession(sessionId);
-        return;
-    }
-
-    /* ---------- 1. EDIT TASK ---------- */
-    if (false && interaction.customId === "editTask_btn") {
-        const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
-
-        const existingTokens = parseRaidTasks(raidInfo.task || '');
-        const existingExpanded = [];
-        for (const token of existingTokens) {
-            // Old tickets may contain meta group names like "dailies".
-            if (token === 'dailies') existingExpanded.push(...DAILIES_LIST);
-            else if (token === 'weeklies') existingExpanded.push(...WEEKLIES_LIST);
-            else if (token === 'templeshrine') existingExpanded.push(...TEMPLESHRINE_LIST);
-            else if (token === 'originul') existingExpanded.push(...ORIGINUL_LIST);
-            else if (token === 'legion') existingExpanded.push(...LEGION_LIST);
-            else existingExpanded.push(token);
-        }
-
-        const uniqueExpanded = [...new Set(existingExpanded.map((t) => String(t).toLowerCase()))].filter(Boolean);
-
-        const inferCategoryKeys = (tasks) => {
-            const keys = new Set();
-            for (const t of tasks) {
-                if (DAILIES_LIST.includes(t)) keys.add('dailies');
-                else if (WEEKLIES_LIST.includes(t)) keys.add('weeklies');
-                else if (TEMPLESHRINE_LIST.includes(t)) keys.add('templeshrine');
-                else if (ORIGINUL_LIST.includes(t)) keys.add('originul');
-                else if (LEGION_LIST.includes(t)) keys.add('legion');
-                else if (GENERIC_TASKS_LIST.includes(t)) keys.add('generic');
-            }
-            return [...keys];
-        };
-
-        const categoryKeys = inferCategoryKeys(uniqueExpanded);
-
-        updateRaidWizardSession(sessionId, {
-            mode: 'edit',
-            channelId: interaction.channel.id,
-            step: 'category',
-            categoryKeys,
-            tasks: uniqueExpanded,
-            defaults: {
-                mapName: raidInfo.mapName ?? '',
-                mapNumber: raidInfo.mapNumber ?? '',
-                server: raidInfo.server ?? '',
-                description: raidInfo.description ?? '',
-            },
-        });
-
-        const embed = new EmbedBuilder()
-            .setColor(EMBED_COLOR)
-            .setTitle('Edit Raid')
-            .setDescription('Page 1/2: Select a category.');
-
-        if (categoryKeys.length) {
-            const labels = categoryKeys.map((k) => getRaidWizardCategoryDef(k)?.label ?? k);
-            embed.addFields({ name: 'Selected Categories', value: labels.map((l) => `• **${l}**`).join('\n').slice(0, 1024), inline: false });
-        }
-
-        await interaction.reply({
-            embeds: [embed],
-            components: [
-                getRaidWizardEditCategorySelectRow(sessionId, categoryKeys),
-                getRaidWizardEditNavRow(sessionId, { step: 'category', canContinue: categoryKeys.length > 0 }),
-            ],
-            flags: MessageFlags.Ephemeral,
-        });
         return;
     }
 
@@ -369,27 +348,20 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
         if (cancelSessionId) {
             consumeRaidWizardSession(cancelSessionId);
-            await interaction.update({ content: 'Edit cancelled.', embeds: [], components: [] });
+            await interaction.update({
+                components: [text('Edit cancelled.')],
+                flags: MessageFlags.IsComponentsV2,
+            });
             return;
         }
 
         if (backSessionId) {
             const updated = updateRaidWizardSession(backSessionId, { step: 'category' });
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle('Edit Raid')
-                .setDescription('Page 1/2: Select a category.');
-            if (updated.categoryKeys?.length) {
-                const labels = updated.categoryKeys.map((k) => getRaidWizardCategoryDef(k)?.label ?? k);
-                embed.addFields({ name: 'Selected Categories', value: labels.map((l) => `• **${l}**`).join('\n').slice(0, 1024), inline: false });
-            }
+            const existingTasks = session.tasks || [];
 
             await interaction.update({
-                embeds: [embed],
-                components: [
-                    getRaidWizardEditCategorySelectRow(backSessionId, updated.categoryKeys),
-                    getRaidWizardEditNavRow(backSessionId, { step: 'category', canContinue: (updated.categoryKeys?.length ?? 0) > 0 }),
-                ],
+                components: [getRaidWizardEditCategoryV2(backSessionId, updated.categoryKeys, existingTasks)],
+                flags: MessageFlags.IsComponentsV2,
             });
             return;
         }
@@ -408,20 +380,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 }
 
                 const updated = updateRaidWizardSession(continueSessionId, { step: 'tasks' });
-                const label = (updated.categoryKeys || []).map((k) => getRaidWizardCategoryDef(k)?.label ?? k).join(', ');
-
-                const embed = new EmbedBuilder()
-                    .setColor(EMBED_COLOR)
-                    .setTitle('Edit Raid')
-                    .setDescription(`Page 2/2: Select task(s) for **${label || 'selected categories'}**.`)
-                    .addFields({ name: 'Selected Tasks', value: updated.tasks?.length ? updated.tasks.map((t) => `\`${t}\``).join(', ') : '*None*', inline: false });
 
                 await interaction.update({
-                    embeds: [embed],
-                    components: [
-                        getRaidWizardEditTasksSelectRow(continueSessionId, updated.categoryKeys, updated.tasks),
-                        getRaidWizardEditNavRow(continueSessionId, { step: 'tasks', canContinue: (updated.tasks?.length ?? 0) > 0 }),
-                    ],
+                    components: [getRaidWizardEditTasksV2(continueSessionId, updated.categoryKeys, updated.tasks)],
+                    flags: MessageFlags.IsComponentsV2,
                 });
                 return;
             }
@@ -431,10 +393,37 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 return;
             }
 
-            const mapNameRequired = session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) ?? false;
-            const defaults = session.defaults ?? {};
+            const { resolvedTasks, invalidTasks } = validateAndResolveTaskList(session.tasks, 'any');
+            if (invalidTasks.length) {
+                await interaction.reply({ content: `Invalid tasks: ${invalidTasks.join(', ')}`, flags: MessageFlags.Ephemeral });
+                return;
+            }
 
-            await interaction.showModal(getRaidWizardEditDetailsModal(continueSessionId, { mapNameRequired, defaults }));
+            await updateRaid(interaction.channel.id, { task: resolvedTasks.join(', ') });
+
+            const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
+            await refreshRaidRequestMessage({
+                client,
+                channel: interaction.channel,
+                raidInfo: { ...raidInfo, task: resolvedTasks.join(', ') },
+                helpers,
+            });
+
+            try {
+                if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
+                    await interaction.update({
+                        components: [text('Raid updated.')],
+                        flags: MessageFlags.IsComponentsV2,
+                    });
+                } else {
+                    await interaction.reply({ content: 'Raid updated.', flags: MessageFlags.Ephemeral });
+                }
+            } catch (err) {
+                if (!interaction.replied && !interaction.deferred) {
+                    await interaction.reply({ content: 'Raid updated.', flags: MessageFlags.Ephemeral }).catch(() => {});
+                }
+                console.error('Failed to update edit wizard message after task submit:', err);
+            }
         }
         return;
     }
@@ -455,20 +444,18 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             return;
         }
 
-        const mapName = interaction.fields.getTextInputValue('mapNameInput');
+        let mapName = '';
+        try {
+            mapName = interaction.fields.getTextInputValue('mapNameInput');
+        } catch {
+            mapName = '';
+        }
         const mapNumberRaw = interaction.fields.getTextInputValue('mapNumberInput');
         const mapNumber = normalizeRoomNumber(mapNumberRaw);
         const server = interaction.fields.getTextInputValue('serverInput');
-        const description = interaction.fields.getTextInputValue('descriptionInput') || 'No description.';
 
         if (!mapNumber) {
             await interaction.reply({ content: 'Room Number must contain at least one digit.', flags: MessageFlags.Ephemeral });
-            return;
-        }
-
-        const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
-        if (isMapNameRequired && !String(mapName ?? '').trim()) {
-            await interaction.reply({ content: 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).', flags: MessageFlags.Ephemeral });
             return;
         }
 
@@ -477,31 +464,26 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             mapName: mapName || 'Auto (based on task)',
             mapNumber,
             server,
-            description,
         };
 
         await updateRaid(interaction.channel.id, updates);
 
-        await updateRaidLogEmbed(client, interaction.channel.id, {
-            title: 'Raid Request',
-            fields: [
-                { name: 'Task(s)', value: resolvedTasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') },
-                { name: 'Map', value: `${updates.mapName}` },
-                { name: 'Room Number', value: `${updates.mapNumber}`, inline: true },
-                { name: 'Server', value: updates.server, inline: true },
-                { name: 'Description', value: updates.description },
-            ],
+        const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: { ...raidInfo, ...updates },
+            helpers,
         });
 
         const updatedContent = 'Raid updated.';
-        const updatedEmbed = new EmbedBuilder()
-            .setColor(EMBED_COLOR)
-            .setTitle('Edit Raid')
-            .setDescription(updatedContent);
 
         try {
             if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
-                await interaction.update({ content: null, embeds: [updatedEmbed], components: [] });
+                await interaction.update({
+                    components: [text(updatedContent)],
+                    flags: MessageFlags.IsComponentsV2,
+                });
             } else {
                 await interaction.reply({ content: updatedContent, flags: MessageFlags.Ephemeral });
             }
@@ -511,6 +493,22 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             }
             console.error('Failed to update edit wizard message after modal submit:', err);
         }
+        return;
+    }
+
+    if (interaction.isModalSubmit() && interaction.customId === 'editRequestDescriptionModal') {
+        const description = interaction.fields.getTextInputValue('descriptionInput') || 'No description.';
+        await updateRaid(interaction.channel.id, { description });
+
+        const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: { ...raidInfo, description },
+            helpers,
+        });
+
+        await interaction.reply({ content: 'Description updated.', flags: MessageFlags.Ephemeral });
         return;
     }
 
@@ -531,20 +529,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         if (categorySessionId) {
             const categoryKeys = interaction.values || [];
             const updated = updateRaidWizardSession(sessionId, { categoryKeys, step: 'category', tasks: [] });
-            const labels = updated.categoryKeys.map((k) => getRaidWizardCategoryDef(k)?.label ?? k);
-
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle('Edit Raid')
-                .setDescription('Page 1/2: Select a category.')
-                .addFields({ name: 'Selected Categories', value: labels.length ? labels.map((l) => `• **${l}**`).join('\n').slice(0, 1024) : '*None*', inline: false });
 
             await interaction.update({
-                embeds: [embed],
-                components: [
-                    getRaidWizardEditCategorySelectRow(sessionId, updated.categoryKeys),
-                    getRaidWizardEditNavRow(sessionId, { step: 'category', canContinue: updated.categoryKeys.length > 0 && getRaidWizardTaskOptionsCount(updated.categoryKeys) <= 25 }),
-                ],
+                components: [getRaidWizardEditCategoryV2(sessionId, updated.categoryKeys, updated.tasks || [])],
+                flags: MessageFlags.IsComponentsV2,
             });
             return;
         }
@@ -567,68 +555,18 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 tasks = [...new Set([...expanded, ...explicit])].filter(Boolean);
             }
             const updated = updateRaidWizardSession(sessionId, { tasks, step: 'tasks' });
-            const label = (updated.categoryKeys || []).map((k) => getRaidWizardCategoryDef(k)?.label ?? k).join(', ');
-
-            const embed = new EmbedBuilder()
-                .setColor(EMBED_COLOR)
-                .setTitle('Edit Raid')
-                .setDescription(`Page 2/2: Select task(s) for **${label || 'selected categories'}**.`)
-                .addFields({ name: 'Selected Tasks', value: tasks.length ? tasks.map((t) => `\`${t}\``).join(', ') : '*None*', inline: false });
 
             await interaction.update({
-                embeds: [embed],
-                components: [
-                    getRaidWizardEditTasksSelectRow(sessionId, updated.categoryKeys, tasks),
-                    getRaidWizardEditNavRow(sessionId, { step: 'tasks', canContinue: tasks.length > 0 }),
-                ],
+                components: [getRaidWizardEditTasksV2(sessionId, updated.categoryKeys, tasks)],
+                flags: MessageFlags.IsComponentsV2,
             });
         }
         return;
     }
 
-    /* ---------- 3. CANCEL RAID ---------- */
-    if (interaction.customId === "cancelRaidTicket") {
-        const row = new ActionRowBuilder().addComponents(
-            new ButtonBuilder()
-                .setCustomId("confirmCancelRaid")
-                .setLabel("Confirm Cancel")
-                .setStyle(ButtonStyle.Danger),
-            new ButtonBuilder()
-                .setCustomId("abortCancelRaid")
-                .setLabel("Abort")
-                .setStyle(ButtonStyle.Secondary)
-        );
-
-        await interaction.reply({
-            content: "Cancel this raid?",
-            components: [row],
-            flags: MessageFlags.Ephemeral
-        });
-        return;
-    }
-
-    if (interaction.customId === "confirmCancelRaid") {
-        await interaction.update({
-            content: "Raid will now be cancelled.",
-            components: []
-        });
-
-        await finalizeAdminReview(
-            client,
-            interaction.channel,
-            raidInfo,
-            {},
-            interaction.user.id,
-            "cancelled"
-        );
-        return;
-    }
-
-    if (interaction.customId === "abortCancelRaid") {
-        await interaction.update({
-            content: "Cancelled.",
-            components: []
-        });
+/* ---------- 3. CANCEL RAID ---------- */
+    if (interaction.customId === 'cancelRaidTicket') {
+        await interaction.showModal(buildCancelRaidConfirmModal());
         return;
     }
 }

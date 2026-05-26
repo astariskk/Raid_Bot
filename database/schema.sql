@@ -39,6 +39,26 @@ before update on public.raid_states
 for each row
 execute function public.set_updated_at();
 
+create table if not exists public.raid_ticket_helpers (
+  raid_id text not null references public.raid_states(id) on delete cascade,
+  helper_id text not null,
+  joined_at timestamptz not null default now(),
+  removed_at timestamptz null,
+  removed_by text null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (raid_id, helper_id)
+);
+
+create index if not exists raid_ticket_helpers_raid_idx
+  on public.raid_ticket_helpers (raid_id, removed_at, joined_at);
+
+drop trigger if exists trg_raid_ticket_helpers_updated_at on public.raid_ticket_helpers;
+create trigger trg_raid_ticket_helpers_updated_at
+before update on public.raid_ticket_helpers
+for each row
+execute function public.set_updated_at();
+
 -- --------------------
 -- Leaderboard
 -- --------------------

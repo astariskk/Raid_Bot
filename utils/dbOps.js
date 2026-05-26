@@ -179,11 +179,14 @@ export async function getRaidState(channelId) {
         mapNumber: request.mapNumber ?? request.map_number ?? '',
         server: request.server ?? '',
         description: request.description ?? '',
+        lastHelperPingAt: request.lastHelperPingAt ?? request.last_helper_ping_at ?? null,
+        lastHelperRoleMentionAt: request.lastHelperRoleMentionAt ?? request.last_helper_role_mention_at ?? request.lastHelperPingAt ?? request.last_helper_ping_at ?? null,
         // closing (flattened)
         isAwaitingCompletion: Boolean((data.is_awaiting_completion ?? closing.isAwaitingCompletion ?? closing.is_awaiting_completion) ?? false),
         pendingHelperIds: closing.pendingHelperIds ?? closing.pending_helper_ids ?? null,
         proofImage: closing.proofImage ?? closing.proof_image ?? null,
         partialHelpers: closing.partialHelpers ?? closing.partial_helpers ?? [],
+        previousStatus: closing.previousStatus ?? closing.previous_status ?? null,
         awaitingCompletionRequesterId: closing.awaitingCompletionRequesterId ?? closing.awaiting_completion_requester_id ?? null,
         pointsAwarded: closing.pointsAwarded ?? closing.points_awarded ?? null,
         expLairMessageLink: closing.expLairMessageLink ?? closing.exp_lair_message_link ?? null,
@@ -220,12 +223,15 @@ export async function createRaidState(channelId, raidDetails) {
         mapNumber: raidDetails.mapNumber ?? '',
         server: raidDetails.server ?? '',
         description: raidDetails.description ?? '',
+        lastHelperPingAt: raidDetails.lastHelperPingAt ?? null,
+        lastHelperRoleMentionAt: raidDetails.lastHelperRoleMentionAt ?? null,
     };
 
     const closing = {
         pendingHelperIds: raidDetails.pendingHelperIds ?? null,
         proofImage: raidDetails.proofImage ?? null,
         awaitingCompletionRequesterId: raidDetails.awaitingCompletionRequesterId ?? null,
+        previousStatus: raidDetails.previousStatus ?? null,
         pointsAwarded: raidDetails.pointsAwarded ?? null,
         expLairMessageLink: raidDetails.expLairMessageLink ?? null,
         partialHelpers: raidDetails.partialHelpers ?? [],
@@ -259,10 +265,11 @@ export async function updateRaidState(channelId, updates) {
         isAwaitingCompletion: 'is_awaiting_completion',
     };
 
-    const requestKeys = new Set(['task', 'mapName', 'mapNumber', 'server', 'description']);
+    const requestKeys = new Set(['task', 'mapName', 'mapNumber', 'server', 'description', 'lastHelperPingAt', 'lastHelperRoleMentionAt']);
     const closureKeys = new Set([
         'pendingHelperIds',
         'proofImage',
+        'previousStatus',
         'awaitingCompletionRequesterId',
         'pointsAwarded',
         'expLairMessageLink',
@@ -320,9 +327,27 @@ export async function updateRaidState(channelId, updates) {
 }
 
 export async function deleteRaidState(channelId) {
-    await connectDB();
-    const supabase = getSupabase();
+  await connectDB();
+  const supabase = getSupabase();
 
-    const { error } = await supabase.from('raid_states').delete().eq('id', String(channelId));
-    if (error) throw error;
+  const { error } = await supabase.from('raid_states').delete().eq('id', String(channelId));
+  if (error) throw error;
+}
+
+export async function getCompletedRaidsCount(targetMonthDate) {
+  await connectDB();
+  const supabase = getSupabase();
+
+  const monthStart = new Date(Date.UTC(targetMonthDate.getFullYear(), targetMonthDate.getMonth(), 1));
+  const monthEnd = new Date(Date.UTC(targetMonthDate.getFullYear(), targetMonthDate.getMonth() + 1, 0, 23, 59, 59, 999));
+
+  const { count, error } = await supabase
+    .from('raid_states')
+    .select('*', { count: 'exact', head: true })
+    .eq('status', 'admin_review')
+    .gte('created_at', monthStart.toISOString())
+    .lte('created_at', monthEnd.toISOString());
+
+  if (error) throw error;
+  return count ?? 0;
 }

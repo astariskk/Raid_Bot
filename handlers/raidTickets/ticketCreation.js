@@ -1,10 +1,10 @@
-import { EmbedBuilder, ChannelType, PermissionFlagsBits, MessageFlags, WebhookClient } from 'discord.js';
-import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, EMBED_COLOR, GENERIC_TASKS_LIST, STATUS_COLORS, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
+import { ChannelType, ContainerBuilder, MessageFlags, PermissionFlagsBits, TextDisplayBuilder, WebhookClient } from 'discord.js';
+import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config/constants.js';
 import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
-import { threadActionRow } from './buttons/threadButtons.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
 import { normalizeRoomNumber } from '../../utils/roomNumber.js';
+import { sendRaidTicketMessages } from './raidTicketPresentation.js';
 
 export async function handleRaidCreation(interaction) {
     if (!interaction.isModalSubmit()) return;
@@ -50,7 +50,12 @@ export async function handleRaidCreation(interaction) {
         return;
     }
 
-    const mapName = interaction.fields.getTextInputValue('mapNameInput');
+    let mapName = '';
+    try {
+        mapName = interaction.fields.getTextInputValue('mapNameInput');
+    } catch {
+        mapName = '';
+    }
     const mapNumberRaw = interaction.fields.getTextInputValue('mapNumberInput');
     const mapNumber = normalizeRoomNumber(mapNumberRaw);
     const server = interaction.fields.getTextInputValue('serverInput');
@@ -58,17 +63,6 @@ export async function handleRaidCreation(interaction) {
 
     if (!mapNumber) {
         const msg = 'Room Number must contain at least one digit.';
-        if (interaction.replied || interaction.deferred) {
-            await interaction.editReply({ content: msg }).catch(() => {});
-        } else {
-            await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
-        }
-        return;
-    }
-
-    const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t));
-    if (isMapNameRequired && !String(mapName ?? '').trim()) {
-        const msg = 'Map Name is required for other tasks (`simple`, `moderate`, `difficult`).';
         if (interaction.replied || interaction.deferred) {
             await interaction.editReply({ content: msg }).catch(() => {});
         } else {
@@ -93,37 +87,8 @@ export async function handleRaidCreation(interaction) {
             ]
         });
 
-        // Build Embed
-        const displayTasks = resolvedTasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t);
-        const embed = new EmbedBuilder()
-            .setColor(STATUS_COLORS?.[RAID_STATUS.WAITING] ?? EMBED_COLOR)
-            .setTitle('Raid Request')
-            .setAuthor({ name: interaction.user.tag, iconURL: interaction.user.displayAvatarURL() })
-            .addFields(
-                { name: 'Task(s)', value: displayTasks.join(', '), inline: false },
-                { name: 'Map', value: `${mapName || 'Auto (based on task)'}`, inline: false},
-                { name: 'Room Number', value: `${mapNumber}`, inline: true },
-                { name: 'Server', value: server, inline: true },
-                { name: 'Status', value: RAID_STATUS.WAITING, inline: true },
-                { name: 'Description', value: description || 'No description provided.' }
-            );
-
-        const sentMsg = await ticketChannel.send({
-            content: `<@&${RAID_HELPER_ROLE_ID}> New raid request from ${interaction.user}`,
-            embeds: [embed]
-        });
-        
-        await ticketChannel.send({
-            content: `You can type **!waiting** **!ongoing** or **!full** to update the raid status\n`+
-                `Use the buttons below to manage your raid.`,
-            components: [threadActionRow]
-        });
-
-        await sentMsg.pin();
-
-        // Save to DB
-        await createRaid(ticketChannel.id, {
-            messageId: sentMsg.id,
+        const raidDetails = {
+            messageId: null,
             originalChannelId: ticketChannel.id,
             task: resolvedTasks.join(', '),
             requesterId: interaction.user.id,
@@ -136,21 +101,40 @@ export async function handleRaidCreation(interaction) {
             isAwaitingCompletion: false,
             partialHelpers: [],
             originalName: baseName,
+        };
+
+        const { messageId, lastHelperRoleMentionAt } = await sendRaidTicketMessages(ticketChannel, {
+            requester: interaction.member,
+            raidInfo: raidDetails,
+            helpers: [],
         });
 
-        const createdContent = `Ticket has been created: <#${ticketChannel.id}>`;
+        // Save to DB
+        await createRaid(ticketChannel.id, { ...raidDetails, messageId, lastHelperRoleMentionAt });
+
+        const channelUrl = `https://discord.com/channels/${guild.id}/${ticketChannel.id}`;
+        const wizardCompletePayload = {
+            content: null,
+            embeds: [],
+            flags: MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral,
+            components: [
+                new ContainerBuilder().addTextDisplayComponents(
+                    new TextDisplayBuilder().setContent(`Raid Request Created: ${channelUrl}`),
+                ),
+            ],
+        };
 
         // Edit the original Start Raid ephemeral wizard message if possible (we store its interaction token in the session).
         if (wizardSession?.originAppId && wizardSession?.originToken) {
             try {
                 const webhook = new WebhookClient({ id: wizardSession.originAppId, token: wizardSession.originToken });
-                await webhook.editMessage('@original', { content: createdContent, embeds: [], components: [] }).catch(() => {});
+                await webhook.editMessage('@original', wizardCompletePayload).catch(() => {});
             } catch (e) {
                 console.warn('Failed to edit original Start Raid wizard message:', e);
             }
         } else if (canEditWizardMessage) {
             // Fallback (only works if discord.js provides interaction.message for this modal submit).
-            await interaction.message.edit({ content: createdContent, embeds: [], components: [] }).catch(() => {});
+            await interaction.message.edit(wizardCompletePayload).catch(() => {});
         }
 
         // Don't send a second "ticket created" message; the wizard message is updated instead.

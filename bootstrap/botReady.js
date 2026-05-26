@@ -6,6 +6,7 @@ import { setupBackupHandlers } from '../handlers/backup/index.js';
 import { registerSlashCommands, setupSlashCommandsHandler } from '../handlers/slashCommands/index.js';
 
 import { connectDB } from '../utils/dbOps.js';
+import { getRaidTasksCacheState, loadRaidTasksCache } from '../config/constants/tasks.js';
 
 export function registerBotReadyHandler(client) {
   let didSetup = false;
@@ -22,6 +23,11 @@ export function registerBotReadyHandler(client) {
       console.log('[startup] Initializing DB client...');
       await connectDB();
       console.log('[startup] DB init complete.');
+
+      console.log('[startup] Loading raid task config...');
+      await loadRaidTasksCache();
+      const taskCache = getRaidTasksCacheState();
+      console.log(`[startup] Loaded ${taskCache.taskCount} raid task(s) from ${taskCache.loadedFrom}.`);
 
       await registerSlashCommands(client);
       setupSlashCommandsHandler(client);

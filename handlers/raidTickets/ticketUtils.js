@@ -1,5 +1,10 @@
 import { MessageFlags } from "discord.js";
-import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from "../../config/constants.js";
+import { MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_HELPER_ROLE_ID, RAID_MANAGER_ROLE_ID } from "../../config/constants.js";
+
+export function hasWarriorRole(member) {
+    if (!member) return false;
+    return member.roles.cache.has(RAID_HELPER_ROLE_ID);
+}
 
 export function isStaff(member) {
     if (!member) return false;
@@ -14,6 +19,17 @@ export function isRaidManager(interaction, raidInfo) {
     if (!raidInfo) return false;
     if (interaction.user.id === raidInfo.requesterId) return true;
     return isStaff(interaction.member);
+}
+
+export async function requireWarrior(interaction) {
+    if (hasWarriorRole(interaction.member)) return true;
+    if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+            content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to perform this action.`,
+            flags: MessageFlags.Ephemeral,
+        });
+    }
+    return false;
 }
 
 export async function requireAuth(interaction, raidInfo, level = 'raid_manager') {

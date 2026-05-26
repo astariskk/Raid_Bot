@@ -6,11 +6,21 @@ import { sendLeaderboardBackup } from '../backup/index.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
 import { sendLeaderboardCheckResults, sendLeaderboardResults } from '../leaderboard/setup.js';
 import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
-import { getCombinedTasksAndPointsEmbed } from '../../Embeds/generalCommandsEmbeds.js';
+import { getCombinedTasksAndPointsEmbed, getRaidTasksPageComponents } from '../../Embeds/generalCommandsEmbeds.js';
 import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
 import { getGifCommand } from '../../utils/gifCommandsStore.js';
+import { startRaidTaskManagerInteraction } from '../generalCommands/raidTasksCrud.js';
 import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
 import { postChartToChannel, startChartBrowseInteraction } from '../charts/charts.js';
+import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
+import { listRaidHelpers, removeRaidHelper } from '../../utils/raidParticipationStore.js';
+import {
+  getRaidHelperCapacity,
+  getRaidStatusForHelpers,
+  isSpammingRaid,
+  refreshRaidRequestMessage,
+  sendHelperLeftNotification,
+} from '../raidTickets/raidTicketPresentation.js';
 
 function getMentionedUserIds(usersString = '') {
   const input = String(usersString ?? '');
@@ -173,6 +183,47 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
+    case 'removehelper': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      const target = interaction.options.getUser('user', true);
+      try {
+        const raidInfo = await getRaidInfo(interaction.channelId);
+        if (!raidInfo) {
+          await interaction.reply({ content: 'Use this command inside an active raid ticket.', flags: MessageFlags.Ephemeral });
+          return;
+        }
+
+        await removeRaidHelper(interaction.channelId, target.id, interaction.user.id);
+        const helpers = await listRaidHelpers(interaction.channelId, { includeRemoved: true });
+        if (Array.isArray(raidInfo.pendingHelperIds) && raidInfo.pendingHelperIds.includes(target.id)) {
+          await updateRaid(interaction.channelId, {
+            pendingHelperIds: raidInfo.pendingHelperIds.filter((id) => id !== target.id),
+          });
+        }
+        const spamming = isSpammingRaid(raidInfo);
+        const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId && !helper.removedAt).length;
+        const nextStatus = spamming ? getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: getRaidHelperCapacity(raidInfo) }) : raidInfo.status;
+        if (spamming && nextStatus !== raidInfo.status) await updateRaid(interaction.channelId, { status: nextStatus });
+        const refreshedRaidInfo = { ...raidInfo, status: nextStatus };
+        await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: refreshedRaidInfo, helpers });
+        await sendHelperLeftNotification({
+          channel: interaction.channel,
+          guildId: interaction.guildId,
+          raidInfo: refreshedRaidInfo,
+          helperId: target.id,
+        });
+        await interaction.reply({ content: `Removed <@${target.id}> from this raid ticket.`, flags: MessageFlags.Ephemeral });
+      } catch (error) {
+        console.error('Error handling /removehelper:', error);
+        await interaction.reply({
+          content: error?.message || 'Failed to remove helper.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
     case 'calculatetask': {
       const tasksString = interaction.options.getString('tasks');
 
@@ -207,6 +258,7 @@ export async function handleSlashCommandInteraction(interaction, client) {
         await interaction.reply({
           content: 'Below are the list of available tasks and exp values sectioned by their category.\n',
           embeds,
+          components: getRaidTasksPageComponents(0),
           flags: MessageFlags.Ephemeral,
         });
       } catch (error) {
@@ -219,7 +271,8 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
-    case 'addgif': {
+    case 'addgif':
+    case 'addcommand': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
 
       const raw = interaction.options.getString('command', true);
@@ -246,6 +299,23 @@ export async function handleSlashCommandInteraction(interaction, client) {
           content: error?.message || 'Failed to start GIF creation.',
           flags: MessageFlags.Ephemeral,
         }).catch(() => {});
+      }
+      return;
+    }
+
+    case 'modifytasks': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      try {
+        await startRaidTaskManagerInteraction(interaction);
+      } catch (error) {
+        console.error('Error handling /modifytasks:', error);
+        const content = error?.message || 'Failed to open task manager.';
+        if (interaction.deferred || interaction.replied) {
+          await interaction.editReply({ content }).catch(() => {});
+        } else {
+          await interaction.reply({ content, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
       }
       return;
     }

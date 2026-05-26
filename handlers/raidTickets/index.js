@@ -53,25 +53,37 @@ export function setupRaidHandlers(client) {
         // Completion Flow (Close, Helpers, Proof)
         if (
             ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid', 'partialHelper_btn'].includes(interaction.customId) ||
-            interaction.customId.startsWith('partialHelper_')
+            interaction.customId.startsWith('partialHelper_') ||
+            interaction.customId.startsWith('taskHelped_') ||
+            interaction.customId.startsWith('taskHelpedModal_')
+            || interaction.customId === 'closePartialTasksModal'
         ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;
         }
 
-        // Lifecycle (Edit, Cancel)
+// Lifecycle (Edit, Cancel)
         if (
-            ['editRequest_btn', 'cancelRaidTicket', 'confirmCancelRaid', 'abortCancelRaid'].includes(interaction.customId) ||
+            ['editRequest_btn', 'editRequest_tasks_btn', 'editRequest_details_btn', 'editRequest_description_btn', 'cancelRaidTicket'].includes(interaction.customId) ||
             interaction.customId.startsWith('editRequest_') ||
             interaction.customId.startsWith('raidWizardEdit_') ||
-            interaction.customId.startsWith('raidWizardEditDetailsModal_')
+            interaction.customId.startsWith('raidWizardEditDetailsModal_') ||
+            interaction.customId === 'editRequestDescriptionModal' ||
+            interaction.customId === 'confirmCancelRaidModal'
         ) {
             await handleLifecycleInteractions(interaction, raidInfo, client);
             return;
         }
 
-        // Commands (Maps)
-        if (interaction.customId.includes('raidmaps')) {
+        // Commands (Maps, helpers)
+        if (
+            interaction.customId === 'joinRaidTicket'
+            || interaction.customId === 'addHelperButton'
+            || interaction.customId === 'pingHelpersButton'
+            || interaction.customId.includes('raidmaps')
+            || interaction.customId.startsWith('kickRaidHelper_')
+            || interaction.customId === 'addRaidHelperModal'
+        ) {
             const fullRaidInfo = await getRaidInfo(interaction.channel?.id);
             await handleCommandInteractions(interaction, fullRaidInfo ?? raidInfo);
             return;

@@ -1,23 +1,17 @@
 import { EmbedBuilder } from 'discord.js';
-import { EMBED_COLOR, getJoinPrefixes } from '../config/constants.js';
+import { EMBED_COLOR } from '../config/constants.js';
+import { getJoinPrefixesForRaid } from '../handlers/raidTickets/raidTicketPresentation.js';
 
-export function generateRaidMapsEmbed(tasks, mapNumber) {
-    const normalizedTasks = [];
-    
-    for (const task of tasks) {
-        const normalized = String(task ?? '').trim().toLowerCase();
-        if (!normalized) continue;
-        normalizedTasks.push(normalized);
-    }
+export function generateRaidMapsEmbed(tasksOrRaidInfo, mapNumber) {
+    const raidInfo = tasksOrRaidInfo && typeof tasksOrRaidInfo === 'object' && 'task' in tasksOrRaidInfo
+        ? tasksOrRaidInfo
+        : { task: Array.isArray(tasksOrRaidInfo) ? tasksOrRaidInfo.join(', ') : String(tasksOrRaidInfo ?? '') };
 
-    // Ensure mapNumber is a string for consistent join
-    const finalMapNumber = String(mapNumber); 
+    const finalMapNumber = String(mapNumber);
+    const prefixes = getJoinPrefixesForRaid(raidInfo);
 
-    const joinLinksWithPoints = normalizedTasks
-        .flatMap(task => {
-            const prefixes = getJoinPrefixes(task);
-            return prefixes.map(prefix => `\`\`\`/join ${prefix}-${finalMapNumber}\`\`\``);
-        })
+    const joinLinksWithPoints = prefixes
+        .map((prefix) => `\`\`\`/join ${prefix}-${finalMapNumber}\`\`\``)
         .join('\n');
 
 
