@@ -225,6 +225,16 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     const displayName = interaction.member?.displayName || interaction.user.globalName || interaction.user.username || 'A helper';
 
+    const spamming = isSpammingRaid(freshRaidInfo);
+    const nextStatus = spamming
+      ? getRaidStatusForHelpers({ isSpamming: true, helperCount: activeHelperCount, maxHelpers: helperCapacity })
+      : raidInfo.status;
+
+    if (spamming && nextStatus !== freshRaidInfo.status) {
+      await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
+      freshRaidInfo.status = nextStatus;
+    }
+
     await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: freshRaidInfo, helpers: updatedHelpers });
 
     const requestMessageUrl = interaction.guildId && freshRaidInfo.messageId
@@ -275,6 +285,18 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const activeHelperCount = getVisibleHelpers(helpers, currentRaidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(currentRaidInfo));
+
+    const spamming = isSpammingRaid(currentRaidInfo);
+    const nextStatus = spamming
+      ? getRaidStatusForHelpers({ isSpamming: true, helperCount: activeHelperCount, maxHelpers: helperCapacity })
+      : RAID_STATUS.WAITING;
+
+    if (spamming && nextStatus !== currentRaidInfo.status) {
+      await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
+      currentRaidInfo.status = nextStatus;
+    }
+
     await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: currentRaidInfo, helpers });
 
     await sendHelperLeftNotification({

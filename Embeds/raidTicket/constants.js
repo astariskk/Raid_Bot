@@ -4,7 +4,8 @@ export const HELPER_MANAGEMENT_HINT =
   'Use **Kick** beside a helper to remove them (helpers can kick themselves). Use **Add Helper** to add warriors manually. Helpers who leave before closing appear under **Partial Helpers**.';
 
 export const CLOSE_HELPER_HINT =
-  'Use **Kick Helper** or **Task Helped** beside each helper. Partial helpers must have tasks assigned before you confirm close.';
+  'Use **Kick Helper** or **Task Helped** beside each helper. Partial helpers must have tasks assigned before you confirm close.\n' +
+  'Click **Close Raid** to start closing, then confirm when ready.';
 
 export const RAID_TICKET_HELP_TEXT =
   'You can also type `!waiting`, `!ongoing`, or `!full` to update the raid status.\n' +
