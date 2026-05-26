@@ -156,7 +156,8 @@ export async function finalizeAdminReview(
 
         if (expLairChannel?.type === ChannelType.GuildText) {
           const helperIds = Object.keys(pointsAwarded);
-          const partialHelperIds = normalizePartialHelpers(raidInfo).map((e) => e.helperId);
+          const partialHelpers = normalizePartialHelpers(raidInfo).filter((e) => e.tasks?.length > 0);
+          const partialHelperIds = partialHelpers.map((e) => e.helperId);
           const allHelpers = [...new Set([...helperIds, ...partialHelperIds])];
 
           const helpers = allHelpers.length > 0 ? allHelpers.map((id) => `<@${id}>`).join(', ') : 'None';
@@ -218,8 +219,7 @@ export async function finalizeAdminReview(
               : ""
           }\n\n**Points awarded to Helpers:**\n`;
 
-          const partialHelpers = normalizePartialHelpers(raidInfo);
-          const partialMap = new Map(partialHelpers.map((e) => [e.helperId, e.tasks]));
+          const partialMap = new Map(partialHelpers.filter((e) => e.tasks?.length > 0).map((e) => [e.helperId, e.tasks]));
 
           for (const uid of Object.keys(pointsAwarded)) {
             const member = await guild.members.fetch(uid).catch(() => null);

@@ -269,8 +269,8 @@ function getRemovedPartialHelpers(joinedHelpers = [], requesterId = null) {
 
 function getPartialHelpersMissingTasks(raidInfo, joinedHelpers = []) {
     const partialHelpers = normalizePartialHelpers(raidInfo);
-    const partialIds = new Set(partialHelpers.map(e => e.helperId));
-    return getRemovedPartialHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => !partialIds.has(helper.helperId));
+    const partialsWithTasks = new Set(partialHelpers.map(e => e.helperId));
+    return getRemovedPartialHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => !partialsWithTasks.has(helper.helperId));
 }
 
 async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelpers) {
@@ -280,13 +280,15 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
     const activeJoinedIds = joinedHelpers.filter((helper) => !helper.removedAt).map((helper) => helper.helperId);
     const removedJoinedIds = joinedHelpers.filter((helper) => helper.removedAt).map((helper) => helper.helperId);
     const spamming = isSpammingRaid(currentRaidInfo);
-    const allHelperIds = [...new Set([...selectedIds, ...partialIds, ...activeJoinedIds, ...(spamming ? removedJoinedIds : [])])]
+
+    const partialsToInclude = partialHelpers.filter((p) => p.tasks?.length > 0).map((e) => e.helperId);
+    const allHelperIds = [...new Set([...selectedIds, ...partialsToInclude, ...activeJoinedIds, ...(spamming ? removedJoinedIds : [])])]
         .filter(Boolean)
         .filter((id) => id !== currentRaidInfo.requesterId);
 
-    const hasPartialHelpers = partialHelpers.length > 0;
-    if (!allHelperIds.length && !hasPartialHelpers) {
-        const noHelpersPayload = { content: 'No helpers selected.', flags: MessageFlags.Ephemeral };
+    const hasHelpersWithTasks = allHelperIds.length > 0 || partialHelpers.some((p) => p.tasks?.length > 0);
+    if (!hasHelpersWithTasks) {
+        const noHelpersPayload = { content: 'No helpers with tasks selected.', flags: MessageFlags.Ephemeral };
         if (interaction.deferred || interaction.replied) {
             await interaction.followUp(noHelpersPayload).catch(() => interaction.editReply(noHelpersPayload).catch(() => {}));
         } else {
@@ -306,11 +308,9 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
         let normalPoints = 0;
 
         if (partial) {
-            if (partial.tasks?.length) {
-                const subset = partial.tasks.filter((task) => String(task).toLowerCase() !== 'spamming').join(', ');
-                const { originalTotalCalculatedPoints: subsetPoints } = calculateTaskPointsWithMultiplier(subset);
-                normalPoints = subsetPoints;
-            }
+            const subset = partial.tasks.filter((task) => String(task).toLowerCase() !== 'spamming').join(', ');
+            const { originalTotalCalculatedPoints: subsetPoints } = calculateTaskPointsWithMultiplier(subset);
+            normalPoints = subsetPoints;
         } else {
             normalPoints = originalTotalCalculatedPoints;
         }

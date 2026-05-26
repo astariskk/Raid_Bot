@@ -243,10 +243,15 @@ export function setupGeneralCommandsHandler(client) {
 
         const commandContent = message.content.toLowerCase();
 
-        // Easter egg: respond when bot is mentioned
+        // Easter egg: respond when bot is mentioned (only in raid ticket channels)
         const botId = client.user.id;
         if (message.mentions.has(botId) && message.content.replace(/<@!?[\d]+>/g, '').trim() === '') {
-            await message.reply('what are you pinging me for :sob: ???');
+            const { RAID_CATEGORY_ID } = await import('../../config/constants.js');
+            if (message.channel?.parentId === RAID_CATEGORY_ID && message.channel.type === 0) {
+                const { PING_RESPONSES } = await import('../../config/constants/pingMessages.js');
+                const randomResponse = PING_RESPONSES[Math.floor(Math.random() * PING_RESPONSES.length)];
+                await message.reply(randomResponse);
+            }
             return;
         }
 
