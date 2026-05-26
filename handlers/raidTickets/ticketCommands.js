@@ -1,4 +1,4 @@
-import { MessageFlags } from 'discord.js';
+import { ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
 
 import { getRaidInfo, updateRaid, updateRaidStatus } from '../../activeRaidState.js';
 import { RAID_STATUS, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
@@ -208,12 +208,20 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     const requestMessageUrl = interaction.guildId && raidInfo.messageId
       ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${raidInfo.messageId}`
       : null;
-    await interaction.channel.send({
-      content: requestMessageUrl
-        ? `${interaction.user} joined this raid ticket: ${requestMessageUrl}`
-        : `${interaction.user} joined this raid ticket.`,
-      allowedMentions: { users: [interaction.user.id] },
-    }).catch(() => {});
+    if (requestMessageUrl) {
+      await interaction.channel.send({
+        content: null,
+        embeds: [],
+        flags: MessageFlags.IsComponentsV2,
+        components: [
+          new ContainerBuilder().addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `${interaction.user} joined this raid ticket. [**VIEW RAID TICKET**](${requestMessageUrl})`
+            ),
+          ),
+        ],
+      }).catch(() => {});
+    }
 
     if (raidInfo.mapNumber) {
       const embed = generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber);
@@ -251,18 +259,18 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const refreshedRaidInfo = await refreshRaidWithHelpers(interaction, raidInfo, helpers);
 
+    const replyContent = isSelfKick ? 'You left this raid ticket.' : `Removed <@${helperId}> from this raid ticket.`;
+    await interaction.reply({
+      content: replyContent,
+      flags: MessageFlags.Ephemeral,
+    });
     await sendHelperLeftNotification({
       channel: interaction.channel,
       guildId: interaction.guildId,
       raidInfo: refreshedRaidInfo,
       helperId,
       helpers,
-    });
-
-    await interaction.reply({
-      content: isSelfKick ? 'You left this raid ticket.' : `Removed <@${helperId}> from this raid ticket.`,
-      flags: MessageFlags.Ephemeral,
-    });
+    }).catch(() => {});
     return;
   }
 

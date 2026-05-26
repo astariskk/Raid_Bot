@@ -18,6 +18,7 @@ import {
   getCloseConfirmRow,
   getHelperControlRow,
   getKickHelperButton,
+  getTaskHelpedButton,
   joinTicketButton,
   pingHelpersButton,
   raidmapsButton,
@@ -69,11 +70,13 @@ function getHelperTaskLabel(helper, partialHelpers, { isPartial = false } = {}) 
   return 'Partial tasks';
 }
 
-function addClosingHelperRow(container, helper, { partialHelpers, showSpamTime }) {
+function addClosingHelperRow(container, helper, { partialHelpers, showSpamTime, showKick = true, showTaskHelped = false }) {
   const isPartial = Boolean(helper.removedAt);
   const taskLabel = getHelperTaskLabel(helper, partialHelpers, { isPartial });
-  container.addTextDisplayComponents(text(`<@${helper.helperId}> : ${taskLabel}`));
-  container.addActionRowComponents(getHelperControlRow(helper, { showTaskHelped: true }));
+  const button = showKick ? getKickHelperButton(helper) : (showTaskHelped ? getTaskHelpedButton(helper) : null);
+  container.addSectionComponents(
+    section(`<@${helper.helperId}> : ${taskLabel}`, button),
+  );
 
   if (showSpamTime) {
     const duration = formatDuration(helper.joinedAt, helper.removedAt || new Date());
@@ -83,10 +86,10 @@ function addClosingHelperRow(container, helper, { partialHelpers, showSpamTime }
   }
 }
 
-function addActiveHelperSections(container, helpers) {
+function addActiveHelperSections(container, helpers, { showTaskHelped = false } = {}) {
   helpers.slice(0, 10).forEach((helper, index) => {
     container.addSectionComponents(
-      section(`<@${helper.helperId}>`, getKickHelperButton(helper, `Helper ${index + 1}`)),
+      section(`<@${helper.helperId}>`, getKickHelperButton(helper)),
     );
   });
 }
@@ -134,8 +137,11 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
     if (midRunPartials.length) {
       mainContainer.addTextDisplayComponents(text('**Partial Helpers**'));
       midRunPartials.slice(0, 10).forEach((helper) => {
-        mainContainer.addTextDisplayComponents(text(`<@${helper.helperId}>`));
-        mainContainer.addActionRowComponents(getHelperControlRow(helper, { showTaskHelped: true }));
+        const isPartial = Boolean(helper.removedAt);
+        const taskLabel = getHelperTaskLabel(helper, partialHelpers, { isPartial });
+        mainContainer.addSectionComponents(
+          section(`<@${helper.helperId}> : ${taskLabel}`, getTaskHelpedButton(helper)),
+        );
       });
     }
 
@@ -156,7 +162,7 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
     if (midRunPartials.length) {
       mainContainer.addTextDisplayComponents(text('**Partial Helpers**'));
       midRunPartials.slice(0, 10).forEach((helper) => {
-        addClosingHelperRow(mainContainer, helper, { partialHelpers, showSpamTime });
+        addClosingHelperRow(mainContainer, helper, { partialHelpers, showSpamTime, showKick: false, showTaskHelped: true });
       });
     }
 

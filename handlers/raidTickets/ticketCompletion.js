@@ -126,6 +126,26 @@ async function filterToWarriorHelperIds(interaction, selectedIds) {
     return { filtered, warnings };
 }
 
+async function enrichPartialHelpersWithNames(interaction, helpers = []) {
+    if (!helpers.length) return helpers;
+    const guild = interaction.guild;
+    return Promise.all(
+        helpers.map(async (helper) => {
+            const helperId = String(helper?.helperId ?? '').trim();
+            let displayName = helperId;
+            if (guild && helperId) {
+                try {
+                    const member = await guild.members.fetch(helperId).catch(() => null);
+                    if (member?.displayName) displayName = member.displayName;
+                } catch {
+                    // ignore
+                }
+            }
+            return { ...helper, displayName };
+        }),
+    );
+}
+
 function formatPartialHelpersForClose(raidInfo) {
     const partialHelpers = normalizePartialHelpers(raidInfo);
     if (!partialHelpers.length) return '';
@@ -264,7 +284,8 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
         .filter(Boolean)
         .filter((id) => id !== currentRaidInfo.requesterId);
 
-    if (!allHelperIds.length) {
+    const hasPartialHelpersWithTasks = partialHelpers.some(e => e.tasks?.length > 0);
+    if (!allHelperIds.length && !hasPartialHelpersWithTasks) {
         const noHelpersPayload = { content: 'No helpers selected.', flags: MessageFlags.Ephemeral };
         if (interaction.deferred || interaction.replied) {
             await interaction.followUp(noHelpersPayload).catch(() => interaction.editReply(noHelpersPayload).catch(() => {}));
@@ -1014,8 +1035,9 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         }
 
         if (missingPartialTasks.length > 0) {
+            const helpersWithNames = await enrichPartialHelpersWithNames(interaction, missingPartialTasks);
             await interaction.showModal(
-                buildClosePartialTasksModal(missingPartialTasks, getUniqueRaidTaskKeys(currentRaidInfo)),
+                buildClosePartialTasksModal(helpersWithNames, getUniqueRaidTaskKeys(currentRaidInfo)),
             );
             return;
         }

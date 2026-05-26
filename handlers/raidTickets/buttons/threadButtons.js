@@ -127,12 +127,15 @@ export function getTaskHelpedButton(helper) {
     const helperId = String(helper?.helperId ?? '').trim();
     return new ButtonBuilder()
         .setCustomId(`taskHelped_${helperId}`)
-        .setLabel('Task Helped')
-        .setStyle(ButtonStyle.Secondary);
+        .setLabel('✅ Task Helped')
+        .setStyle(ButtonStyle.Success);
 }
 
-export function getHelperControlRow(helper, { showTaskHelped = false } = {}) {
-    const components = [getKickHelperButton(helper)];
-    if (showTaskHelped) components.push(getTaskHelpedButton(helper));
+export function getHelperControlRow(helper, { showTaskHelped = false, showKick = true } = {}) {
+    const kick = showKick ? getKickHelperButton(helper) : null;
+    const taskHelped = showTaskHelped ? getTaskHelpedButton(helper) : null;
+    const components = [];
+    if (showKick) components.push(kick);
+    if (showTaskHelped) components.push(taskHelped);
     return new ActionRowBuilder().addComponents(...components);
 }

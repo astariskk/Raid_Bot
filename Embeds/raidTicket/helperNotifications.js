@@ -19,7 +19,7 @@ export async function sendHelperLeftNotification({
   const name = String(helperDisplayName || 'A helper').trim();
   const ticketUrl = getRaidTicketMessageUrl(guildId ?? channel.guild?.id, channel.id, raidInfo.messageId);
   const body = ticketUrl
-    ? `<@&${RAID_HELPER_ROLE_ID}> **${name}** has left the ticket. Status is ${activeHelperCount}/${helperCapacity}.\n[View raid ticket](${ticketUrl})`
+    ? `<@&${RAID_HELPER_ROLE_ID}> **${name}** has left the ticket. Status is ${activeHelperCount}/${helperCapacity}.\n[**VIEW RAID TICKET**](${ticketUrl})`
     : `<@&${RAID_HELPER_ROLE_ID}> **${name}** has left the ticket. Status is ${activeHelperCount}/${helperCapacity}.`;
 
   await channel.send({

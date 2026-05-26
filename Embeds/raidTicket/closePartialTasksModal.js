@@ -26,29 +26,29 @@ function buildTaskSelect(helperId, taskKeys) {
 
 /** Up to 4 partial helpers per modal (Discord modal component limit). */
 export function buildClosePartialTasksModal(helpersMissing = [], taskKeys = []) {
-  const modal = new ModalBuilder()
-    .setCustomId(CLOSE_PARTIAL_TASKS_MODAL_ID)
-    .setTitle('Partial helper tasks');
+   const modal = new ModalBuilder()
+     .setCustomId(CLOSE_PARTIAL_TASKS_MODAL_ID)
+     .setTitle('Partial helper tasks');
 
-  modal.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      'These helpers left before the raid was closed. Select which tasks each one helped with, then submit to finish closing.',
-    ),
-  );
+   modal.addTextDisplayComponents(
+     new TextDisplayBuilder().setContent(
+       'These helpers left before the raid was closed. Select which tasks each one helped with, then submit to finish closing.',
+     ),
+   );
 
-  for (const helper of helpersMissing.slice(0, 4)) {
-    const helperId = String(helper?.helperId ?? helper ?? '').trim();
-    if (!helperId) continue;
+for (const helper of helpersMissing.slice(0, 4)) {
+      const helperId = String(helper?.helperId ?? helper?.id ?? '').trim();
+      const displayName = String(helper?.displayName ?? helper?.name ?? helperId).trim();
+      if (!helperId) continue;
 
-    modal.addLabelComponents(
-      new LabelBuilder()
-        .setLabel(`Helper: ${helperId}`)
-        .setDescription(`<@${helperId}>`)
-        .setStringSelectMenuComponent(buildTaskSelect(helperId, taskKeys)),
-    );
-  }
+      modal.addLabelComponents(
+        new LabelBuilder()
+          .setLabel(`Helper: ${displayName}`)
+          .setStringSelectMenuComponent(buildTaskSelect(helperId, taskKeys)),
+      );
+    }
 
-  return modal;
+   return modal;
 }
 
 export function getClosePartialTasksSelections(interaction, helperIds = []) {
