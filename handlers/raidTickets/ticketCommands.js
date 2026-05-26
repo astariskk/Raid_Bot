@@ -223,6 +223,8 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     const activeHelperCount = getVisibleHelpers(updatedHelpers, freshRaidInfo.requesterId).filter((h) => !h.removedAt).length;
     const helperCapacity = Math.max(1, getRaidHelperCapacity(freshRaidInfo));
 
+    const displayName = interaction.member?.displayName || interaction.user.globalName || interaction.user.username || 'A helper';
+
     await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: freshRaidInfo, helpers: updatedHelpers });
 
     const requestMessageUrl = interaction.guildId && freshRaidInfo.messageId
@@ -230,16 +232,17 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       : null;
     if (requestMessageUrl) {
       const components = [
-        new ContainerBuilder().addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`<@${interaction.user.id}> joined this raid ticket.`),
-        ),
+        new ContainerBuilder()
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${displayName} has joined the raid ticket.`))
+          .addActionRowComponents(
+            new ActionRowBuilder().addComponents(
+              new ButtonBuilder()
+                .setLabel(`View Raid Ticket — ${activeHelperCount}/${helperCapacity}`)
+                .setStyle(ButtonStyle.Link)
+                .setURL(requestMessageUrl),
+            ),
+          ),
       ];
-      components.push(new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-          .setLabel(`View Raid Ticket — **${activeHelperCount}/${helperCapacity}**`)
-          .setStyle(ButtonStyle.Link)
-          .setURL(requestMessageUrl),
-      ));
       await interaction.channel.send({
         flags: MessageFlags.IsComponentsV2,
         components,

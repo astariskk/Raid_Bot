@@ -19,21 +19,19 @@ export async function sendHelperLeftNotification({
   const helperCapacity = raidInfo?.mapNumber?.toString().length >= 4
     ? Math.max(1, parseInt(raidInfo.mapNumber.toString().charAt(0), 10))
     : 4;
-  const statusText = `View Raid Ticket — **${activeHelperCount}/${helperCapacity}**`;
 
-  const components = [];
-  components.push(new ContainerBuilder().addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`**${name}** has left the raid ticket.`),
-  ));
-
-  if (ticketUrl) {
-    components.push(new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setLabel(statusText)
-        .setStyle(ButtonStyle.Link)
-        .setURL(ticketUrl),
-    ));
-  }
+  const components = [
+    new ContainerBuilder()
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${name} has left the raid ticket.`))
+      .addActionRowComponents(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setLabel(`View Raid Ticket — ${activeHelperCount}/${helperCapacity}`)
+            .setStyle(ButtonStyle.Link)
+            .setURL(ticketUrl),
+        ),
+      ),
+  ];
 
   await channel.send({
     flags: MessageFlags.IsComponentsV2,
