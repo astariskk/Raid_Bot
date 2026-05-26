@@ -10,17 +10,20 @@ import { TASK_DISPLAY_NAMES } from '../../config/constants.js';
 export const CLOSE_PARTIAL_TASKS_MODAL_ID = 'closePartialTasksModal';
 
 function buildTaskSelect(helperId, taskKeys) {
-  const keys = [...new Set((taskKeys || []).map((key) => String(key).toLowerCase()).filter(Boolean))].slice(0, 25);
+  const keys = [...new Set((taskKeys || []).map((key) => String(key).toLowerCase()).filter(Boolean))].slice(0, 24);
 
   return new StringSelectMenuBuilder()
     .setCustomId(`closePartialTasks_${helperId}`)
     .setPlaceholder('Select tasks this helper covered…')
-    .setMinValues(1)
+    .setMinValues(0)
     .setMaxValues(Math.max(1, keys.length))
     .addOptions(
-      keys.map((key) => new StringSelectMenuOptionBuilder()
-        .setLabel(String(TASK_DISPLAY_NAMES?.[key] ?? key).slice(0, 100))
-        .setValue(key)),
+      [
+        new StringSelectMenuOptionBuilder().setLabel('No task helped').setValue('__none__').setDescription('This helper did not help with any tasks'),
+        ...keys.map((key) => new StringSelectMenuOptionBuilder()
+          .setLabel(String(TASK_DISPLAY_NAMES?.[key] ?? key).slice(0, 100))
+          .setValue(key)),
+      ],
     );
 }
 

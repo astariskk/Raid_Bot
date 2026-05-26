@@ -212,7 +212,6 @@ export async function handleSlashCommandInteraction(interaction, client) {
           guildId: interaction.guildId,
           raidInfo: refreshedRaidInfo,
           helperId: target.id,
-          helpers,
         });
         await interaction.reply({ content: `Removed <@${target.id}> from this raid ticket.`, flags: MessageFlags.Ephemeral });
       } catch (error) {

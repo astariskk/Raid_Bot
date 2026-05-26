@@ -408,6 +408,7 @@ function buildPartialHelperEntryRow(sessionId, options, selectedValue) {
 function buildPartialHelperTasksRow(sessionId, taskKeys, selectedTasks) {
     const selectedSet = new Set(selectedTasks || []);
     const options = [
+        { label: 'No task helped', value: '__none__', description: 'This helper did not help with any tasks', default: false },
         { label: 'All tasks', value: '__all__', description: 'Select all tasks in this ticket'.slice(0, 100), default: false },
         ...taskKeys.map((t) => ({
             label: t.slice(0, 100),
@@ -420,7 +421,7 @@ function buildPartialHelperTasksRow(sessionId, taskKeys, selectedTasks) {
     const menu = new StringSelectMenuBuilder()
         .setCustomId(`partialHelper_tasks_${sessionId}`)
         .setPlaceholder('Select task(s)')
-        .setMinValues(1)
+        .setMinValues(0)
         .setMaxValues(Math.max(1, options.length))
         .addOptions(options);
 
@@ -530,14 +531,12 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
         let partialHelpers = normalizePartialHelpers(currentRaidInfo);
         for (const helperId of helperIds) {
-            const selectedTasks = [...new Set((selections[helperId] || []).map((task) => String(task).toLowerCase()))];
-            if (!selectedTasks.length) {
-                await interaction.reply({
-                    content: `Select at least one task for <@${helperId}> before closing.`,
-                    flags: MessageFlags.Ephemeral,
-                });
-                return;
-            }
+            const rawSelected = (selections[helperId] || []);
+            const hasNone = rawSelected.includes('__none__');
+            const selectedTasks = hasNone
+                ? []
+                : [...new Set(rawSelected.map((task) => String(task).toLowerCase()).filter((task) => task !== '__none__'))];
+
             partialHelpers = partialHelpers.filter((entry) => entry.helperId !== helperId);
             partialHelpers.push({ helperId, tasks: selectedTasks });
         }
@@ -564,7 +563,9 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     if (interaction.isModalSubmit?.() && interaction.customId.startsWith('taskHelpedModal_')) {
         const helperId = interaction.customId.slice('taskHelpedModal_'.length);
-        const selectedTasks = [...new Set(getTaskHelpedModalSelections(interaction).map((task) => String(task).toLowerCase()))];
+        const rawSelected = getTaskHelpedModalSelections(interaction);
+        const hasNone = rawSelected.includes('__none__');
+        const selectedTasks = hasNone ? [] : [...new Set(rawSelected.map((task) => String(task).toLowerCase()).filter((task) => task !== '__none__'))];
         const partialHelpers = normalizePartialHelpers(raidInfo);
         const next = partialHelpers.filter((entry) => entry.helperId !== helperId);
         if (selectedTasks.length) next.push({ helperId, tasks: selectedTasks });
@@ -711,7 +712,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                     embeds: [buildPartialHelperEmbed({ step: 'tasks', partialHelpers, taskKeys, selectedTasks: updated.selectedTasks })],
                     components: [
                         buildPartialHelperTasksRow(sessionId, taskKeys, updated.selectedTasks),
-                        buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: (updated.selectedTasks?.length ?? 0) > 0 }),
+                        buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: true }),
                     ],
                 });
                 return;
@@ -723,7 +724,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                     embeds: [buildPartialHelperEmbed({ step: 'tasks', partialHelpers, taskKeys, selectedTasks: updated.selectedTasks })],
                     components: [
                         buildPartialHelperTasksRow(sessionId, taskKeys, updated.selectedTasks),
-                        buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: (updated.selectedTasks?.length ?? 0) > 0 }),
+                        buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: true }),
                     ],
                 });
                 return;
@@ -757,18 +758,13 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                     embeds: [buildPartialHelperEmbed({ step: 'tasks', partialHelpers, taskKeys, selectedTasks: updated.selectedTasks })],
                     components: [
                         buildPartialHelperTasksRow(sessionId, taskKeys, updated.selectedTasks),
-                        buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: (updated.selectedTasks?.length ?? 0) > 0 }),
+                        buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: true }),
                     ],
                 });
                 return;
             }
 
             if (session.step === 'tasks') {
-                if (!session.selectedTasks?.length) {
-                    await interaction.reply({ content: 'Select at least one task first.', flags: MessageFlags.Ephemeral });
-                    return;
-                }
-
                 const updated = updatePartialHelperSession(sessionId, { step: 'user' });
                 await interaction.update({
                     embeds: [buildPartialHelperEmbed({ step: 'user', partialHelpers, selectedTasks: updated.selectedTasks })],
@@ -786,10 +782,6 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             if (session.step !== 'user') return;
             if (!session.selectedHelperIds?.length) {
                 await interaction.followUp({ content: 'Select at least one helper first.', flags: MessageFlags.Ephemeral }).catch(() => {});
-                return;
-            }
-            if (!session.selectedTasks?.length) {
-                await interaction.followUp({ content: 'Select at least one task first.', flags: MessageFlags.Ephemeral }).catch(() => {});
                 return;
             }
 
@@ -812,7 +804,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
                 return;
             }
 
-            const tasks = [...new Set(session.selectedTasks.map((t) => String(t).toLowerCase()))].filter(Boolean);
+            const tasks = [...new Set(session.selectedTasks.map((t) => String(t).toLowerCase()).filter((t) => t !== '__none__'))].filter(Boolean);
             const originalHelperId = session.selectedEntryHelperId && session.selectedEntryHelperId !== '__new__' ? session.selectedEntryHelperId : null;
 
             const next = partialHelpers.filter(
@@ -897,14 +889,17 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         }
 
         const rawSelected = interaction.values || [];
-        const selectedTasks = rawSelected.includes('__all__') ? taskKeys : rawSelected.filter((v) => v !== '__all__');
+        const hasNone = rawSelected.includes('__none__');
+        const selectedTasks = hasNone
+            ? []
+            : rawSelected.includes('__all__') ? taskKeys : rawSelected.filter((v) => v !== '__all__' && v !== '__none__');
         const updated = updatePartialHelperSession(sessionId, { selectedTasks });
 
         await interaction.update({
             embeds: [buildPartialHelperEmbed({ step: 'tasks', partialHelpers, taskKeys, selectedTasks: updated.selectedTasks })],
             components: [
                 buildPartialHelperTasksRow(sessionId, taskKeys, updated.selectedTasks),
-                buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: (updated.selectedTasks?.length ?? 0) > 0 }),
+                buildPartialHelperNavRow(sessionId, { step: 'tasks', canNext: true }),
             ],
         });
         return;

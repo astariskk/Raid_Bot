@@ -13,18 +13,21 @@ export function getTaskHelpedModalId(helperId) {
 
 export function buildTaskHelpedModal(helperId, taskKeys, selectedTasks = []) {
   const selectedSet = new Set((selectedTasks || []).map((task) => String(task).toLowerCase()));
-  const keys = [...new Set((taskKeys || []).map((key) => String(key).toLowerCase()).filter(Boolean))].slice(0, 25);
+  const keys = [...new Set((taskKeys || []).map((key) => String(key).toLowerCase()).filter(Boolean))].slice(0, 24);
 
   const taskSelect = new StringSelectMenuBuilder()
     .setCustomId('taskHelpedTasks')
     .setPlaceholder('Select tasks this helper covered…')
-    .setMinValues(1)
+    .setMinValues(0)
     .setMaxValues(Math.max(1, keys.length))
     .addOptions(
-      keys.map((key) => new StringSelectMenuOptionBuilder()
-        .setLabel(String(TASK_DISPLAY_NAMES?.[key] ?? key).slice(0, 100))
-        .setValue(key)
-        .setDefault(selectedSet.has(key))),
+      [
+        new StringSelectMenuOptionBuilder().setLabel('No task helped').setValue('__none__').setDescription('This helper did not help with any tasks'),
+        ...keys.map((key) => new StringSelectMenuOptionBuilder()
+          .setLabel(String(TASK_DISPLAY_NAMES?.[key] ?? key).slice(0, 100))
+          .setValue(key)
+          .setDefault(selectedSet.has(key))),
+      ],
     );
 
   const taskLabel = new LabelBuilder()

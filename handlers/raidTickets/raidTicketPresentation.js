@@ -9,7 +9,6 @@ import {
   buildRaidRequestMessagePayload,
   sendHelperLeftNotification as sendHelperLeftNotificationEmbed,
 } from '../../Embeds/raidTicket/index.js';
-import { recordHelperRoleMention } from './helperRoleMention.js';
 import {
   getRaidHelperCapacity,
   getRaidTaskFieldDisplay,
@@ -148,26 +147,19 @@ export async function sendHelperLeftNotification({
   guildId,
   raidInfo,
   helperId,
-  helpers = [],
 }) {
   if (!channel || !raidInfo?.messageId) return;
 
   const guild = channel.guild;
   const member = guild ? await guild.members.fetch(helperId).catch(() => null) : null;
   const displayName = member?.displayName || member?.user?.globalName || member?.user?.username || 'A helper';
-  const activeCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((helper) => !helper.removedAt).length;
-  const capacity = getRaidHelperCapacity(raidInfo);
 
   await sendHelperLeftNotificationEmbed({
     channel,
     guildId,
     raidInfo,
     helperDisplayName: displayName,
-    activeHelperCount: activeCount,
-    helperCapacity: capacity,
   });
-
-  await recordHelperRoleMention(channel.id).catch(() => {});
 }
 
 export function buildRaidRequestEmbed(args) {

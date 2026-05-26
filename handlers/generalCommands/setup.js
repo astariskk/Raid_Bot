@@ -243,6 +243,13 @@ export function setupGeneralCommandsHandler(client) {
 
         const commandContent = message.content.toLowerCase();
 
+        // Easter egg: respond when bot is mentioned
+        const botId = client.user.id;
+        if (message.mentions.has(botId) && message.content.replace(/<@!?[\d]+>/g, '').trim() === '') {
+            await message.reply('what are you pinging me for :sob: ???');
+            return;
+        }
+
         if (await maybeHandleEditChartMessage(message)) return;
 
         if (await maybeHandleChartsBrowseMessage(message)) return;

@@ -201,6 +201,15 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
+    // Reply first to avoid interaction timeout, then do async operations
+    const replyContent = raidInfo.mapNumber
+      ? { content: 'You joined this raid ticket.', embeds: [generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber)], flags: MessageFlags.Ephemeral }
+      : { content: 'You joined this raid ticket. No map number is set yet.', flags: MessageFlags.Ephemeral };
+
+    // Fire off reply immediately
+    const replyTask = interaction.reply(replyContent);
+
+    // Then do async operations
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     await refreshRaidWithHelpers(interaction, raidInfo, helpers);
@@ -216,19 +225,14 @@ export async function handleCommandInteractions(interaction, raidInfo) {
         components: [
           new ContainerBuilder().addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `${interaction.user} joined this raid ticket. [**VIEW RAID TICKET**](${requestMessageUrl})`
+              `${interaction.user} joined this raid ticket. [**View Raid Ticket**](${requestMessageUrl})`
             ),
           ),
         ],
       }).catch(() => {});
     }
 
-    if (raidInfo.mapNumber) {
-      const embed = generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber);
-      await interaction.reply({ content: 'You joined this raid ticket.', embeds: [embed], flags: MessageFlags.Ephemeral });
-    } else {
-      await interaction.reply({ content: 'You joined this raid ticket. No map number is set yet.', flags: MessageFlags.Ephemeral });
-    }
+    await replyTask;
     return;
   }
 
@@ -246,6 +250,11 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
+    // Reply first to avoid interaction timeout
+    const replyContent = isSelfKick ? 'You left this raid ticket.' : `Removed <@${helperId}> from this raid ticket.`;
+    await interaction.reply({ content: replyContent, flags: MessageFlags.Ephemeral });
+
+    // Then do async operations
     await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
 
     const currentRaidInfo = await getRaidInfo(interaction.channel.id).catch(() => raidInfo);
@@ -253,23 +262,16 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       .filter((entry) => String(entry?.helperId) !== String(helperId));
     if (partialHelpers.length !== (currentRaidInfo?.partialHelpers?.length ?? 0)) {
       await updateRaid(interaction.channel.id, { partialHelpers });
-      raidInfo = { ...raidInfo, partialHelpers };
     }
 
-    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const refreshedRaidInfo = await refreshRaidWithHelpers(interaction, raidInfo, helpers);
+    const helpers = await listRaidHelpers(interaction.channelId, { includeRemoved: true });
+    const refreshedRaidInfo = await refreshRaidWithHelpers(interaction, currentRaidInfo, helpers);
 
-    const replyContent = isSelfKick ? 'You left this raid ticket.' : `Removed <@${helperId}> from this raid ticket.`;
-    await interaction.reply({
-      content: replyContent,
-      flags: MessageFlags.Ephemeral,
-    });
     await sendHelperLeftNotification({
       channel: interaction.channel,
       guildId: interaction.guildId,
       raidInfo: refreshedRaidInfo,
       helperId,
-      helpers,
     }).catch(() => {});
     return;
   }
