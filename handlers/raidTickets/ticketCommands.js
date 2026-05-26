@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
+import { ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
 
 import { getRaidInfo, updateRaid, updateRaidStatus } from '../../activeRaidState.js';
 import { RAID_STATUS, RAID_HELPER_ROLE_ID } from '../../config/constants.js';
@@ -233,15 +233,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     if (requestMessageUrl) {
       const components = [
         new ContainerBuilder()
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${displayName} has joined the raid ticket.`))
-          .addActionRowComponents(
-            new ActionRowBuilder().addComponents(
-              new ButtonBuilder()
-                .setLabel(`View Raid Ticket — ${activeHelperCount}/${helperCapacity}`)
-                .setStyle(ButtonStyle.Link)
-                .setURL(requestMessageUrl),
-            ),
-          ),
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${displayName} has joined this raid ticket. Status is ${activeHelperCount}/${helperCapacity}: [**View Raid Ticket**](${requestMessageUrl})`)),
       ];
       await interaction.channel.send({
         flags: MessageFlags.IsComponentsV2,
@@ -308,18 +300,25 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     }
 
     const ticketUrl = getRaidTicketMessageUrl(interaction.guildId, interaction.channel.id, raidInfo.messageId);
+
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
+    const activeHelperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
+
+    const components = [
+      new ContainerBuilder()
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`<@&${RAID_HELPER_ROLE_ID}> Reminder from the raid requester: Still needs help with the raid. Status is ${activeHelperCount}/${helperCapacity}: [**View Raid Ticket**](${ticketUrl})`)),
+    ];
+
     await interaction.channel.send({
-      content: ticketUrl
-        ? `<@&${RAID_HELPER_ROLE_ID}> Reminder from the raid requester: [raid ticket](${ticketUrl})`
-        : `<@&${RAID_HELPER_ROLE_ID}> Reminder from the raid requester.`,
+      flags: MessageFlags.IsComponentsV2,
+      components,
       allowedMentions: { roles: [RAID_HELPER_ROLE_ID] },
     });
 
     const mentionedAt = await recordHelperRoleMention(interaction.channel.id);
     raidInfo.lastHelperRoleMentionAt = mentionedAt;
     raidInfo.lastHelperPingAt = mentionedAt;
-
-    await interaction.reply({ content: 'Pinged the helper role.', flags: MessageFlags.Ephemeral });
     return;
   }
 

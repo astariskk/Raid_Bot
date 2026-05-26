@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
+import { ContainerBuilder, MessageFlags, TextDisplayBuilder } from 'discord.js';
 
 export function getRaidTicketMessageUrl(guildId, channelId, messageId) {
   if (!guildId || !channelId || !messageId) return null;
@@ -22,15 +22,7 @@ export async function sendHelperLeftNotification({
 
   const components = [
     new ContainerBuilder()
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${name} has left the raid ticket.`))
-      .addActionRowComponents(
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setLabel(`View Raid Ticket — ${activeHelperCount}/${helperCapacity}`)
-            .setStyle(ButtonStyle.Link)
-            .setURL(ticketUrl),
-        ),
-      ),
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${name} has left this raid ticket. Status is ${activeHelperCount}/${helperCapacity}: [**View Raid Ticket**](${ticketUrl})`)),
   ];
 
   await channel.send({
