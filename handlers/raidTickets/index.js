@@ -53,7 +53,9 @@ export function setupRaidHandlers(client) {
         // Completion Flow (Close, Helpers, Proof)
         if (
             ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid', 'partialHelper_btn'].includes(interaction.customId) ||
-            interaction.customId.startsWith('partialHelper_')
+            interaction.customId.startsWith('partialHelper_') ||
+            interaction.customId.startsWith('taskHelped_') ||
+            interaction.customId.startsWith('taskHelpedSelect_')
         ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;
@@ -66,15 +68,21 @@ export function setupRaidHandlers(client) {
             interaction.customId.startsWith('raidWizardEdit_') ||
             interaction.customId.startsWith('raidWizardEditDetailsModal_') ||
             interaction.customId === 'editRequestDescriptionModal' ||
-            interaction.customId === 'confirmCancelRaid_yes' ||
-            interaction.customId === 'confirmCancelRaid_no'
+            interaction.customId === 'confirmCancelRaidModal'
         ) {
             await handleLifecycleInteractions(interaction, raidInfo, client);
             return;
         }
 
-        // Commands (Maps)
-        if (interaction.customId === 'joinRaidTicket' || interaction.customId.includes('raidmaps') || interaction.customId.startsWith('kickRaidHelper_')) {
+        // Commands (Maps, helpers)
+        if (
+            interaction.customId === 'joinRaidTicket'
+            || interaction.customId === 'addHelperButton'
+            || interaction.customId === 'pingHelpersButton'
+            || interaction.customId.includes('raidmaps')
+            || interaction.customId.startsWith('kickRaidHelper_')
+            || interaction.customId === 'addRaidHelperModal'
+        ) {
             const fullRaidInfo = await getRaidInfo(interaction.channel?.id);
             await handleCommandInteractions(interaction, fullRaidInfo ?? raidInfo);
             return;

@@ -137,7 +137,7 @@ export async function updateRaidStatus(client, channelId, newStatus) {
         const channel = await client.channels.fetch(raidInfo.originalChannelId);
         const message = await channel.messages.fetch(raidInfo.messageId);
         const requester = await channel.guild?.members?.fetch(raidInfo.requesterId).catch(() => null);
-        const helpers = await listRaidHelpers(channelId).catch(() => []);
+        const helpers = await listRaidHelpers(channelId, { includeRemoved: true }).catch(() => []);
         const displayHelpers = await Promise.all(
             helpers.map(async (helper) => {
                 const member = await channel.guild?.members?.fetch(helper.helperId).catch(() => null);

@@ -9,13 +9,22 @@ import {
 } from 'discord.js';
 
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
-import { EMBED_COLOR, MAX_HELPERS, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config/constants.js';
+import { EMBED_COLOR, MAX_HELPERS, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { calculateSpammingPoints, listRaidHelpers } from '../../utils/raidParticipationStore.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
-import { getNormalTaskString, getRaidHelperCapacity, getRaidStatusForHelpers, isSpammingRaid, refreshRaidRequestMessage, SPAMMING_EXP_CAP, SPAMMING_RATE_PER_MINUTE } from './raidTicketPresentation.js';
+import {
+  getNormalTaskString,
+  getRaidHelperCapacity,
+  getRaidStatusForHelpers,
+  getRaidTaskFieldDisplay,
+  isSpammingRaid,
+  refreshRaidRequestMessage,
+  SPAMMING_EXP_CAP,
+  SPAMMING_RATE_PER_MINUTE,
+} from './raidTicketPresentation.js';
 import {
     consumePartialHelperSession,
     createPartialHelperSession,
@@ -114,13 +123,33 @@ function formatPartialHelpersForClose(raidInfo) {
 
     const lines = partialHelpers
         .map((e) => {
-            const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No tasks';
+            const tasks = e.tasks?.length
+                ? getRaidTaskFieldDisplay(e.tasks.join(', '))
+                : 'No tasks';
             return `* <@${e.helperId}>: ${tasks}`;
         })
         .join('\n')
         .slice(0, 1500);
 
     return `**Partial Helpers**:\n${lines}\n`;
+}
+
+function buildTaskHelpedSelectRow(helperId, taskKeys, selectedTasks = []) {
+    const selectedSet = new Set(selectedTasks);
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId(`taskHelpedSelect_${helperId}`)
+            .setPlaceholder('Select tasks this helper covered…')
+            .setMinValues(1)
+            .setMaxValues(Math.max(1, Math.min(taskKeys.length, 25)))
+            .addOptions(
+                taskKeys.slice(0, 25).map((key) => ({
+                    label: String(TASK_DISPLAY_NAMES?.[key] ?? key).slice(0, 100),
+                    value: key,
+                    default: selectedSet.has(key),
+                })),
+            ),
+    );
 }
 
 function buildCloseMessagePayload(raidInfo) {
@@ -372,6 +401,50 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         if (!interaction.replied && !interaction.deferred) {
             await interaction.reply({ content: 'The raid is already closed.', flags: MessageFlags.Ephemeral }).catch(() => {});
         }
+        return;
+    }
+
+    /* ---------- TASK HELPED (per-helper partial credit) ---------- */
+    if (interaction.isButton?.() && interaction.customId.startsWith('taskHelped_')) {
+        const helperId = interaction.customId.slice('taskHelped_'.length);
+        const taskKeys = getUniqueRaidTaskKeys(raidInfo);
+        if (!helperId || !taskKeys.length) {
+            await interaction.reply({ content: 'No tasks available to assign for this helper.', flags: MessageFlags.Ephemeral });
+            return;
+        }
+
+        const existing = normalizePartialHelpers(raidInfo).find((entry) => entry.helperId === helperId);
+        await interaction.reply({
+            content: `Select which tasks <@${helperId}> helped with, then press **Submit** on the menu.`,
+            components: [buildTaskHelpedSelectRow(helperId, taskKeys, existing?.tasks ?? [])],
+            flags: MessageFlags.Ephemeral,
+        });
+        return;
+    }
+
+    if (interaction.isStringSelectMenu?.() && interaction.customId.startsWith('taskHelpedSelect_')) {
+        const helperId = interaction.customId.slice('taskHelpedSelect_'.length);
+        const selectedTasks = [...new Set((interaction.values || []).map((task) => String(task).toLowerCase()))];
+        const partialHelpers = normalizePartialHelpers(raidInfo);
+        const next = partialHelpers.filter((entry) => entry.helperId !== helperId);
+        if (selectedTasks.length) next.push({ helperId, tasks: selectedTasks });
+        await updateRaid(interaction.channel.id, { partialHelpers: next });
+
+        const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
+        await refreshRaidRequestMessage({
+            client,
+            channel: interaction.channel,
+            raidInfo: await getRaidInfo(interaction.channel.id),
+            helpers,
+        });
+
+        const label = getRaidTaskFieldDisplay(selectedTasks.join(', '));
+        await interaction.update({
+            content: selectedTasks.length
+                ? `Saved task credit for <@${helperId}>: **${label}**`
+                : `Cleared task credit for <@${helperId}>.`,
+            components: [],
+        });
         return;
     }
 

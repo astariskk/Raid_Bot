@@ -23,6 +23,7 @@ import {
     RAID_MANAGER_ROLE_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
     TASK_DISPLAY_NAMES,
+    raidNeedsModalMapName,
 } from '../../config/constants.js';
 
 import {
@@ -159,13 +160,12 @@ function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
         inline: false,
     });
 
-    if ((categoryKeys || []).includes('generic')) {
+    if ((categoryKeys || []).some((key) => key === 'generic' || key === 'spamming')) {
         embed.addFields({
-            name: 'Other Tasks (Time Guide)',
+            name: 'Generic & Spamming',
             value:
-                `• \`simple\` — 7-man, ~1–5 minutes 1000 EXP\n ` +
-                `• \`moderate\` — ~5–20 minutes 5000 EXP\n` +
-                `• \`difficult\` — ~20–60 minutes 10000 EXP`,
+                '• **Generic** — choose a 2/4/5/7-man room task and enter map name(s) in the raid form.\n' +
+                '• **Spamming** — choose a 2/4/5/7-man spamming task and enter map name(s). EXP is time-based (300/min, cap 10,000).',
             inline: false,
         });
     }
@@ -215,9 +215,9 @@ function getWizardTasksV2(sessionId, categoryKeys, tasks) {
         text(`**Selected Tasks**\n${taskText}`),
     ];
 
-    if ((categoryKeys || []).includes('generic')) {
+    if ((categoryKeys || []).some((key) => key === 'generic' || key === 'spamming')) {
         components.push(
-            text(`**Other Tasks (Time Guide)**\n• \`simple\` — 7-man, ~1–5 minutes 1000 EXP\n• \`moderate\` — ~5–20 minutes 5000 EXP\n• \`difficult\` — ~20–60 minutes 10000 EXP`),
+            text('**Generic & Spamming**\n• **Generic** — choose a 2/4/5/7-man room task and enter map name(s) in the raid form.\n• **Spamming** — choose a 2/4/5/7-man spamming task and enter map name(s). EXP is time-based (300/min, cap 10,000).'),
         );
     }
 
@@ -485,11 +485,9 @@ if (cancelSessionId) {
                     return;
                 }
 
-                const includesGeneric = session.tasks?.some((t) => ['simple', 'moderate', 'difficult'].includes(t)) ?? false;
-                const includesSpamming = isSpammingRaid(session.tasks || []);
-                const mapNameRequired = includesGeneric;
+                const includeMapName = raidNeedsModalMapName(session.tasks || []);
 
-                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { mapNameRequired: mapNameRequired || includesSpamming }));
+                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { includeMapName }));
                 return;
             }
         }

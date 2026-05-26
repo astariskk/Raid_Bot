@@ -1,6 +1,4 @@
-// Legacy shim: raid ticket UI moved into `handlers/raidTickets/*`.
-// Keep this file so older imports still work.
-
+// Raid ticket UI builders and message payloads.
+export * from './raidTicket/index.js';
 export * from '../handlers/raidTickets/buttons/threadButtons.js';
 export * from '../handlers/raidTickets/embeds/raidWizardUi.js';
-

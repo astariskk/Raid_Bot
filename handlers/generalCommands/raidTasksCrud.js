@@ -2,12 +2,14 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  EmbedBuilder,
+  ContainerBuilder,
+  LabelBuilder,
   MessageFlags,
   ModalBuilder,
   StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle,
+  TextDisplayBuilder,
 } from 'discord.js';
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
@@ -26,6 +28,20 @@ import {
 } from '../../utils/raidTasksStore.js';
 
 const sessions = new Map(); // messageId -> session
+
+function v2Text(content) {
+  return new TextDisplayBuilder().setContent(String(content ?? '\u200b').slice(0, 4000));
+}
+
+function labeledTextInput({ customId, label, description, style, required = true, value = null }) {
+  const input = new TextInputBuilder().setCustomId(customId).setStyle(style).setRequired(required);
+  if (value != null && value !== '') {
+    input.setValue(String(value).slice(0, style === TextInputStyle.Paragraph ? 4000 : 1000));
+  }
+  const wrap = new LabelBuilder().setLabel(label);
+  if (description) wrap.setDescription(description);
+  return wrap.setTextInputComponent(input);
+}
 
 function isStaffMember(member) {
   if (!member) return false;
@@ -272,28 +288,99 @@ function buildOrderButtons(messageId, selected) {
   ];
 }
 
-async function buildPayload(messageId, session) {
+async function buildCategoryBody(session) {
+  const categories = await listRaidTaskCategories();
+  let body = '### Task Manager\nSelect a category, or create a new one.';
+  if (categories.length) {
+    body += `\n\n**Categories**\n${categories
+      .slice(0, 20)
+      .map((c) => `- **${c.display_name || c.key}** \`${c.key}\``)
+      .join('\n')}`;
+  }
+  if (session?.notice) body += `\n\n*${session.notice}*`;
+  return body;
+}
+
+async function buildTaskListBody(session) {
+  const category = await getRaidTaskCategory(session.categoryKey);
+  const tasks = await getSessionTasks(session);
+  let body = `### ${category?.display_name || category?.key || 'Tasks'}\nSelect a task to edit it, or add a new task.\n\n**Tasks**\n`;
+  body += tasks.length
+    ? tasks
+        .map((task, index) => {
+          const state = task.active ? '' : ' (inactive)';
+          return `${index + 1}. **${task.display_name}** - ${task.points} EXP${state}`;
+        })
+        .join('\n')
+    : 'No tasks in this category yet.';
+  if (session?.notice) body += `\n\n*${session.notice}*`;
+  return body;
+}
+
+async function buildTaskBody(session) {
+  const task = await getRaidTask(session.taskKey);
+  if (!task) return '### Task\nThis task no longer exists.';
+  let body = `### ${task.display_name}\n${task.description || 'No description set.'}\n\n`;
+  body += [
+    `**Display name:** ${task.display_name}`,
+    `**Points:** ${task.points}`,
+    `**Available:** ${task.active ? 'Yes' : 'No'}`,
+    `**Category:** \`${task.category}\``,
+    `**Order:** ${task.sort_order}`,
+    `**Maps:** ${task.map_names?.length ? task.map_names.map((map) => `\`${map}\``).join(', ') : `\`${task.key}\``}`,
+  ].join('\n');
+  if (session?.notice) body += `\n\n*${session.notice}*`;
+  return body;
+}
+
+async function buildOrderBody(session) {
+  const category = await getRaidTaskCategory(session.categoryKey);
+  const tasks = await getSessionTasks(session);
+  let body = `### Manage Order: ${category?.display_name || category?.key}\nPick a task, then move it up or down.\n\n**Current Order**\n`;
+  body += tasks.length
+    ? tasks
+        .map((task, index) => `${index + 1}. ${task.key === session.taskKey ? '**' : ''}${task.display_name}${task.key === session.taskKey ? '**' : ''}`)
+        .join('\n')
+    : 'No tasks in this category yet.';
+  if (session.orderKeys?.length) {
+    const labels = tasks
+      .filter((task) => session.orderKeys.includes(task.key))
+      .sort((a, b) => session.orderKeys.indexOf(a.key) - session.orderKeys.indexOf(b.key))
+      .map((task, index) => `${index + 1}. ${task.display_name}`);
+    body += `\n\n**Selected Order**\n${labels.join('\n') || 'None selected.'}`;
+  }
+  if (session?.notice) body += `\n\n*${session.notice}*`;
+  return body;
+}
+
+async function buildPayload(messageId, session, { ephemeral = true } = {}) {
+  const container = new ContainerBuilder().setAccentColor(EMBED_COLOR);
+
   if (session.view === 'tasks') {
-    return {
-      embeds: [await buildTaskListEmbed(session)],
-      components: [await buildTaskSelect(messageId, session), ...buildTaskListButtons(messageId)],
-    };
-  }
-
-  if (session.view === 'task') {
-    return { embeds: [await buildTaskEmbed(session)], components: buildTaskButtons(messageId) };
-  }
-
-  if (session.view === 'order') {
-    return {
-      embeds: [await buildOrderEmbed(session)],
-      components: [await buildTaskSelect(messageId, session, { forOrder: true }), ...buildOrderButtons(messageId, Boolean(session.taskKey))],
-    };
+    container
+      .addTextDisplayComponents(v2Text(await buildTaskListBody(session)))
+      .addActionRowComponents(await buildTaskSelect(messageId, session));
+    for (const row of buildTaskListButtons(messageId)) container.addActionRowComponents(row);
+  } else if (session.view === 'task') {
+    container.addTextDisplayComponents(v2Text(await buildTaskBody(session)));
+    for (const row of buildTaskButtons(messageId)) container.addActionRowComponents(row);
+  } else if (session.view === 'order') {
+    container
+      .addTextDisplayComponents(v2Text(await buildOrderBody(session)))
+      .addActionRowComponents(await buildTaskSelect(messageId, session, { forOrder: true }));
+    for (const row of buildOrderButtons(messageId, Boolean(session.taskKey))) container.addActionRowComponents(row);
+  } else {
+    container
+      .addTextDisplayComponents(v2Text(await buildCategoryBody(session)))
+      .addActionRowComponents(await buildCategorySelect(messageId, session))
+      .addActionRowComponents(buildCloseRow(messageId));
   }
 
   return {
-    embeds: [await buildCategoryEmbed(session)],
-    components: [await buildCategorySelect(messageId, session), buildCloseRow(messageId)],
+    content: null,
+    embeds: [],
+    flags: ephemeral ? (MessageFlags.IsComponentsV2 | MessageFlags.Ephemeral) : MessageFlags.IsComponentsV2,
+    components: [container],
   };
 }
 
@@ -308,27 +395,40 @@ async function refreshInteraction(interaction, messageId, session) {
 }
 
 function buildCategoryModal(messageId, category = null) {
-  const modal = new ModalBuilder().setCustomId(newCustomId('categorymodal', messageId)).setTitle(category ? 'Edit Category' : 'Create Category');
-  const name = new TextInputBuilder().setCustomId('name').setLabel('Category name').setStyle(TextInputStyle.Short).setRequired(true);
-  const order = new TextInputBuilder().setCustomId('sort_order').setLabel('Category order').setStyle(TextInputStyle.Short).setRequired(false);
-
-  if (category?.display_name) name.setValue(String(category.display_name));
-  if (category?.sort_order !== undefined) order.setValue(String(category.sort_order));
-
-  return modal.addComponents(
-    new ActionRowBuilder().addComponents(name),
-    new ActionRowBuilder().addComponents(order),
-  );
+  return new ModalBuilder()
+    .setCustomId(newCustomId('categorymodal', messageId))
+    .setTitle(category ? 'Edit Category' : 'Create Category')
+    .addLabelComponents(
+      labeledTextInput({
+        customId: 'name',
+        label: 'Category name',
+        style: TextInputStyle.Short,
+        value: category?.display_name,
+      }),
+      labeledTextInput({
+        customId: 'sort_order',
+        label: 'Category order',
+        description: 'Optional sort number (lower shows first).',
+        style: TextInputStyle.Short,
+        required: false,
+        value: category?.sort_order,
+      }),
+    );
 }
 
 function buildAddTaskModal(messageId) {
   return new ModalBuilder()
     .setCustomId(newCustomId('addtaskmodal', messageId))
     .setTitle('Add Task')
-    .addComponents(
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('name').setLabel('Display name').setStyle(TextInputStyle.Short).setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('points').setLabel('Points').setStyle(TextInputStyle.Short).setRequired(true)),
-      new ActionRowBuilder().addComponents(new TextInputBuilder().setCustomId('description').setLabel('Description').setStyle(TextInputStyle.Paragraph).setRequired(false)),
+    .addLabelComponents(
+      labeledTextInput({ customId: 'name', label: 'Display name', style: TextInputStyle.Short }),
+      labeledTextInput({ customId: 'points', label: 'Points', style: TextInputStyle.Short }),
+      labeledTextInput({
+        customId: 'description',
+        label: 'Description',
+        style: TextInputStyle.Paragraph,
+        required: false,
+      }),
     );
 }
 
@@ -340,13 +440,19 @@ function buildFieldModal(messageId, field, task) {
     maps: ['Maps', TextInputStyle.Paragraph, (task.map_names || []).join(', ')],
   };
   const [label, style, value] = labels[field] || labels.name;
-  const input = new TextInputBuilder().setCustomId('value').setLabel(label).setStyle(style).setRequired(field !== 'desc');
-  if (value) input.setValue(String(value).slice(0, style === TextInputStyle.Paragraph ? 4000 : 1000));
 
   return new ModalBuilder()
     .setCustomId(newCustomId(`fieldmodal_${field}`, messageId))
     .setTitle(label)
-    .addComponents(new ActionRowBuilder().addComponents(input));
+    .addLabelComponents(
+      labeledTextInput({
+        customId: 'value',
+        label,
+        style,
+        required: field !== 'desc',
+        value,
+      }),
+    );
 }
 
 async function moveTask(taskKey, direction) {
@@ -378,7 +484,7 @@ export async function startRaidTaskManagerInteraction(interaction) {
     notice: null,
   };
 
-  await interaction.reply({ embeds: [await buildCategoryEmbed(session)], components: [], flags: MessageFlags.Ephemeral });
+  await interaction.reply(await buildPayload(`pending_${interaction.user.id}`, session));
   const msg = await interaction.fetchReply();
   sessions.set(msg.id, session);
   await interaction.editReply(await buildPayload(msg.id, session));
@@ -394,10 +500,10 @@ export async function maybeHandleRaidTaskCrudMessage(message) {
     return true;
   }
 
-  const sent = await message.channel.send({ embeds: [await buildCategoryEmbed({})], components: [] });
   const session = { ownerId: message.author.id, view: 'categories', categoryKey: null, taskKey: null, categoryModalMode: null, notice: null };
+  const sent = await message.channel.send(await buildPayload('pending', session, { ephemeral: false }));
   sessions.set(sent.id, session);
-  await sent.edit(await buildPayload(sent.id, session));
+  await sent.edit(await buildPayload(sent.id, session, { ephemeral: false }));
   return true;
 }
 

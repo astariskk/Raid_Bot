@@ -15,8 +15,9 @@ import {
     getRaidInfo
 } from '../../activeRaidState.js';
 
-import { DAILIES_LIST, EMBED_COLOR, GENERIC_TASKS_LIST, LEGION_LIST, ORIGINUL_LIST, TASK_DISPLAY_NAMES, TEMPLESHRINE_LIST, WEEKLIES_LIST } from '../../config/constants.js';
+import { EMBED_COLOR, TASK_CATEGORY_BY_TASK, TASK_DISPLAY_NAMES, raidNeedsModalMapName } from '../../config/constants.js';
 import { isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
+import { buildCancelRaidConfirmModal, CANCEL_RAID_MODAL_ID } from './embeds/cancelRaidModal.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
 import { requireAuth } from './ticketUtils.js';
@@ -97,15 +98,7 @@ async function startEditTasksWizard(interaction, raidInfo, { reply = false } = {
     const sessionId = createRaidWizardSession({ userId: interaction.user.id, guildId: interaction.guildId });
 
     const existingTokens = parseRaidTasks(raidInfo.task || '');
-    const existingExpanded = [];
-    for (const token of existingTokens) {
-        if (token === 'dailies') existingExpanded.push(...DAILIES_LIST);
-        else if (token === 'weeklies') existingExpanded.push(...WEEKLIES_LIST);
-        else if (token === 'templeshrine') existingExpanded.push(...TEMPLESHRINE_LIST);
-        else if (token === 'originul') existingExpanded.push(...ORIGINUL_LIST);
-        else if (token === 'legion') existingExpanded.push(...LEGION_LIST);
-        else existingExpanded.push(token);
-    }
+    const existingExpanded = existingTokens.map((token) => String(token).toLowerCase()).filter(Boolean);
 
     const uniqueExpanded = [...new Set(existingExpanded.map((t) => String(t).toLowerCase()))].filter(Boolean);
     const categoryKeys = inferCategoryKeysFromTasks(uniqueExpanded);
@@ -168,9 +161,9 @@ async function showEditDetailsModal(interaction, raidInfo) {
         },
     });
 
-    const mapNameRequired = ((order || []).some((t) => GENERIC_TASKS_LIST.includes(t)) || isSpammingRaid(order || [])) ?? false;
+    const includeMapName = raidNeedsModalMapName(order || []);
     const defaults = getRaidWizardSession(wizardSessionId)?.defaults ?? {};
-    await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { mapNameRequired, defaults }));
+    await interaction.showModal(getRaidWizardEditDetailsModal(wizardSessionId, { includeMapName, defaults }));
 }
 
 function getEditDescriptionModal(raidInfo) {
@@ -189,21 +182,22 @@ function getEditDescriptionModal(raidInfo) {
         );
 }
 
-function getCancelRaidConfirmRow() {
-    return new ActionRowBuilder().addComponents(
-        new ButtonBuilder()
-            .setCustomId('confirmCancelRaid_yes')
-            .setLabel('Yes')
-            .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-            .setCustomId('confirmCancelRaid_no')
-            .setLabel('No')
-            .setStyle(ButtonStyle.Secondary),
-    );
-}
-
 /* -------------------- MAIN HANDLER -------------------- */
 export async function handleLifecycleInteractions(interaction, raidInfo, client) {
+
+    if (interaction.isModalSubmit() && interaction.customId === CANCEL_RAID_MODAL_ID) {
+        if (!await requireAuth(interaction, raidInfo)) return;
+        const fullRaidInfo = await getRaidInfo(interaction.channel.id);
+        if (fullRaidInfo) raidInfo = fullRaidInfo;
+
+        await interaction.reply({
+            content: 'The raid ticket was cancelled. This channel will close shortly.',
+            flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+
+        await finalizeAdminReview(client, interaction.channel, raidInfo, {}, interaction.user.id, 'cancelled');
+        return;
+    }
 
     /* ---------- AWAITING COMPLETION LOCK ---------- */
     if (raidInfo?.isAwaitingCompletion) {
@@ -486,10 +480,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
                 return;
             }
 
-            const mapNameRequired = (session.tasks?.some((t) => GENERIC_TASKS_LIST.includes(t)) || isSpammingRaid(session.tasks || [])) ?? false;
+            const includeMapName = raidNeedsModalMapName(session.tasks || []);
             const defaults = session.defaults ?? {};
 
-            await interaction.showModal(getRaidWizardEditDetailsModal(continueSessionId, { mapNameRequired, defaults }));
+            await interaction.showModal(getRaidWizardEditDetailsModal(continueSessionId, { includeMapName, defaults }));
         }
         return;
     }
@@ -510,7 +504,12 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             return;
         }
 
-        const mapName = interaction.fields.getTextInputValue('mapNameInput');
+        let mapName = '';
+        try {
+            mapName = interaction.fields.getTextInputValue('mapNameInput');
+        } catch {
+            mapName = '';
+        }
         const mapNumberRaw = interaction.fields.getTextInputValue('mapNumberInput');
         const mapNumber = normalizeRoomNumber(mapNumberRaw);
         const server = interaction.fields.getTextInputValue('serverInput');
@@ -518,12 +517,6 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
         if (!mapNumber) {
             await interaction.reply({ content: 'Room Number must contain at least one digit.', flags: MessageFlags.Ephemeral });
-            return;
-        }
-
-        const isMapNameRequired = resolvedTasks.some((t) => GENERIC_TASKS_LIST.includes(t)) || isSpammingRaid(resolvedTasks);
-        if (isMapNameRequired && !String(mapName ?? '').trim()) {
-            await interaction.reply({ content: 'Map Name is required for other/spamming tasks.', flags: MessageFlags.Ephemeral });
             return;
         }
 
@@ -537,7 +530,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
 
         await updateRaid(interaction.channel.id, updates);
 
-        const helpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
+        const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
         await refreshRaidRequestMessage({
             client,
             channel: interaction.channel,
@@ -570,7 +563,7 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         const description = interaction.fields.getTextInputValue('descriptionInput') || 'No description.';
         await updateRaid(interaction.channel.id, { description });
 
-        const helpers = await listRaidHelpers(interaction.channel.id).catch(() => []);
+        const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
         await refreshRaidRequestMessage({
             client,
             channel: interaction.channel,
@@ -655,36 +648,8 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
     }
 
 /* ---------- 3. CANCEL RAID ---------- */
-    if (interaction.customId === "cancelRaidTicket") {
-        const embed = new EmbedBuilder()
-            .setColor(EMBED_COLOR)
-            .setTitle('Cancel Raid')
-            .setDescription('Are you sure you want to cancel this raid? This will close the ticket.');
-        await interaction.reply({
-            embeds: [embed],
-            components: [getCancelRaidConfirmRow()],
-            flags: MessageFlags.Ephemeral,
-        });
-        return;
-    }
-
-    if (interaction.customId === 'confirmCancelRaid_yes') {
-        if (!await requireAuth(interaction, raidInfo)) return;
-        await interaction.update({ content: 'The raid ticket got canceled. This ticket will now close.', embeds: [], components: [] });
-
-        await finalizeAdminReview(
-            client,
-            interaction.channel,
-            raidInfo,
-            {},
-            interaction.user.id,
-            "cancelled"
-        );
-        return;
-    }
-
-    if (interaction.customId === 'confirmCancelRaid_no') {
-        await interaction.update({ content: 'Cancel aborted.', embeds: [], components: [] });
+    if (interaction.customId === 'cancelRaidTicket') {
+        await interaction.showModal(buildCancelRaidConfirmModal());
         return;
     }
 }

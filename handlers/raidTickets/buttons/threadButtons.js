@@ -38,16 +38,26 @@ export const cancelTicketButton = new ButtonBuilder()
 export const raidmapsButton = new ButtonBuilder()
     .setCustomId('raidmapsButton')
     .setLabel('🗺️ Show Maps')
+    .setStyle(ButtonStyle.Success);
+
+export const pingHelpersButton = new ButtonBuilder()
+    .setCustomId('pingHelpersButton')
+    .setLabel('📣 Ping Helpers')
     .setStyle(ButtonStyle.Primary);
 
-export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, closeTicketButton, cancelTicketButton, raidmapsButton);
+export const addHelperButton = new ButtonBuilder()
+    .setCustomId('addHelperButton')
+    .setLabel('➕ Add Helper')
+    .setStyle(ButtonStyle.Primary);
+
+export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, raidmapsButton, closeTicketButton, cancelTicketButton);
 
 export function getEditRequestRow() {
     return new ActionRowBuilder().addComponents(editTasksButton, editServerButton, editDescriptionButton);
 }
 
 export function getThreadActionRow() {
-    return new ActionRowBuilder().addComponents(joinTicketButton, closeTicketButton, cancelTicketButton, raidmapsButton);
+    return new ActionRowBuilder().addComponents(joinTicketButton, raidmapsButton, closeTicketButton, cancelTicketButton);
 }
 
 export function getHelperKickRows(helpers = []) {
@@ -91,14 +101,14 @@ export function getCloseConfirmRow({ proofImageUrl } = {}) {
             .setCustomId('confirmCloseSelection')
             .setLabel('🔒 Confirm Close')
             .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+            .setCustomId('provideProof')
+            .setLabel(proofImageUrl ? '✅ Proof Attached' : ' 📸 Attach Proof')
+            .setStyle(ButtonStyle.Success),            
         new ButtonBuilder()
             .setCustomId('abortCloseRaid')
             .setLabel('❌ Cancel Closing')
             .setStyle(ButtonStyle.Danger),
-        new ButtonBuilder()
-            .setCustomId('provideProof')
-            .setLabel(proofImageUrl ? '✅ Proof Attached' : ' 📸 Attach Proof')
-            .setStyle(ButtonStyle.Primary),
     );
 }
 
@@ -106,6 +116,20 @@ export function getKickHelperButton(helper, fallbackLabel = 'Helper') {
     const helperId = String(helper?.helperId ?? '').trim();
     return new ButtonBuilder()
         .setCustomId(`kickRaidHelper_${helperId}`)
-        .setLabel('❌ Kick Helper')
+        .setLabel('❌ Kick')
         .setStyle(ButtonStyle.Danger);
+}
+
+export function getTaskHelpedButton(helper) {
+    const helperId = String(helper?.helperId ?? '').trim();
+    return new ButtonBuilder()
+        .setCustomId(`taskHelped_${helperId}`)
+        .setLabel('📋 Task Helped')
+        .setStyle(ButtonStyle.Secondary);
+}
+
+export function getHelperControlRow(helper, { showTaskHelped = false } = {}) {
+    const components = [getKickHelperButton(helper)];
+    if (showTaskHelped) components.push(getTaskHelpedButton(helper));
+    return new ActionRowBuilder().addComponents(...components);
 }

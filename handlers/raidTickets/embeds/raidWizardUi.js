@@ -10,18 +10,10 @@ import {
 
 import { POINTS_CONFIG, RAID_TASK_CATEGORIES, TASK_DISPLAY_NAMES } from '../../../config/constants.js';
 
-function buildRaidWizardDetailsModal({ customId, title, mapNameRequired, defaults }) {
+function buildRaidWizardDetailsModal({ customId, title, includeMapName = false, defaults }) {
     const modal = new ModalBuilder()
         .setCustomId(customId)
         .setTitle(title);
-
-    const mapNameInput = new TextInputBuilder()
-        .setCustomId('mapNameInput')
-        .setLabel(mapNameRequired ? 'Map Name:' : 'Map Name (optional):')
-        .setStyle(TextInputStyle.Short)
-        .setRequired(mapNameRequired)
-        .setPlaceholder('If you have a specific order in mind or need to specify a map.')
-        .setValue(defaults.mapName ?? '');
 
     const mapNumberInput = new TextInputBuilder()
         .setCustomId('mapNumberInput')
@@ -47,35 +39,55 @@ function buildRaidWizardDetailsModal({ customId, title, mapNameRequired, default
         .setPlaceholder('Any specific details or requirements?')
         .setValue(defaults.description ?? '');
 
-    modal.addComponents(
-        new ActionRowBuilder().addComponents(mapNameInput),
+    const rows = [
         new ActionRowBuilder().addComponents(mapNumberInput),
         new ActionRowBuilder().addComponents(serverInput),
         new ActionRowBuilder().addComponents(descriptionInput),
-    );
+    ];
+
+    if (includeMapName) {
+        const mapNameInput = new TextInputBuilder()
+            .setCustomId('mapNameInput')
+            .setLabel('Map Name (optional):')
+            .setStyle(TextInputStyle.Short)
+            .setRequired(false)
+            .setPlaceholder('Comma-separated map names for generic/spamming tasks.')
+            .setValue(defaults.mapName ?? '');
+        rows.unshift(new ActionRowBuilder().addComponents(mapNameInput));
+    }
+
+    modal.addComponents(...rows);
 
     return modal;
 }
 
-export function getRaidWizardDetailsModal(sessionId, { mapNameRequired = false, defaults = {} } = {}) {
+export function getRaidWizardDetailsModal(sessionId, { includeMapName = false, defaults = {} } = {}) {
     return buildRaidWizardDetailsModal({
         customId: `raidWizardDetailsModal_${sessionId}`,
         title: 'Raid Assistance Request',
-        mapNameRequired,
+        includeMapName,
         defaults,
     });
 }
 
-export function getRaidWizardEditDetailsModal(sessionId, { mapNameRequired = false, defaults = {} } = {}) {
+export function getRaidWizardEditDetailsModal(sessionId, { includeMapName = false, defaults = {} } = {}) {
     return buildRaidWizardDetailsModal({
         customId: `raidWizardEditDetailsModal_${sessionId}`,
         title: 'Edit Raid Request',
-        mapNameRequired,
+        includeMapName,
         defaults,
     });
 }
 
 const CATEGORY_DEFS = RAID_TASK_CATEGORIES;
+
+function formatCategoryTasksPreview(taskKeys = []) {
+    const names = taskKeys
+        .slice(0, 4)
+        .map((taskKey) => TASK_DISPLAY_NAMES?.[taskKey] ?? taskKey);
+    const preview = names.join(', ');
+    return taskKeys.length > 4 ? `${preview}…` : preview;
+}
 
 export function getRaidWizardCategoryDef(categoryKey) {
     return CATEGORY_DEFS.find((c) => c.key === categoryKey) ?? null;
@@ -101,7 +113,7 @@ export function getRaidWizardCategorySelectRow(sessionId, selectedCategoryKeys =
             CATEGORY_DEFS.map((c) => ({
                 label: c.label,
                 value: c.key,
-                description: `Tasks: ${c.tasks.slice(0, 4).join(', ')}${c.tasks.length > 4 ? '…' : ''}`.slice(0, 100),
+                description: formatCategoryTasksPreview(c.tasks).slice(0, 100),
                 default: selectedSet.has(c.key),
             })),
         );

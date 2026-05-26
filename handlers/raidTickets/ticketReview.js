@@ -23,6 +23,7 @@ import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
+import { getRaidTaskFieldDisplay, getTaskKeys } from './raidTicketPresentation.js';
 
 const COLOR_INFO = EMBED_COLOR;
 const COLOR_EXP_LAIR = BLUE_EMBED_COLOR;
@@ -257,7 +258,7 @@ export async function finalizeAdminReview(
     const desc = [
       `This raid was **${reason}** by <@${initiatorId}>.`,
       `**Requester:** <@${raidInfo.requesterId}>`,
-      `**Original Task(s):** ${raidInfo.task}`
+      `**Original Task${getTaskKeys(raidInfo.task).length === 1 ? '' : 's'}:** ${getRaidTaskFieldDisplay(raidInfo.task)}`
     ];
 
     if (notes) desc.push(`**Notes:** ${notes}`);

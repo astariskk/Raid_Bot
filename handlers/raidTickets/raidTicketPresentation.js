@@ -1,59 +1,55 @@
+import { EmbedBuilder } from 'discord.js';
 import {
-  ActionRowBuilder,
-  ContainerBuilder,
-  EmbedBuilder,
-  MessageFlags,
-  SectionBuilder,
-  SeparatorBuilder,
-  SeparatorSpacingSize,
-  TextDisplayBuilder,
-} from 'discord.js';
-import { EMBED_COLOR, RAID_HELPER_ROLE_ID, RAID_STATUS, STATUS_COLORS, TASK_CATEGORY_BY_TASK, TASK_DISPLAY_NAMES } from '../../config/constants.js';
+  EMBED_COLOR,
+  RAID_STATUS,
+  STATUS_COLORS,
+} from '../../config/constants.js';
+import { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
 import {
-  cancelTicketButton,
-  closeTicketButton,
-  editDescriptionButton,
-  editServerButton,
-  editTasksButton,
-  getCloseConfirmRow,
-  getKickHelperButton,
-  joinTicketButton,
-  raidmapsButton,
-} from './buttons/threadButtons.js';
+  buildDescriptionMessage,
+  buildHelpMessage,
+  buildMentionMessage,
+  buildRaidRequestMessagePayload,
+  getRaidTicketMessageUrl,
+  refreshDescriptionMessage,
+  sendHelperLeftNotification as sendHelperLeftNotificationEmbed,
+  sendRaidTicketMessages,
+} from '../../Embeds/raidTicket/index.js';
+import {
+  getRaidHelperCapacity,
+  getRaidTaskFieldDisplay,
+  getVisibleHelpers,
+  isSpammingRaid,
+} from './raidTicketLogic.js';
 
-export const SPAMMING_TASK_KEY = 'spamming';
-export const SPAMMING_RATE_PER_MINUTE = 300;
-export const SPAMMING_EXP_CAP = 10000;
+export { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
 
-export function getTaskKeys(taskString = '') {
-  return String(taskString ?? '')
-    .split(/\s*[+,]\s*/)
-    .map((task) => task.trim().toLowerCase())
-    .filter(Boolean);
-}
+export {
+  SPAMMING_TASK_KEY,
+  SPAMMING_RATE_PER_MINUTE,
+  SPAMMING_EXP_CAP,
+  getTaskKeys,
+  getTaskDisplayNames,
+  getRaidTaskFieldDisplay,
+  parseMapNameList,
+  getJoinPrefixesForRaid,
+  isSpammingRaid,
+  getNormalTaskString,
+  getRaidStatusForHelpers,
+  getRaidPartySize,
+  getRaidHelperCapacity,
+  getVisibleHelpers,
+} from './raidTicketLogic.js';
 
-export function getTaskDisplayNames(taskStringOrTasks = '') {
-  const tasks = Array.isArray(taskStringOrTasks) ? taskStringOrTasks : getTaskKeys(taskStringOrTasks);
-  return tasks.map((task) => TASK_DISPLAY_NAMES?.[task] ?? task);
-}
-
-export function isSpammingRaid(raidInfoOrTasks) {
-  const tasks = Array.isArray(raidInfoOrTasks)
-    ? raidInfoOrTasks
-    : getTaskKeys(raidInfoOrTasks?.task || raidInfoOrTasks?.tasks || '');
-  return tasks.map((task) => String(task).toLowerCase()).includes(SPAMMING_TASK_KEY);
-}
-
-export function getNormalTaskString(taskString = '') {
-  return getTaskKeys(taskString).filter((task) => task !== SPAMMING_TASK_KEY).join(', ');
-}
-
-export function getRaidStatusForHelpers({ isSpamming, helperCount, maxHelpers = 4 }) {
-  if (!isSpamming) return RAID_STATUS.WAITING;
-  if (helperCount >= maxHelpers) return RAID_STATUS.FULL;
-  if (helperCount > 1) return RAID_STATUS.ONGOING;
-  return RAID_STATUS.WAITING;
-}
+export {
+  buildMentionMessage,
+  buildHelpMessage,
+  buildDescriptionMessage,
+  buildRaidRequestMessagePayload,
+  buildMainTicketMessagePayload,
+  sendRaidTicketMessages,
+  getRaidTicketMessageUrl,
+} from '../../Embeds/raidTicket/index.js';
 
 function getRequesterDisplay(requester) {
   return requester?.displayName || requester?.user?.globalName || requester?.user?.username || requester?.tag || requester?.id || 'Requester';
@@ -61,23 +57,6 @@ function getRequesterDisplay(requester) {
 
 function getRequesterAvatar(requester) {
   return requester?.displayAvatarURL?.() || requester?.user?.displayAvatarURL?.() || null;
-}
-
-function getVisibleHelpers(helpers = [], requesterId = null) {
-  return helpers.filter((helper) => String(helper?.helperId ?? '') && String(helper.helperId) !== String(requesterId ?? ''));
-}
-
-export function getRaidPartySize(raidInfoOrTasks) {
-  const tasks = Array.isArray(raidInfoOrTasks)
-    ? raidInfoOrTasks
-    : getTaskKeys(raidInfoOrTasks?.task || raidInfoOrTasks?.tasks || '');
-  const categories = tasks.map((task) => TASK_CATEGORY_BY_TASK?.[task]).filter(Boolean);
-  if (categories.some((category) => ['originul', 'legion', 'other_seven', 'generic'].includes(category))) return 7;
-  return 4;
-}
-
-export function getRaidHelperCapacity(raidInfoOrTasks) {
-  return Math.max(1, getRaidPartySize(raidInfoOrTasks) - 1);
 }
 
 function formatDuration(startValue, endValue = new Date()) {
@@ -102,11 +81,16 @@ function formatHelperLines(helpers = [], { includeTime = false } = {}) {
     .join('\n');
 }
 
+function formatPartialHelperMentions(helpers = []) {
+  if (!helpers.length) return '*None yet*';
+  return helpers.map((helper) => `* <@${helper.helperId}>`).join('\n');
+}
+
 export function buildRaidRequestEmbeds({ requester, raidInfo, helpers = [] }) {
-  const displayTasks = getTaskDisplayNames(raidInfo?.task);
+  const taskFieldValue = getRaidTaskFieldDisplay(raidInfo?.task);
   const visibleHelpers = getVisibleHelpers(helpers, raidInfo?.requesterId);
   const activeHelpers = visibleHelpers.filter((helper) => !helper.removedAt);
-  const removedHelpers = visibleHelpers.filter((helper) => helper.removedAt);
+  const midRunPartials = visibleHelpers.filter((helper) => helper.removedAt);
   const storedStatus = raidInfo?.status || RAID_STATUS.WAITING;
   const status = storedStatus;
   const color = STATUS_COLORS?.[status] ?? EMBED_COLOR;
@@ -120,34 +104,27 @@ export function buildRaidRequestEmbeds({ requester, raidInfo, helpers = [] }) {
     .setColor(color)
     .setAuthor(avatar ? { name: displayName, iconURL: avatar } : { name: displayName })
     .addFields(
-      {
-        name: displayTasks.length === 1 ? 'Task' : 'Tasks',
-        value: displayTasks.length ? displayTasks.join(', ') : 'None',
-        inline: false,
-      },
-      {
-        name: 'Server',
-        value: raidInfo?.server || 'None',
-        inline: false,
-      },
-      {
-        name: 'Description',
-        value: raidInfo?.description || 'No description provided.',
-        inline: false,
-      },
+      { name: 'Task', value: taskFieldValue, inline: false },
+      { name: 'Server', value: raidInfo?.server || 'None', inline: false },
+      { name: 'Description', value: raidInfo?.description || 'No description provided.', inline: false },
     );
 
-  const statusEmbed = new EmbedBuilder()
-    .setColor(color);
+  const statusEmbed = new EmbedBuilder().setColor(color);
 
-if (!isClosing) {
-     statusEmbed
-       .addFields(
-         { name: 'Current Status', value: status, inline: false },
-         { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers), inline: false },
-       )
-       .addFields({ name: '\u200b', value: 'You can type `!waiting`, `!ongoing`, or `!full` to update the raid status. Status will also update automatically for spamming raids.\nUse the buttons below to manage your raid.', inline: false });
-     return [detailsEmbed, statusEmbed];
+  if (!isClosing) {
+    statusEmbed
+      .addFields(
+        { name: 'Current Status', value: status, inline: false },
+        { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers), inline: false },
+      );
+    if (midRunPartials.length) {
+      statusEmbed.addFields({
+        name: 'Partial Helpers',
+        value: formatPartialHelperMentions(midRunPartials),
+        inline: false,
+      });
+    }
+    return [detailsEmbed, statusEmbed];
   }
 
   statusEmbed.addFields(
@@ -155,10 +132,10 @@ if (!isClosing) {
     { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers, { includeTime }), inline: false },
   );
 
-  if (removedHelpers.length) {
+  if (midRunPartials.length) {
     statusEmbed.addFields({
       name: 'Partial Helpers',
-      value: formatHelperLines(removedHelpers, { includeTime }),
+      value: formatPartialHelperMentions(midRunPartials),
       inline: false,
     });
   }
@@ -166,104 +143,44 @@ if (!isClosing) {
   return [detailsEmbed, statusEmbed];
 }
 
-export function buildRaidRequestMessagePayload({ requester, raidInfo, helpers = [] }) {
-  const visibleHelpers = getVisibleHelpers(helpers, raidInfo?.requesterId);
-  const isClosing = Boolean(raidInfo?.isAwaitingCompletion || raidInfo?.status === RAID_STATUS.AWAITING_COMPLETION);
-  return buildRaidRequestComponentsV2({ requester, raidInfo, helpers: visibleHelpers, isClosing });
+export function getHelperPingCooldownRemainingMs(raidInfo) {
+  const lastPing = raidInfo?.lastHelperPingAt;
+  if (!lastPing) return 0;
+  const elapsed = Date.now() - new Date(lastPing).getTime();
+  return Math.max(0, HELPER_PING_COOLDOWN_MS - elapsed);
 }
 
-function text(content) {
-  return new TextDisplayBuilder().setContent(String(content || '\u200b').slice(0, 4000));
+export function formatCooldownMinutes(remainingMs) {
+  return Math.max(1, Math.ceil(remainingMs / 60000));
 }
 
-function section(content, button) {
-  const builder = new SectionBuilder().addTextDisplayComponents(text(content));
-  if (button) builder.setButtonAccessory(button);
-  return builder;
+export async function sendHelperLeftNotification({
+  channel,
+  guildId,
+  raidInfo,
+  helperId,
+  helpers = [],
+}) {
+  if (!channel || !raidInfo?.messageId) return;
+
+  const guild = channel.guild;
+  const member = guild ? await guild.members.fetch(helperId).catch(() => null) : null;
+  const displayName = member?.displayName || member?.user?.globalName || member?.user?.username || 'A helper';
+  const activeCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((helper) => !helper.removedAt).length;
+  const capacity = getRaidHelperCapacity(raidInfo);
+
+  await sendHelperLeftNotificationEmbed({
+    channel,
+    guildId,
+    raidInfo,
+    helperDisplayName: displayName,
+    activeHelperCount: activeCount,
+    helperCapacity: capacity,
+  });
 }
 
-function separator() {
-  return new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
-}
-
-function buildMainActionRow() {
-  return new ActionRowBuilder().addComponents(joinTicketButton, closeTicketButton, cancelTicketButton, raidmapsButton);
-}
-
-function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClosing }) {
-  const displayTasks = getTaskDisplayNames(raidInfo?.task);
-  const visibleHelpers = getVisibleHelpers(helpers, raidInfo?.requesterId);
-  const activeHelpers = visibleHelpers.filter((helper) => !helper.removedAt);
-  const removedHelpers = visibleHelpers.filter((helper) => helper.removedAt);
-  const displayName = getRequesterDisplay(requester);
-  const status = raidInfo?.status || RAID_STATUS.WAITING;
-  const helperCapacity = getRaidHelperCapacity(raidInfo);
-  const includeTime = isClosing && isSpammingRaid(raidInfo);
-
-  const container = new ContainerBuilder()
-    .setAccentColor(STATUS_COLORS?.[status] ?? EMBED_COLOR)
-    .addTextDisplayComponents(text(`<@&${RAID_HELPER_ROLE_ID}> New raid request from <@${raidInfo?.requesterId}>`))
-    .addTextDisplayComponents(text(`### ${displayName}`))
-    .addSectionComponents(
-      section(`**${displayTasks.length === 1 ? 'Task' : 'Tasks'}**\n${displayTasks.length ? displayTasks.join(', ') : 'None'}`, editTasksButton),
-      section(`**Server**\n${raidInfo?.server || 'None'}`, editServerButton),
-      section(`**Description**\n${raidInfo?.description || 'No description provided.'}`, editDescriptionButton),
-    )
-    .addSeparatorComponents(separator());
-
-if (!isClosing) {
-     container
-       .addTextDisplayComponents(text(`**Current Status**\n${status}`))
-       .addTextDisplayComponents(text(`**Helpers: ${activeHelpers.length}/${helperCapacity}**`));
-
-     if (!activeHelpers.length) {
-       container.addTextDisplayComponents(text('No helpers yet.'));
-     } else {
-       activeHelpers.slice(0, 10).forEach((helper, index) => {
-         container.addSectionComponents(section(`<@${helper.helperId}>`, getKickHelperButton(helper, `Helper ${index + 1}`)));
-       });
-     }
-
-     container
-       .addTextDisplayComponents(text('\nYou can type `!waiting`, `!ongoing`, or `!full` to update the raid status. Status will also update automatically for spamming raids.\nUse the buttons below to manage your raid.'))
-       .addActionRowComponents(buildMainActionRow());
-  } else {
-    container
-      .addTextDisplayComponents(text('**Status**\nAwaiting Completion'))
-      .addTextDisplayComponents(text(`**Helpers: ${activeHelpers.length}/${helperCapacity}**`));
-
-    if (!activeHelpers.length) {
-      container.addTextDisplayComponents(text('No helpers yet.'));
-    } else {
-      activeHelpers.slice(0, 10).forEach((helper, index) => {
-        const duration = includeTime ? formatDuration(helper.joinedAt, helper.removedAt || new Date()) : null;
-        const body = `<@${helper.helperId}>${duration ? `\n- Time: ${duration}` : ''}`;
-        container.addSectionComponents(section(body, getKickHelperButton(helper, `Helper ${index + 1}`)));
-      });
-    }
-
-    if (removedHelpers.length) {
-      container.addTextDisplayComponents(text('**Partial Helpers**'));
-      removedHelpers.slice(0, 10).forEach((helper, index) => {
-        const duration = includeTime ? formatDuration(helper.joinedAt, helper.removedAt || new Date()) : null;
-        const body = `<@${helper.helperId}>${duration ? `\n- Time: ${duration}` : ''}`;
-        container.addSectionComponents(section(body, getKickHelperButton(helper, `Helper ${index + 1}`)));
-      });
-    }
-
-    container.addActionRowComponents(getCloseConfirmRow({ proofImageUrl: raidInfo?.proofImage }));
-  }
-
-  return {
-    content: null,
-    embeds: [],
-    flags: MessageFlags.IsComponentsV2,
-    allowedMentions: {
-      roles: [RAID_HELPER_ROLE_ID],
-      users: raidInfo?.requesterId ? [String(raidInfo.requesterId)] : [],
-    },
-    components: [container],
-  };
+export function buildRaidRequestEmbed(args) {
+  return buildRaidRequestEmbeds(args)[0];
 }
 
 async function enrichHelpersWithDisplayNames(guild, helpers = []) {
@@ -280,10 +197,6 @@ async function enrichHelpersWithDisplayNames(guild, helpers = []) {
   );
 }
 
-export function buildRaidRequestEmbed(args) {
-  return buildRaidRequestEmbeds(args)[0];
-}
-
 export async function refreshRaidRequestMessage({ client, channel, raidInfo, helpers = [] }) {
   if (!raidInfo?.messageId) return;
   const targetChannel = channel || await client.channels.fetch(raidInfo.originalChannelId || raidInfo.id).catch(() => null);
@@ -292,5 +205,13 @@ export async function refreshRaidRequestMessage({ client, channel, raidInfo, hel
   if (!message) return;
   const requester = await targetChannel.guild?.members?.fetch(raidInfo.requesterId).catch(() => null);
   const displayHelpers = await enrichHelpersWithDisplayNames(targetChannel.guild, helpers);
-  await message.edit(buildRaidRequestMessagePayload({ requester, raidInfo, helpers: displayHelpers }));
+  const visibleHelpers = getVisibleHelpers(displayHelpers, raidInfo?.requesterId);
+  const isClosing = Boolean(raidInfo?.isAwaitingCompletion || raidInfo?.status === RAID_STATUS.AWAITING_COMPLETION);
+  await message.edit(buildRaidRequestMessagePayload({
+    requester,
+    raidInfo,
+    helpers: visibleHelpers,
+    isClosing,
+  }));
+  await refreshDescriptionMessage({ channel: targetChannel, raidInfo });
 }

@@ -4,20 +4,28 @@ import { getSupabase } from '../../utils/supabaseClient.js';
 export const MAX_XP_PER_RAID = 30000; // 30,000 EXP per raid
 
 const CATEGORY_LABELS = {
-  dailies: 'Dailies',
-  weeklies: 'Weeklies',
+  four_man_daily: '4-Man Daily',
+  four_man_weekly: '4-Man Weekly',
+  seven_man_weekly: '7-Man Weekly',
+  seven_man_daily: '7-Man Daily',
+  two_man_daily: '2-Man Daily',
   templeshrine: 'Temple Shrine',
+  void_aura_daily: 'Void Aura Daily',
   originul: 'Originul',
   legion: 'Legion',
-  other_seven: 'Other 7-man',
-  generic: 'Other Tasks',
+  other_seven: 'Other 7-Man',
+  generic: 'Generic',
   spamming: 'Spamming',
 };
 
 const CATEGORY_ORDER = [
-  'dailies',
-  'weeklies',
+  'four_man_daily',
+  'four_man_weekly',
+  'seven_man_weekly',
+  'seven_man_daily',
+  'two_man_daily',
   'templeshrine',
+  'void_aura_daily',
   'originul',
   'legion',
   'other_seven',
@@ -26,33 +34,50 @@ const CATEGORY_ORDER = [
 ];
 
 const FALLBACK_CATEGORY_ROWS = [
-  { key: 'dailies', display_name: 'Dailies', sort_order: 10 },
-  { key: 'weeklies', display_name: 'Weeklies', sort_order: 20 },
-  { key: 'templeshrine', display_name: 'Temple Shrine', sort_order: 30 },
-  { key: 'originul', display_name: 'Originul', sort_order: 40 },
-  { key: 'legion', display_name: 'Legion', sort_order: 50 },
-  { key: 'other_seven', display_name: 'Other 7-man', sort_order: 60 },
-  { key: 'generic', display_name: 'Other Tasks', sort_order: 70 },
-  { key: 'spamming', display_name: 'Spamming', sort_order: 80 },
+  { key: 'four_man_daily', display_name: '4-Man Daily', sort_order: 10 },
+  { key: 'four_man_weekly', display_name: '4-Man Weekly', sort_order: 20 },
+  { key: 'seven_man_weekly', display_name: '7-Man Weekly', sort_order: 30 },
+  { key: 'seven_man_daily', display_name: '7-Man Daily', sort_order: 40 },
+  { key: 'two_man_daily', display_name: '2-Man Daily', sort_order: 50 },
+  { key: 'templeshrine', display_name: 'Temple Shrine', sort_order: 60 },
+  { key: 'void_aura_daily', display_name: 'Void Aura Daily', sort_order: 70 },
+  { key: 'originul', display_name: 'Originul', sort_order: 80 },
+  { key: 'legion', display_name: 'Legion', sort_order: 90 },
+  { key: 'other_seven', display_name: 'Other 7-Man', sort_order: 100 },
+  { key: 'generic', display_name: 'Generic', sort_order: 110 },
+  { key: 'spamming', display_name: 'Spamming', sort_order: 120 },
 ];
 
 const FALLBACK_TASK_ROWS = [
-  { key: 'ezrajal', display_name: 'Ultra Ezrajal', points: 1000, category: 'dailies', active: true, map_names: ['ultraezrajal'], aliases: [], sort_order: 10 },
-  { key: 'warden', display_name: 'Ultra Warden', points: 1000, category: 'dailies', active: true, map_names: ['ultrawarden'], aliases: [], sort_order: 20 },
-  { key: 'engineer', display_name: 'Ultra Engineer', points: 1000, category: 'dailies', active: true, map_names: ['ultraengineer'], aliases: [], sort_order: 30 },
-  { key: 'tyndarius', display_name: 'Ultra Tyndarius', points: 1000, category: 'dailies', active: true, map_names: ['ultratyndarius'], aliases: [], sort_order: 40 },
+  { key: 'ezrajal', display_name: 'Ultra Ezrajal', points: 1000, category: 'four_man_daily', active: true, map_names: ['ultraezrajal'], aliases: [], sort_order: 10 },
+  { key: 'warden', display_name: 'Ultra Warden', points: 1000, category: 'four_man_daily', active: true, map_names: ['ultrawarden'], aliases: [], sort_order: 20 },
+  { key: 'engineer', display_name: 'Ultra Engineer', points: 1000, category: 'four_man_daily', active: true, map_names: ['ultraengineer'], aliases: [], sort_order: 30 },
+  { key: 'tyndarius', display_name: 'Ultra Tyndarius', points: 1000, category: 'four_man_daily', active: true, map_names: ['ultratyndarius'], aliases: [], sort_order: 40 },
+  { key: 'kala', display_name: 'Ultra Kala', points: 1000, category: 'four_man_daily', active: false, map_names: ['ultrakala'], aliases: [], sort_order: 50 },
+  { key: 'iara', display_name: 'Ultra Iara', points: 1000, category: 'four_man_daily', active: false, map_names: ['ultraiara'], aliases: [], sort_order: 60 },
 
-  { key: 'nulgath', display_name: 'Ultra Nulgath', points: 2000, category: 'weeklies', active: true, map_names: ['ultranulgath'], aliases: [], sort_order: 10 },
-  { key: 'dage', display_name: 'Ultra Dage', points: 2000, category: 'weeklies', active: true, map_names: ['ultradage'], aliases: [], sort_order: 20 },
-  { key: 'drakath', display_name: 'Champion Drakath', points: 2000, category: 'weeklies', active: true, map_names: ['championdrakath'], aliases: [], sort_order: 30 },
-  { key: 'darkon', display_name: 'Ultra Darkon', points: 3000, category: 'weeklies', active: true, map_names: ['ultradarkon'], aliases: [], sort_order: 40 },
-  { key: 'drago', display_name: 'Ultra Drago', points: 1000, category: 'weeklies', active: true, map_names: ['ultradrago'], aliases: [], sort_order: 50 },
-  { key: 'speaker', display_name: 'Ultra Speaker', points: 4000, category: 'weeklies', active: true, map_names: ['ultraspeaker'], aliases: [], sort_order: 60 },
-  { key: 'gramiel', display_name: 'Ultra Gramiel', points: 3000, category: 'weeklies', active: true, map_names: ['ultragramiel'], aliases: [], sort_order: 70 },
+  { key: 'dage', display_name: 'Ultra Dage', points: 2000, category: 'four_man_weekly', active: true, map_names: ['ultradage'], aliases: [], sort_order: 10 },
+  { key: 'nulgath', display_name: 'Ultra Nulgath', points: 2000, category: 'four_man_weekly', active: true, map_names: ['ultranulgath'], aliases: [], sort_order: 20 },
+  { key: 'drakath', display_name: 'Champion Drakath', points: 2000, category: 'four_man_weekly', active: true, map_names: ['championdrakath'], aliases: [], sort_order: 30 },
+  { key: 'darkon', display_name: 'Ultra Darkon', points: 3000, category: 'four_man_weekly', active: true, map_names: ['ultradarkon'], aliases: [], sort_order: 40 },
+  { key: 'drago', display_name: 'Ultra Drago', points: 1000, category: 'four_man_weekly', active: true, map_names: ['ultradrago'], aliases: [], sort_order: 50 },
+  { key: 'speaker', display_name: 'Ultra Speaker', points: 4000, category: 'four_man_weekly', active: true, map_names: ['ultraspeaker'], aliases: [], sort_order: 60 },
+  { key: 'gramiel', display_name: 'Ultra Gramiel', points: 3000, category: 'four_man_weekly', active: true, map_names: ['ultragramiel'], aliases: [], sort_order: 70 },
 
-  { key: 'tsleft', display_name: 'Templeshrine Left', points: 1000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine left', 'temple shrine (left)', 'templeshrineleft'], sort_order: 10 },
-  { key: 'tsmid', display_name: 'Templeshrine Mid', points: 2000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine mid', 'temple shrine (mid)', 'templeshrinemid'], sort_order: 20 },
-  { key: 'tsright', display_name: 'Templeshrine Right', points: 1000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine right', 'temple shrine (right)', 'templeshrineright'], sort_order: 30 },
+  { key: 'mechabinky', display_name: 'Mechabinky', points: 5000, category: 'seven_man_weekly', active: true, map_names: ['grimchallenge'], aliases: ['grim'], sort_order: 10 },
+
+  { key: 'astralshrine', display_name: 'Astral Shrine', points: 3000, category: 'seven_man_daily', active: true, map_names: ['astralshrine'], aliases: ['astral'], sort_order: 10 },
+  { key: 'kathool', display_name: 'Kathool', points: 2000, category: 'seven_man_daily', active: true, map_names: ['kathooldepths'], aliases: ['kath'], sort_order: 20 },
+  { key: 'apexazalith', display_name: 'Apex Azalith', points: 1000, category: 'seven_man_daily', active: true, map_names: ['apexazalith'], aliases: ['apex'], sort_order: 30 },
+
+  { key: 'flameusurper', display_name: 'Flame Usurper', points: 2000, category: 'two_man_daily', active: true, map_names: ['flameusurper'], aliases: ['flame'], sort_order: 10 },
+
+  { key: 'tsleft', display_name: 'Templeshrine Left', points: 1000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine left', 'templeshrineleft'], sort_order: 10 },
+  { key: 'tsright', display_name: 'Templeshrine Right', points: 1000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine right', 'templeshrineright'], sort_order: 20 },
+  { key: 'tsmid', display_name: 'Templeshrine Mid', points: 2000, category: 'templeshrine', active: true, map_names: ['templeshrine'], aliases: ['temple shrine mid', 'templeshrinemid'], sort_order: 30 },
+
+  { key: 'vanonmem', display_name: 'Void Aura Daily (Non-Mem)', points: 2000, category: 'void_aura_daily', active: true, map_names: ['voidflibbi', 'icewing', 'hydrachallenge'], aliases: ['vanm'], sort_order: 10 },
+  { key: 'vamem', display_name: 'Void Aura Daily (Mem)', points: 1000, category: 'void_aura_daily', active: true, map_names: ['ancienttrigoras', 'chaoskraken', 'gravechallenge'], aliases: ['vam'], sort_order: 20 },
 
   { key: 'voidflibbi', display_name: 'Void Flibbi', points: 1000, category: 'originul', active: true, map_names: ['voidflibbi'], aliases: ['flibbi'], sort_order: 10 },
   { key: 'voidnightbane', display_name: 'Void Nightbane', points: 1000, category: 'originul', active: true, map_names: ['voidnightbane'], aliases: ['nightbane'], sort_order: 20 },
@@ -62,22 +87,17 @@ const FALLBACK_TASK_ROWS = [
   { key: 'beast', display_name: 'Beast', points: 500, category: 'legion', active: true, map_names: ['sevencircleswar'], aliases: [], sort_order: 20 },
   { key: 'lichlord', display_name: 'Lich Lord', points: 500, category: 'legion', active: true, map_names: ['frozenlair'], aliases: ['lich'], sort_order: 30 },
 
-  { key: 'kala', display_name: 'Ultra Kala', points: 1000, category: 'generic', active: false, map_names: ['ultrakala'], aliases: [], sort_order: 10 },
-  { key: 'iara', display_name: 'Ultra Iara', points: 1000, category: 'generic', active: false, map_names: ['ultraiara'], aliases: [], sort_order: 20 },
+  { key: 'voidnerfkitten', display_name: 'Void Nerf Kitten', points: 1000, category: 'other_seven', active: true, map_names: ['voidnerfkitten'], aliases: ['nerfkitten'], sort_order: 10 },
 
-  { key: 'mechabinky', display_name: 'Mechabinky', points: 5000, category: 'other_seven', active: true, map_names: ['grimchallenge'], aliases: ['grim'], sort_order: 10 },
-  { key: 'kathool', display_name: 'Kathool', points: 2000, category: 'other_seven', active: true, map_names: ['kathooldepths'], aliases: ['kath'], sort_order: 20 },
-  { key: 'astralshrine', display_name: 'Astral Shrine', points: 3000, category: 'other_seven', active: true, map_names: ['astralshrine'], aliases: ['astral'], sort_order: 30 },
-  { key: 'voidnerfkitten', display_name: 'Void Nerf Kitten', points: 1000, category: 'other_seven', active: true, map_names: ['voidnerfkitten'], aliases: ['nerfkitten'], sort_order: 40 },
-  { key: 'lavarockshore', display_name: 'Lavarockshore', points: 1000, category: 'other_seven', active: true, map_names: ['lavarockshore'], aliases: ['lava', 'lavarock', 'rockshore'], sort_order: 50 },
-  { key: 'apexazalith', display_name: 'Apex Azalith', points: 1000, category: 'other_seven', active: true, map_names: ['apexazalith'], aliases: ['apex'], sort_order: 60 },
-  { key: 'vamem', display_name: 'Void Aura Daily (Mem)', points: 1000, category: 'other_seven', active: true, map_names: ['ancienttrigoras', 'chaoskraken', 'gravechallenge'], aliases: ['vam'], sort_order: 70 },
-  { key: 'vanonmem', display_name: 'Void Aura Daily (Non-Mem)', points: 2000, category: 'other_seven', active: true, map_names: ['voidflibbi', 'icewing', 'hydrachallenge'], aliases: ['vanm'], sort_order: 80 },
+  { key: 'generic_2man', display_name: '2-Man room', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['generic2', 'generic2man'], sort_order: 10 },
+  { key: 'generic_4man', display_name: '4-Man room', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['generic4', 'generic4man'], sort_order: 20 },
+  { key: 'generic_5man', display_name: '5-Man room', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['generic5', 'generic5man'], sort_order: 30 },
+  { key: 'generic_7man', display_name: '7-Man room', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['generic7', 'generic7man'], sort_order: 40 },
 
-  { key: 'simple', display_name: 'Simple', points: 1000, category: 'generic', active: true, map_names: [], aliases: ['easy'], sort_order: 10 },
-  { key: 'moderate', display_name: 'Moderate', points: 5000, category: 'generic', active: true, map_names: [], aliases: ['medium'], sort_order: 20 },
-  { key: 'difficult', display_name: 'Difficult', points: 10000, category: 'generic', active: true, map_names: [], aliases: ['hard'], sort_order: 30 },
-  { key: 'spamming', display_name: 'Spamming', points: 0, category: 'spamming', active: true, map_names: [], aliases: [], sort_order: 10 },
+  { key: 'spamming_2man', display_name: '2-Man room', points: 0, category: 'spamming', active: true, map_names: [], aliases: ['spamming2', 'spamming2man'], sort_order: 10 },
+  { key: 'spamming_4man', display_name: '4-Man room', points: 0, category: 'spamming', active: true, map_names: [], aliases: ['spamming4', 'spamming4man'], sort_order: 20 },
+  { key: 'spamming_5man', display_name: '5-Man room', points: 0, category: 'spamming', active: true, map_names: [], aliases: ['spamming5', 'spamming5man'], sort_order: 30 },
+  { key: 'spamming_7man', display_name: '7-Man room', points: 0, category: 'spamming', active: true, map_names: [], aliases: ['spamming7', 'spamming7man'], sort_order: 40 },
 ];
 
 export const POINTS_CONFIG = {};
@@ -196,8 +216,8 @@ function applyTaskRows(rows, { source = 'database', error = null, categoryRows =
   const { rows: normalizedCategories, map: categoryMap } = getCategoryMeta(categoryRows);
   const activeRows = normalizeRows(rows, normalizedCategories).filter((row) => row.active);
   const taskListsByCategory = {
-    dailies: DAILIES_LIST,
-    weeklies: WEEKLIES_LIST,
+    four_man_daily: DAILIES_LIST,
+    four_man_weekly: WEEKLIES_LIST,
     templeshrine: TEMPLESHRINE_LIST,
     originul: ORIGINUL_LIST,
     legion: LEGION_LIST,
@@ -223,7 +243,12 @@ function applyTaskRows(rows, { source = 'database', error = null, categoryRows =
     if (!taskListsByCategory[row.category]) taskListsByCategory[row.category] = [];
     taskListsByCategory[row.category].push(row.key);
 
-    const mapNames = row.map_names.length ? row.map_names : [row.key];
+    const usesModalMapsOnly = row.key.startsWith('generic_')
+      || row.key.startsWith('spamming_')
+      || row.key === 'spamming';
+    const mapNames = row.map_names.length
+      ? row.map_names
+      : (usesModalMapsOnly ? [] : [row.key]);
     joinPrefixes[row.key] = mapNames;
 
     const aliasInputs = [
@@ -322,6 +347,19 @@ export function getRaidTasksCacheState() {
 export function getJoinPrefixesForTask(taskKey) {
   const key = normalizeTaskKey(taskKey);
   return TASK_JOIN_PREFIXES[key] || [key];
+}
+
+export function taskUsesModalMaps(taskKey) {
+  const key = normalizeTaskKey(taskKey);
+  if (!key) return false;
+  return key.startsWith('generic_')
+    || key.startsWith('spamming_')
+    || key === 'spamming'
+    || ['simple', 'moderate', 'difficult'].includes(key);
+}
+
+export function raidNeedsModalMapName(tasks = []) {
+  return (tasks || []).some((task) => taskUsesModalMaps(task));
 }
 
 // Populate synchronously so imported constants are usable before startup refreshes from Supabase.

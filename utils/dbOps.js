@@ -179,6 +179,7 @@ export async function getRaidState(channelId) {
         mapNumber: request.mapNumber ?? request.map_number ?? '',
         server: request.server ?? '',
         description: request.description ?? '',
+        lastHelperPingAt: request.lastHelperPingAt ?? request.last_helper_ping_at ?? null,
         // closing (flattened)
         isAwaitingCompletion: Boolean((data.is_awaiting_completion ?? closing.isAwaitingCompletion ?? closing.is_awaiting_completion) ?? false),
         pendingHelperIds: closing.pendingHelperIds ?? closing.pending_helper_ids ?? null,
@@ -261,7 +262,7 @@ export async function updateRaidState(channelId, updates) {
         isAwaitingCompletion: 'is_awaiting_completion',
     };
 
-    const requestKeys = new Set(['task', 'mapName', 'mapNumber', 'server', 'description']);
+    const requestKeys = new Set(['task', 'mapName', 'mapNumber', 'server', 'description', 'lastHelperPingAt']);
     const closureKeys = new Set([
         'pendingHelperIds',
         'proofImage',
