@@ -548,7 +548,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
         await updateRaid(interaction.channel.id, { partialHelpers });
 
-        const refreshedRaidInfo = await getRaidInfo(interaction.channel.id);
+        const refreshedRaidInfo = { ...raidInfo, partialHelpers };
         const stillMissing = getPartialHelpersMissingTasks(refreshedRaidInfo, joinedHelpers);
         if (stillMissing.length > 0) {
             await interaction.reply({
@@ -580,7 +580,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         await refreshRaidRequestMessage({
             client,
             channel: interaction.channel,
-            raidInfo: await getRaidInfo(interaction.channel.id),
+            raidInfo: { ...raidInfo, partialHelpers: next },
             helpers,
         });
 
@@ -684,8 +684,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             await updateRaid(interaction.channel.id, { partialHelpers: next });
             await refreshCloseMessageIfPossible({ channel: interaction.channel, parentMessageId: session.parentMessageId });
 
-            const afterRemove = await getRaidInfo(interaction.channel.id);
-            const afterList = normalizePartialHelpers(afterRemove);
+            const afterList = next;
             const options = await buildPartialHelperEntryOptions(interaction, afterList);
             updatePartialHelperSession(sessionId, { step: afterList.length ? 'entry' : 'tasks', selectedEntryHelperId: null, selectedTasks: [], selectedHelperIds: [] });
 
@@ -921,8 +920,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         const { filtered: helperIds, warnings } = await filterToWarriorHelperIds(interaction, interaction.values || []);
         const updated = updatePartialHelperSession(sessionId, { selectedHelperIds: helperIds });
 
-        const freshRaidInfo = await getRaidInfo(interaction.channel.id);
-        const partialHelpers = normalizePartialHelpers(freshRaidInfo);
+        const partialHelpers = normalizePartialHelpers(raidInfo);
 
         if (warnings.length) {
             await interaction.followUp({ content: `⚠️ ${warnings.join(' ')}`.slice(0, 2000), flags: MessageFlags.Ephemeral }).catch(() => {});
@@ -1000,7 +998,7 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             if (!proofUrl) throw new Error('No proof image found.');
             await updateRaid(interaction.channel.id, { proofImage: proofUrl });
 
-            const updatedRaid = await getRaidInfo(interaction.channel.id);
+            const updatedRaid = { ...raidInfo, proofImage: proofUrl };
             const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
             await refreshRaidRequestMessage({
                 client,
@@ -1022,9 +1020,8 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- CONFIRM CLOSING ---------- */
     if (interaction.customId === 'confirmCloseSelection') {
-        const currentRaidInfo = await getRaidInfo(interaction.channel.id);
         const joinedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
-        const missingPartialTasks = getPartialHelpersMissingTasks(currentRaidInfo, joinedHelpers);
+        const missingPartialTasks = getPartialHelpersMissingTasks(raidInfo, joinedHelpers);
 
         if (missingPartialTasks.length > 4) {
             await interaction.reply({
@@ -1037,13 +1034,13 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
         if (missingPartialTasks.length > 0) {
             const helpersWithNames = await enrichPartialHelpersWithNames(interaction, missingPartialTasks);
             await interaction.showModal(
-                buildClosePartialTasksModal(helpersWithNames, getUniqueRaidTaskKeys(currentRaidInfo)),
+                buildClosePartialTasksModal(helpersWithNames, getUniqueRaidTaskKeys(raidInfo)),
             );
             return;
         }
 
         await safeDeferUpdate(interaction);
-        await executeRaidClose(interaction, client, currentRaidInfo, joinedHelpers);
+        await executeRaidClose(interaction, client, raidInfo, joinedHelpers);
         return;
     }
 
@@ -1065,8 +1062,8 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
             previousStatus: null,
             status: restoredStatus,
         });
-        
-        const updatedRaidInfo = await getRaidInfo(interaction.channel.id);
+
+        const updatedRaidInfo = { ...raidInfo, isAwaitingCompletion: false, pendingHelperIds: null, status: restoredStatus };
         await refreshRaidRequestMessage({
             client,
             channel: interaction.channel,

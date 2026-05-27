@@ -218,27 +218,25 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     // Then do async operations
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
-    const freshRaidInfo = await getRaidInfo(interaction.channel.id).catch(() => raidInfo);
     const updatedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const activeHelperCount = getVisibleHelpers(updatedHelpers, freshRaidInfo.requesterId).filter((h) => !h.removedAt).length;
-    const helperCapacity = Math.max(1, getRaidHelperCapacity(freshRaidInfo));
+    const activeHelperCount = getVisibleHelpers(updatedHelpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
 
     const displayName = interaction.member?.displayName || interaction.user.globalName || interaction.user.username || 'A helper';
 
-    const spamming = isSpammingRaid(freshRaidInfo);
+    const spamming = isSpammingRaid(raidInfo);
     const nextStatus = spamming
       ? getRaidStatusForHelpers({ isSpamming: true, helperCount: activeHelperCount, maxHelpers: helperCapacity })
       : raidInfo.status;
 
-    if (spamming && nextStatus !== freshRaidInfo.status) {
+    if (spamming && nextStatus !== raidInfo.status) {
       await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
-      freshRaidInfo.status = nextStatus;
     }
 
-    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: freshRaidInfo, helpers: updatedHelpers });
+    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: { ...raidInfo, status: nextStatus }, helpers: updatedHelpers });
 
-    const requestMessageUrl = interaction.guildId && freshRaidInfo.messageId
-      ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${freshRaidInfo.messageId}`
+    const requestMessageUrl = interaction.guildId && raidInfo.messageId
+      ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${raidInfo.messageId}`
       : null;
     if (requestMessageUrl) {
       const components = [
@@ -276,33 +274,31 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     // Then do async operations
     await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
 
-    const currentRaidInfo = await getRaidInfo(interaction.channel.id).catch(() => raidInfo);
-    const partialHelpers = (Array.isArray(currentRaidInfo?.partialHelpers) ? currentRaidInfo.partialHelpers : [])
+    const partialHelpers = (Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [])
       .filter((entry) => String(entry?.helperId) !== String(helperId));
-    if (partialHelpers.length !== (currentRaidInfo?.partialHelpers?.length ?? 0)) {
+    if (partialHelpers.length !== (raidInfo?.partialHelpers?.length ?? 0)) {
       await updateRaid(interaction.channel.id, { partialHelpers });
     }
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const activeHelperCount = getVisibleHelpers(helpers, currentRaidInfo.requesterId).filter((h) => !h.removedAt).length;
-    const helperCapacity = Math.max(1, getRaidHelperCapacity(currentRaidInfo));
+    const activeHelperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
 
-    const spamming = isSpammingRaid(currentRaidInfo);
+    const spamming = isSpammingRaid(raidInfo);
     const nextStatus = spamming
       ? getRaidStatusForHelpers({ isSpamming: true, helperCount: activeHelperCount, maxHelpers: helperCapacity })
       : RAID_STATUS.WAITING;
 
-    if (spamming && nextStatus !== currentRaidInfo.status) {
+    if (spamming && nextStatus !== raidInfo.status) {
       await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
-      currentRaidInfo.status = nextStatus;
     }
 
-    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: currentRaidInfo, helpers });
+    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: { ...raidInfo, status: nextStatus }, helpers });
 
     await sendHelperLeftNotification({
       channel: interaction.channel,
       guildId: interaction.guildId,
-      raidInfo: currentRaidInfo,
+      raidInfo: raidInfo,
       helperId,
       activeHelperCount,
     }).catch(() => {});
