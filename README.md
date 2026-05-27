@@ -49,6 +49,7 @@ node index.js
 - `MONGODB_URI` = MongoDB Atlas connection string
 - `MONGODB_DB` = database name to use, for example `raid_bot`
 - `GUILD_ID` = guild/server ID where slash commands are registered
+- `BACKUP_LEADERBOARD_CHANNEL_ID` = channel where leaderboard JSON backups are posted
 - `PORT` = optional health server port, defaults to `3000`
 
 MongoDB Atlas setup:

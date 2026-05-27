@@ -3,11 +3,21 @@ import { LB_BACKUP_CHANNEL_ID } from '../../config/constants.js';
 import { getCachedLeaderboard } from '../leaderboard/core.js';
 import { getLastBackupMessageId, setLastBackupMessageId } from '../../utils/dbOps.js';
 
+function getLeaderboardBackupChannelId() {
+  return String(process.env.BACKUP_LEADERBOARD_CHANNEL_ID || LB_BACKUP_CHANNEL_ID || '').trim();
+}
+
 export async function sendLeaderboardBackup(client) {
   try {
-    const backupChannel = await client.channels.fetch(LB_BACKUP_CHANNEL_ID);
+    const backupChannelId = getLeaderboardBackupChannelId();
+    if (!backupChannelId) {
+      console.warn('No leaderboard backup channel configured. Set BACKUP_LEADERBOARD_CHANNEL_ID or LB_BACKUP_CHANNEL_ID.');
+      return;
+    }
+
+    const backupChannel = await client.channels.fetch(backupChannelId);
     if (!backupChannel || !backupChannel.isTextBased()) {
-      console.warn(`LB_BACKUP_CHANNEL_ID (${LB_BACKUP_CHANNEL_ID}) is not a text channel or could not be fetched. Cannot send backup.`);
+      console.warn(`Leaderboard backup channel (${backupChannelId}) is not a text channel or could not be fetched. Cannot send backup.`);
       return;
     }
 
