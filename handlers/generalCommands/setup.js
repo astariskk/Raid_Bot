@@ -68,8 +68,8 @@ import {
     getRaidRulesEmbed,
 } from '../../Embeds/generalCommandsEmbeds.js';
 
-import { getSupabase } from '../../utils/supabaseClient.js';
 import { invalidateLeaderboardCache } from '../leaderboard/core.js';
+import { getLeaderboardData, setLeaderboardData } from '../../utils/dbOps.js';
 
 function isStaffMember(member) {
     if (!member) return false;
@@ -113,18 +113,14 @@ async function applyLeaderboardBackupObject(obj) {
 
     if (!entries.length) return { updated: 0, scanned: Object.keys(obj || {}).length };
 
-    const rows = entries.map(([userId, points]) => ({ user_id: userId, total_exp: Math.floor(points) }));
-    const supabase = getSupabase();
-
-    const chunkSize = 500;
-    for (let i = 0; i < rows.length; i += chunkSize) {
-        const chunk = rows.slice(i, i + chunkSize);
-        const { error } = await supabase.from('leaderboard_users').upsert(chunk, { onConflict: 'user_id' });
-        if (error) throw error;
+    const leaderboard = await getLeaderboardData().catch(() => ({}));
+    for (const [userId, points] of entries) {
+        leaderboard[userId] = Math.floor(points);
     }
+    await setLeaderboardData(leaderboard);
 
     invalidateLeaderboardCache();
-    return { updated: rows.length, scanned: Object.keys(obj || {}).length };
+    return { updated: entries.length, scanned: Object.keys(obj || {}).length };
 }
 
 function getWizardCategoryEmbed({ categoryKeys = [] } = {}) {

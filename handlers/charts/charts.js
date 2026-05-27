@@ -8,7 +8,7 @@ import {
 } from 'discord.js';
 
 import { EMBED_COLOR } from '../../config/constants.js';
-import { getSupabase } from '../../utils/supabaseClient.js';
+import { resolveAssetUrl } from '../../utils/assetUrls.js';
 import {
   findChartKeyByTrigger,
   getChart,
@@ -27,10 +27,6 @@ function newSessionId() {
 
 function normalizeCategoryKey(category) {
   return String(category ?? '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 64);
-}
-
-function getChartsBucket() {
-  return process.env.SUPABASE_CHARTS_BUCKET || process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
 }
 
 function buildChartsListEmbed({ categories }) {
@@ -154,9 +150,8 @@ function buildChartEmbed(chart, variantKey, pageIndex) {
     .setFooter({ text: total ? `Page ${idx + 1}/${total}` : 'Page 0/0' });
 
   if (page?.asset_path) {
-    const supabase = getSupabase();
-    const { data } = supabase.storage.from(getChartsBucket()).getPublicUrl(String(page.asset_path));
-    if (data?.publicUrl) embed.setImage(data.publicUrl);
+    const url = resolveAssetUrl(page.asset_path);
+    if (url) embed.setImage(url);
   }
 
   return embed;

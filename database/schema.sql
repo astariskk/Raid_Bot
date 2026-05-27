@@ -1,4 +1,4 @@
--- Supabase schema for Raid_Bot (testing)
+-- Legacy SQL schema kept only for old exports. The bot now uses MongoDB Atlas.
 
 -- --------------------
 -- Raid tickets / state

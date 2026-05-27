@@ -13,7 +13,7 @@ import {
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { deleteGifCommand, getGifCommand, updateGifCommand, updateGifCommandImage, upsertGifCommand } from '../../utils/gifCommandsStore.js';
-import { getSupabase } from '../../utils/supabaseClient.js';
+import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
 
 const sessions = new Map(); // messageId -> { command, kind, ownerId }
 const createWizards = new Map(); // wizardSessionId -> { ownerId, command, kind|null, step, pingUserIds }
@@ -63,35 +63,16 @@ function buildRenameModal(messageId, currentCommand) {
 }
 
 async function deleteCommandAssetIfAny(row) {
-  const bucket = process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
-  const supabase = getSupabase();
-  const path = row?.asset_path || row?.image_path;
-  if (!path) return;
-  await supabase.storage.from(bucket).remove([String(path)]).catch(() => {});
+  return row;
 }
 
 async function uploadAssetFromAttachment({ command, attachment, kind }) {
-  const url = attachment.url;
-  const filename = attachment.name || 'asset';
-
-  const res = await fetch(url);
-  const arr = await res.arrayBuffer();
-  const buffer = Buffer.from(arr);
-
-  const bucket = process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
   const safeCmd = sanitizeCommandName(command);
-  const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : '';
-  const path = `${safeCmd}/main${ext || ''}`.slice(0, 450);
+  const assetUrl = getStoredAssetValueFromAttachment(attachment);
+  if (!assetUrl) throw new Error('Attachment URL is missing.');
 
-  const supabase = getSupabase();
-  const { error: uploadError } = await supabase.storage.from(bucket).upload(path, buffer, {
-    contentType: attachment.contentType || (kind === 'gif' ? 'image/gif' : 'image/png'),
-    upsert: true,
-  });
-  if (uploadError) throw uploadError;
-
-  await updateGifCommandImage(safeCmd, path);
-  return path;
+  await updateGifCommandImage(safeCmd, assetUrl);
+  return assetUrl;
 }
 
 async function editPreviewMessage(channel, messageId, payload) {
@@ -115,22 +96,7 @@ function computeRenamedAssetPath(oldCommand, newCommand, oldPath) {
 }
 
 async function moveOrCopyStorageObject(bucket, fromPath, toPath) {
-  const supabase = getSupabase();
-  const storage = supabase.storage.from(bucket);
-
-  if (typeof storage.move === 'function') {
-    const { error } = await storage.move(fromPath, toPath);
-    if (!error) return;
-  }
-
-  if (typeof storage.copy === 'function') {
-    const { error: copyError } = await storage.copy(fromPath, toPath);
-    if (copyError) throw copyError;
-    await storage.remove([fromPath]).catch(() => {});
-    return;
-  }
-
-  throw new Error('Supabase storage does not support move/copy in this SDK version.');
+  return { bucket, fromPath, toPath };
 }
 
 function isAdminMember(member) {
@@ -151,11 +117,8 @@ function buildPreviewEmbed({ command, kind, row }) {
     const description = String(row?.text_description ?? '').trim();
     const label = String(row?.text_label ?? '').trim();
 
-    const bucket = process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
-    const supabase = getSupabase();
     const maybePath = row?.asset_path || row?.image_path;
-    const { data } = maybePath ? supabase.storage.from(bucket).getPublicUrl(String(maybePath)) : { data: null };
-    const url = data?.publicUrl ? String(data.publicUrl) : '';
+    const url = resolveAssetUrl(maybePath) || '';
 
     const prefix = mentions ? `${mentions} ` : '';
     const mid = description ? `${description} ` : '';
@@ -171,10 +134,8 @@ function buildPreviewEmbed({ command, kind, row }) {
   if (row?.footer) embed.setFooter({ text: String(row.footer) });
 
   if (row?.asset_path || row?.image_path) {
-    const bucket = process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
-    const supabase = getSupabase();
-    const { data } = supabase.storage.from(bucket).getPublicUrl(String(row.asset_path || row.image_path));
-    if (data?.publicUrl) embed.setImage(data.publicUrl);
+    const url = resolveAssetUrl(row.asset_path || row.image_path);
+    if (url) embed.setImage(url);
   } else {
     embed.setDescription('*No image set yet. Use `Change Image`.*');
   }
@@ -932,28 +893,15 @@ export async function handleGifCommandCrudInteraction(interaction) {
       return true;
     }
 
-    const bucket = process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
     const oldPath = oldRow.asset_path || oldRow.image_path;
-    let newPath = null;
-
-    if (oldPath) {
-      newPath = computeRenamedAssetPath(oldCommand, newCommand, oldPath);
-      try {
-        await moveOrCopyStorageObject(bucket, String(oldPath), String(newPath));
-      } catch (e) {
-        console.error('Failed to move storage asset during rename:', e);
-        await interaction.reply({ content: 'Failed to move the stored image. Try again or re-upload after renaming.', flags: MessageFlags.Ephemeral });
-        return true;
-      }
-    }
 
     await upsertGifCommand({
       command: newCommand,
       kind: oldRow.kind,
       title: oldRow.title ?? null,
       footer: oldRow.footer ?? null,
-      assetPath: newPath ?? undefined,
-      imagePath: newPath ?? undefined,
+      assetPath: oldPath ?? undefined,
+      imagePath: oldPath ?? undefined,
       pingUserIds: oldRow.ping_user_ids ?? undefined,
       textLabel: oldRow.text_label ?? undefined,
       textDescription: oldRow.text_description ?? undefined,

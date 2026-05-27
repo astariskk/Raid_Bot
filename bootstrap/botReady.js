@@ -13,7 +13,7 @@ export function registerBotReadyHandler(client) {
   const exitOnReadyFailure =
     !['1', 'true', 'yes'].includes(String(process.env.DISABLE_PROCESS_EXIT ?? '').toLowerCase());
 
-  client.once('ready', async () => {
+  client.once('clientReady', async () => {
     console.log(`Logged in as ${client.user.tag}!`);
 
     try {

@@ -1,5 +1,6 @@
-import { getSupabase } from './supabaseClient.js';
 import { EMBED_COLOR } from '../config/constants.js';
+import { connectMongo, getMongoDb } from './mongoClient.js';
+import { resolveAssetUrl } from './assetUrls.js';
 
 const cache = {
   loadedAtMs: 0,
@@ -8,16 +9,9 @@ const cache = {
 };
 
 export async function loadGifCommandsCache() {
-  const supabase = getSupabase();
-
-  const { data, error } = await supabase
-    .from('gif_commands')
-    .select('command,kind,title,footer,asset_path,image_path,ping_user_ids,text_label,text_description,text_content,color,enabled')
-    .eq('enabled', true);
-
-  if (error) throw error;
-
-  const bucket = process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
+  await connectMongo();
+  const db = getMongoDb();
+  const data = await db.collection('gif_commands').find({ enabled: true }).toArray();
 
   const gifCommands = {};
   const textGifCommands = {};
@@ -28,11 +22,7 @@ export async function loadGifCommandsCache() {
 
     if (row.kind === 'text') {
       const maybePath = row.asset_path || row.image_path;
-      let url = null;
-      if (maybePath) {
-        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(String(maybePath));
-        url = publicData?.publicUrl ?? null;
-      }
+      const url = resolveAssetUrl(maybePath);
 
       const pingIds = Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [];
       const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
@@ -52,10 +42,7 @@ export async function loadGifCommandsCache() {
     if (row.kind === 'gif') {
       let image = null;
       const maybePath = row.asset_path || row.image_path;
-      if (maybePath) {
-        const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(String(maybePath));
-        image = publicData?.publicUrl ?? null;
-      }
+      if (maybePath) image = resolveAssetUrl(maybePath);
 
       const info = {
         title: row.title ?? cmd,
@@ -84,17 +71,12 @@ export function getGifCommandsCache() {
 }
 
 export async function getGifCommand(command) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const { data, error } = await supabase
-    .from('gif_commands')
-    .select('command,kind,title,footer,asset_path,image_path,ping_user_ids,text_label,text_description,text_content,color,enabled')
-    .eq('command', cmd)
-    .maybeSingle();
-
-  if (error) throw error;
+  const data = await db.collection('gif_commands').findOne({ command: cmd }, { projection: { _id: 0 } });
   return data ?? null;
 }
 
@@ -112,7 +94,8 @@ export async function upsertGifCommand({
   color,
   enabled = true,
 }) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
@@ -127,42 +110,49 @@ export async function upsertGifCommand({
   if (textLabel !== undefined) row.text_label = textLabel;
   if (textDescription !== undefined) row.text_description = textDescription;
   if (color !== undefined) row.color = color;
+  row.updated_at = new Date();
 
-  const { error } = await supabase.from('gif_commands').upsert(row, { onConflict: 'command' });
-  if (error) throw error;
+  await db.collection('gif_commands').updateOne(
+    { command: cmd },
+    { $set: row, $setOnInsert: { created_at: new Date() } },
+    { upsert: true },
+  );
 
   await loadGifCommandsCache();
 }
 
 export async function updateGifCommand(command, patch = {}) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const { error } = await supabase.from('gif_commands').update(patch).eq('command', cmd);
-  if (error) throw error;
+  await db.collection('gif_commands').updateOne({ command: cmd }, { $set: { ...patch, updated_at: new Date() } });
 
   await loadGifCommandsCache();
 }
 
 export async function deleteGifCommand(command) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const { error } = await supabase.from('gif_commands').delete().eq('command', cmd);
-  if (error) throw error;
+  await db.collection('gif_commands').deleteOne({ command: cmd });
 
   await loadGifCommandsCache();
 }
 
 export async function updateGifCommandImage(command, imagePath) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const { error } = await supabase.from('gif_commands').update({ asset_path: imagePath, image_path: imagePath }).eq('command', cmd);
-  if (error) throw error;
+  await db.collection('gif_commands').updateOne(
+    { command: cmd },
+    { $set: { asset_path: imagePath, image_path: imagePath, updated_at: new Date() } },
+  );
 
   await loadGifCommandsCache();
 }

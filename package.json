@@ -4,7 +4,9 @@
   "description": "raid discord bot",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "migrate:db-data": "node scripts/migrateSupabaseJsonToMongo.js",
+    "migrate:db-data:dry": "node scripts/migrateSupabaseJsonToMongo.js --dry-run"
   },
   "repository": {
     "type": "git",
@@ -19,9 +21,9 @@
   },
   "homepage": "https://github.com/astariskk/Raid_Bot#readme",
   "dependencies": {
-    "@supabase/supabase-js": "^2.57.0",
     "discord.js": "^14.26.4",
     "dotenv": "^16.5.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "mongodb": "^6.16.0"
   }
 }

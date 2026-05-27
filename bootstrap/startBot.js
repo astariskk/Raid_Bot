@@ -23,11 +23,8 @@ export async function startBot() {
   registerDiscordDiagnostics(client);
 
   console.log('[env] DISCORD_TOKEN:', exists(process.env.DISCORD_TOKEN));
-  console.log('[env] SUPABASE_URL:', exists(process.env.SUPABASE_URL));
-  console.log(
-    '[env] SUPABASE_KEY:',
-    exists(process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY),
-  );
+  console.log('[env] MONGODB_URI:', exists(process.env.MONGODB_URI));
+  console.log('[env] MONGODB_DB:', exists(process.env.MONGODB_DB));
 
   const exitOnFatal =
     !['1', 'true', 'yes'].includes(String(process.env.DISABLE_PROCESS_EXIT ?? '').toLowerCase());

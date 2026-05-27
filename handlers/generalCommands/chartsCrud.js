@@ -11,7 +11,7 @@ import {
 } from 'discord.js';
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
-import { getSupabase } from '../../utils/supabaseClient.js';
+import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
 import {
   findChartKeyByTrigger,
   getChart,
@@ -52,10 +52,6 @@ function parseTriggers(input) {
   return Array.from(new Set(normalized.map((s) => s.toLowerCase()))).slice(0, 10);
 }
 
-function getChartsBucket() {
-  return process.env.SUPABASE_CHARTS_BUCKET || process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
-}
-
 function buildWizardEmbed(session) {
   const embed = new EmbedBuilder().setColor(EMBED_COLOR).setTitle(session.mode === 'add' ? 'Add Chart' : 'Edit Chart');
 
@@ -93,9 +89,8 @@ function buildWizardEmbed(session) {
   embed.setDescription(null);
 
   if (page?.asset_path) {
-    const supabase = getSupabase();
-    const { data } = supabase.storage.from(getChartsBucket()).getPublicUrl(String(page.asset_path));
-    if (data?.publicUrl) embed.setImage(data.publicUrl);
+    const url = resolveAssetUrl(page.asset_path);
+    if (url) embed.setImage(url);
   } else {
     embed.addFields({ name: 'No pages yet', value: 'Use `Add Page` to upload an image.', inline: false });
   }
@@ -128,9 +123,8 @@ function buildEditorEmbeds(session) {
     .setFooter({ text: total ? `Page ${idx + 1}/${total}` : 'Page 0/0' });
 
   if (page?.asset_path) {
-    const supabase = getSupabase();
-    const { data } = supabase.storage.from(getChartsBucket()).getPublicUrl(String(page.asset_path));
-    if (data?.publicUrl) variantEmbed.setImage(data.publicUrl);
+    const url = resolveAssetUrl(page.asset_path);
+    if (url) variantEmbed.setImage(url);
   } else {
     variantEmbed.addFields({ name: 'No pages yet', value: 'Use `Add Page` to upload an image.', inline: false });
   }
@@ -415,36 +409,13 @@ function buildEditTriggersModal({ messageId, initialTriggers = '' }) {
 }
 
 async function uploadChartPage({ typeKey, variantKey, attachment }) {
-  const url = attachment.url;
-  const filename = attachment.name || 'chart';
-
-  const res = await fetch(url);
-  const arr = await res.arrayBuffer();
-  const buffer = Buffer.from(arr);
-
-  const ext = filename.includes('.') ? filename.slice(filename.lastIndexOf('.')) : '';
-  const path = `${normalizeTypeKey(typeKey)}/${normalizeChartVariantKey(variantKey)}/${Date.now()}_${Math.random().toString(16).slice(2)}${ext || ''}`.slice(
-    0,
-    450,
-  );
-
-  const supabase = getSupabase();
-  const { error } = await supabase.storage.from(getChartsBucket()).upload(path, buffer, {
-    contentType: attachment.contentType || 'image/png',
-    upsert: true,
-  });
-  if (error) throw error;
-  return path;
+  const url = getStoredAssetValueFromAttachment(attachment);
+  if (!url) throw new Error('Attachment URL is missing.');
+  return url;
 }
 
 async function deleteAllTypeAssets(chart) {
-  const variants = Array.isArray(chart?.variants) ? chart.variants : [];
-  const paths = variants
-    .flatMap((v) => (Array.isArray(v.pages) ? v.pages : []).map((p) => p?.asset_path).filter(Boolean))
-    .map(String);
-  if (!paths.length) return;
-  const supabase = getSupabase();
-  await supabase.storage.from(getChartsBucket()).remove(paths).catch(() => {});
+  return chart;
 }
 
 async function deleteTypeWithAssets(typeKey) {
@@ -1056,12 +1027,7 @@ export async function handleChartsCrudInteraction(interaction) {
     }
 
     if (action === 'delvariant') {
-      const removed = chart.variants.splice(variantIndex, 1)[0];
-      const removedPaths = (removed?.pages || []).map((p) => p?.asset_path).filter(Boolean).map(String);
-      if (removedPaths.length) {
-        const supabase = getSupabase();
-        await supabase.storage.from(getChartsBucket()).remove(removedPaths).catch(() => {});
-      }
+      chart.variants.splice(variantIndex, 1);
 
       await updateChart(chart.key, { variants: chart.variants });
       const updated = await getChart(chart.key);
@@ -1148,7 +1114,6 @@ export async function handleChartsCrudInteraction(interaction) {
       }
 
       const idx = Math.max(0, Math.min(session.pageIndex ?? 0, pages.length - 1));
-      const currentPage = pages[idx] || null;
 
       await interaction.deferUpdate().catch(() => {});
       await interaction.followUp({ content: 'Upload the new chart image as your next message (within 60s).', flags: MessageFlags.Ephemeral }).catch(() => {});
@@ -1165,11 +1130,6 @@ export async function handleChartsCrudInteraction(interaction) {
         });
         const attachment = collected.first().attachments.first();
         const assetPath = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
-
-        if (currentPage?.asset_path) {
-          const supabase = getSupabase();
-          await supabase.storage.from(getChartsBucket()).remove([String(currentPage.asset_path)]).catch(() => {});
-        }
 
         const updatedPages = [...pages];
         updatedPages[idx] = { ...updatedPages[idx], asset_path: assetPath };
@@ -1199,12 +1159,6 @@ export async function handleChartsCrudInteraction(interaction) {
       }
 
       const idx = Math.max(0, Math.min(session.pageIndex ?? 0, pages.length - 1));
-      const removed = pages[idx];
-      if (removed?.asset_path) {
-        const supabase = getSupabase();
-        await supabase.storage.from(getChartsBucket()).remove([String(removed.asset_path)]).catch(() => {});
-      }
-
       const newPages = pages.filter((_, i) => i !== idx);
       const updatedVariants = [...chart.variants];
       updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], pages: newPages };

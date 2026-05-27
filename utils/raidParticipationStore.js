@@ -1,4 +1,4 @@
-import { getSupabase } from './supabaseClient.js';
+import { connectMongo, getMongoDb } from './mongoClient.js';
 
 function normalizeId(value) {
   return String(value ?? '').trim();
@@ -20,18 +20,22 @@ export async function joinRaidHelper(raidId, helperId, { joinedAt = new Date().t
   const helper = normalizeId(helperId);
   if (!raid || !helper) throw new Error('Raid ID and helper ID are required.');
 
-  const supabase = getSupabase();
-  const { error } = await supabase.from('raid_ticket_helpers').upsert(
+  await connectMongo();
+  const db = getMongoDb();
+  await db.collection('raid_ticket_helpers').updateOne(
+    { raid_id: raid, helper_id: helper },
     {
-      raid_id: raid,
-      helper_id: helper,
-      joined_at: joinedAt,
-      removed_at: null,
-      removed_by: null,
+      $set: {
+        raid_id: raid,
+        helper_id: helper,
+        joined_at: joinedAt,
+        removed_at: null,
+        removed_by: null,
+      },
+      $setOnInsert: { created_at: new Date() },
     },
-    { onConflict: 'raid_id,helper_id' },
+    { upsert: true },
   );
-  if (error) throw error;
 }
 
 export async function removeRaidHelper(raidId, helperId, removedBy) {
@@ -39,30 +43,26 @@ export async function removeRaidHelper(raidId, helperId, removedBy) {
   const helper = normalizeId(helperId);
   if (!raid || !helper) throw new Error('Raid ID and helper ID are required.');
 
-  const supabase = getSupabase();
-  const { error } = await supabase
-    .from('raid_ticket_helpers')
-    .update({ removed_at: new Date().toISOString(), removed_by: normalizeId(removedBy) || null })
-    .eq('raid_id', raid)
-    .eq('helper_id', helper);
-  if (error) throw error;
+  await connectMongo();
+  const db = getMongoDb();
+  await db.collection('raid_ticket_helpers').updateOne(
+    { raid_id: raid, helper_id: helper },
+    { $set: { removed_at: new Date().toISOString(), removed_by: normalizeId(removedBy) || null } },
+  );
 }
 
 export async function listRaidHelpers(raidId, { includeRemoved = false } = {}) {
   const raid = normalizeId(raidId);
   if (!raid) return [];
 
-  const supabase = getSupabase();
-  let query = supabase
-    .from('raid_ticket_helpers')
-    .select('raid_id,helper_id,joined_at,removed_at,removed_by')
-    .eq('raid_id', raid)
-    .order('joined_at', { ascending: true });
-
-  if (!includeRemoved) query = query.is('removed_at', null);
-
-  const { data, error } = await query;
-  if (error) throw error;
+  await connectMongo();
+  const db = getMongoDb();
+  const filter = { raid_id: raid };
+  if (!includeRemoved) filter.removed_at = null;
+  const data = await db.collection('raid_ticket_helpers')
+    .find(filter, { projection: { _id: 0, raid_id: 1, helper_id: 1, joined_at: 1, removed_at: 1, removed_by: 1 } })
+    .sort({ joined_at: 1 })
+    .toArray();
   return (data ?? []).map(normalizeRow).filter(Boolean);
 }
 

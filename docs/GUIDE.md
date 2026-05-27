@@ -7,12 +7,45 @@
 2. Create a `.env` file (or set env vars in your host):
    - `DISCORD_TOKEN` = your bot token
    - `GUILD_ID` = guild/server ID where slash commands are registered
-   - `SUPABASE_URL` = Supabase Project Settings -> API -> Project URL
-   - `SUPABASE_SERVICE_ROLE_KEY` = Supabase Project Settings -> API -> Service role key
-   - `SUPABASE_GIF_BUCKET` (optional) = `gif-commands`
+   - `MONGODB_URI` = MongoDB Atlas connection string
+   - `MONGODB_DB` = database name, for example `raid_bot`
    - `PORT` (optional) = health server port (defaults to `3000`)
 3. Run:
    - `npm start`
+
+Example database `.env` values:
+
+```env
+MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
+MONGODB_DB=raid_bot
+MONGODB_DNS_SERVERS=8.8.8.8,8.8.4.4
+```
+
+In Atlas, create a database user in **Database Access**, allow your bot host in **Network Access**, then copy the Node.js driver connection string from **Connect** -> **Drivers**.
+
+If `mongodb+srv://` fails with a `_mongodb._tcp...` DNS error, set `MONGODB_DNS_SERVERS` as shown above or switch to Atlas's non-SRV `mongodb://host1,host2,host3/...` connection string.
+
+## Migrating Old Supabase Exports
+
+Put exported Supabase JSON files in `DB_DATA/`, then run:
+
+- `npm run migrate:db-data:dry`
+- `npm run migrate:db-data`
+
+The real migration downloads private Supabase Storage files, uploads them into Discord archive channels, and stores the returned Discord attachment URLs in MongoDB.
+
+Temporary `.env` values needed during migration:
+
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `SUPABASE_GIF_BUCKET=images-storage`
+
+Default Discord archive channels:
+
+- GIF/text commands: `1509062194212503603`
+- Charts: `1509062095239385169`
+
+`GUILD_ID` should stay as the main server ID for normal bot/slash-command behavior. If these archive channels are in a separate backup server, set `MIGRATE_BACKUP_GUILD_ID` to the backup server ID for migration-time validation.
 
 ## What Runs on Startup
 
@@ -37,7 +70,7 @@ If you copy this bot to a new guild, update the IDs in `config/constants/server.
 
 ## Task / EXP Configuration
 
-Raid tasks are stored in Supabase and can be managed in Discord with:
+Raid tasks are stored in MongoDB Atlas and can be managed in Discord with:
 - `/modifytasks`
 - `!managetasks`
 - `!modifytasks`
@@ -52,8 +85,7 @@ Key exports:
 - task category lists used by the raid wizard cache
 - `MAX_XP_PER_RAID` raid EXP cap
 
-Task database schema lives in:
-- `database/tasks.sql`
+Mongo collections and indexes are created automatically when the bot connects.
 
 ## Map Join Prefixes
 

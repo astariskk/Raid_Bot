@@ -1,4 +1,4 @@
-import { getSupabase } from './supabaseClient.js';
+import { connectMongo, getMongoDb } from './mongoClient.js';
 
 let chartsCache = null; // { byTypeKey, byCategoryKey, triggerToTypeKey }
 let chartsLoadedAtMs = 0;
@@ -46,12 +46,9 @@ function normalizeVariantsRow(row) {
 }
 
 export async function loadChartsCache() {
-  const supabase = getSupabase();
-  const { data, error } = await supabase
-    .from('charts')
-    .select('key,category,title,triggers,variants,pages,enabled')
-    .eq('enabled', true);
-  if (error) throw error;
+  await connectMongo();
+  const db = getMongoDb();
+  const data = await db.collection('charts').find({ enabled: true }).toArray();
 
   const byTypeKey = {};
   const byCategoryKey = {};
@@ -100,9 +97,9 @@ export function getChartsCache() {
 }
 
 export async function listChartsKeys() {
-  const supabase = getSupabase();
-  const { data, error } = await supabase.from('charts').select('key').order('key', { ascending: true });
-  if (error) throw error;
+  await connectMongo();
+  const db = getMongoDb();
+  const data = await db.collection('charts').find({}, { projection: { _id: 0, key: 1 } }).sort({ key: 1 }).toArray();
   return (data ?? []).map((r) => normalizeTypeKey(r.key)).filter(Boolean);
 }
 
@@ -131,16 +128,12 @@ export async function listChartTypesInCategory(category) {
 }
 
 export async function getChart(key) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
 
-  const { data, error } = await supabase
-    .from('charts')
-    .select('key,category,title,triggers,variants,pages,enabled')
-    .eq('key', k)
-    .maybeSingle();
-  if (error) throw error;
+  const data = await db.collection('charts').findOne({ key: k });
   if (!data) return null;
 
   return {
@@ -154,7 +147,8 @@ export async function getChart(key) {
 }
 
 export async function upsertChart({ key, category = 'general', title, triggers = [], variants, enabled = true }) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
 
@@ -165,16 +159,21 @@ export async function upsertChart({ key, category = 'general', title, triggers =
     triggers: Array.isArray(triggers) ? triggers.map(normalizeTrigger).filter(Boolean) : [],
     variants: Array.isArray(variants) ? variants : [],
     enabled,
+    updated_at: new Date(),
   };
 
-  const { error } = await supabase.from('charts').upsert(row, { onConflict: 'key' });
-  if (error) throw error;
+  await db.collection('charts').updateOne(
+    { key: k },
+    { $set: row, $setOnInsert: { created_at: new Date() } },
+    { upsert: true },
+  );
 
   await loadChartsCache();
 }
 
 export async function updateChart(key, patch = {}) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
 
@@ -191,19 +190,19 @@ export async function updateChart(key, patch = {}) {
     normalizedPatch.variants = Array.isArray(normalizedPatch.variants) ? normalizedPatch.variants : [];
   }
 
-  const { error } = await supabase.from('charts').update(normalizedPatch).eq('key', k);
-  if (error) throw error;
+  normalizedPatch.updated_at = new Date();
+  await db.collection('charts').updateOne({ key: k }, { $set: normalizedPatch });
 
   await loadChartsCache();
 }
 
 export async function deleteChart(key) {
-  const supabase = getSupabase();
+  await connectMongo();
+  const db = getMongoDb();
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
 
-  const { error } = await supabase.from('charts').delete().eq('key', k);
-  if (error) throw error;
+  await db.collection('charts').deleteOne({ key: k });
 
   await loadChartsCache();
 }

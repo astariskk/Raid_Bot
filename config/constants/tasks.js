@@ -1,5 +1,5 @@
 // config/constants/tasks.js
-import { getSupabase } from '../../utils/supabaseClient.js';
+import { connectMongo, getMongoDb } from '../../utils/mongoClient.js';
 
 export const MAX_XP_PER_RAID = 30000; // 30,000 EXP per raid
 
@@ -306,23 +306,18 @@ function applyTaskRows(rows, { source = 'database', error = null, categoryRows =
 
 export async function loadRaidTasksCache({ fallbackOnError = true } = {}) {
   try {
-    const supabase = getSupabase();
-    const [{ data, error }, { data: categoryData, error: categoryError }] = await Promise.all([
-      supabase
-      .from('raid_tasks')
-      .select('key,display_name,points,category,active,description,map_names,aliases,sort_order')
-      .order('category', { ascending: true })
-      .order('sort_order', { ascending: true })
-        .order('key', { ascending: true }),
-      supabase
-        .from('raid_task_categories')
-        .select('key,display_name,sort_order')
-        .order('sort_order', { ascending: true })
-        .order('display_name', { ascending: true }),
+    await connectMongo();
+    const db = getMongoDb();
+    const [data, categoryData] = await Promise.all([
+      db.collection('raid_tasks')
+        .find({}, { projection: { _id: 0 } })
+        .sort({ category: 1, sort_order: 1, key: 1 })
+        .toArray(),
+      db.collection('raid_task_categories')
+        .find({}, { projection: { _id: 0 } })
+        .sort({ sort_order: 1, display_name: 1 })
+        .toArray(),
     ]);
-
-    if (error) throw error;
-    if (categoryError) throw categoryError;
 
     const rows = data?.length ? data : FALLBACK_TASK_ROWS;
     applyTaskRows(rows, { source: data?.length ? 'database' : 'fallback', categoryRows: categoryData?.length ? categoryData : FALLBACK_CATEGORY_ROWS });
@@ -362,5 +357,5 @@ export function raidNeedsModalMapName(tasks = []) {
   return (tasks || []).some((task) => taskUsesModalMaps(task));
 }
 
-// Populate synchronously so imported constants are usable before startup refreshes from Supabase.
+// Populate synchronously so imported constants are usable before startup refreshes from MongoDB.
 applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', categoryRows: FALLBACK_CATEGORY_ROWS });
