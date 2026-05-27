@@ -460,9 +460,12 @@ export function setupGeneralCommandsHandler(client) {
                 return;
             }
 
-if (cancelSessionId) {
+            if (cancelSessionId) {
                 consumeRaidWizardSession(cancelSessionId);
-                await interaction.update({ components: [], flags: MessageFlags.IsComponentsV2 });
+                await interaction.update({
+                    components: [text('Raid creation cancelled.')],
+                    flags: MessageFlags.IsComponentsV2,
+                });
                 return;
             }
 
