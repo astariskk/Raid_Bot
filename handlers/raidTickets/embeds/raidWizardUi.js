@@ -287,7 +287,7 @@ export function getRaidWizardEditCategoryV2(sessionId, categoryKeys, tasks) {
         .addTextDisplayComponents(text('Select a task category.'))
         .addTextDisplayComponents(text(`**Selected Categories**\n${categoryText}`))
         .addTextDisplayComponents(text(`**Current Tasks**\n${taskText}`))
-        .addTextDisplayComponents(text(`**Task Count**\n${taskCountText}`))
+        .addTextDisplayComponents(text(`You can scroll down for more options.`))   
         .addActionRowComponents(getRaidWizardEditCategorySelectRow(sessionId, categoryKeys))
         .addSeparatorComponents(separator())
         .addActionRowComponents(getRaidWizardEditNavRow(sessionId, { step: 'category', canContinue }));
@@ -302,8 +302,9 @@ export function getRaidWizardEditTasksV2(sessionId, categoryKeys, tasks) {
 
     const components = [
         text('### Edit Raid - Page 2/2'),
-        text(`Select task(s) for **${categoryLabel || 'selected categories'}**.`),
+        text(`Select the tasks for **${categoryLabel || 'selected categories'}**.`),
         text(`**Selected Tasks**\n${taskText}`),
+        text('You can scroll down for more options.'),
     ];
 
     if ((categoryKeys || []).some((key) => key === 'generic' || key === 'spamming')) {
@@ -323,3 +324,4 @@ export function getRaidWizardEditTasksV2(sessionId, categoryKeys, tasks) {
         .addSeparatorComponents(separator())
         .addActionRowComponents(getRaidWizardEditNavRow(sessionId, { step: 'tasks', canContinue: tasks.length > 0 }));
 }
+

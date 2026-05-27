@@ -186,6 +186,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
   if (interaction.customId === 'joinRaidTicket') {
     const isRequester = interaction.user.id === raidInfo.requesterId;
+
     if (!isRequester && !hasWarriorRole(interaction.member)) {
       await interaction.reply({ content: `You need the <@&${RAID_HELPER_ROLE_ID}> role to join this ticket.`, flags: MessageFlags.Ephemeral });
       return;
@@ -194,12 +195,15 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     if (isRequester) {
       if (raidInfo.mapNumber) {
         const embed = generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber);
+        // Always send the embed; generateRaidMapsEmbed handles missing map links safely.
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
       } else {
+        // Avoid calling generateRaidMapsEmbed with an empty map number (would produce invalid links).
         await interaction.reply({ content: 'No map number is set yet.', flags: MessageFlags.Ephemeral });
       }
       return;
     }
+
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const alreadyJoined = helpers.some((helper) => helper.helperId === interaction.user.id && !helper.removedAt);
