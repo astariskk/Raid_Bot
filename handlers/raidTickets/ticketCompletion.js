@@ -13,10 +13,9 @@ import {
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
 import { EMBED_COLOR, MAX_HELPERS, RAID_HELPER_ROLE_ID, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
 import {
-  buildClosePartialTasksModal,
-  CLOSE_PARTIAL_TASKS_MODAL_ID,
-  getClosePartialTasksSelections,
-} from '../../Embeds/raidTicket/closePartialTasksModal.js';
+  ATTACH_PARTIAL_TASKS_MODAL_ID,
+  buildAttachPartialTasksModal,
+} from '../../Embeds/raidTicket/attachPartialTasksModal.js';
 import {
   buildTaskHelpedModal,
   getTaskHelpedModalSelections,
@@ -25,8 +24,9 @@ import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
 import { buildClosePointsMap } from './domain/closePoints.js';
 import {
-    getPartialHelpersMissingTasks,
-    normalizePartialHelpers,
+  getAttachableTaskKeys,
+  getPartialHelpersNeedingTaskAttach,
+  normalizePartialHelpers,
 } from './domain/partialHelpers.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
@@ -465,45 +465,6 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
         const existing = normalizePartialHelpers(raidInfo).find((entry) => entry.helperId === helperId);
         await interaction.showModal(buildTaskHelpedModal(helperId, taskKeys, existing?.tasks ?? []));
-        return;
-    }
-
-    if (interaction.isModalSubmit?.() && interaction.customId === CLOSE_PARTIAL_TASKS_MODAL_ID) {
-        const currentRaidInfo = await getRaidInfo(interaction.channel.id);
-        const joinedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
-        const missingBefore = getPartialHelpersMissingTasks(currentRaidInfo, joinedHelpers);
-        const helperIds = missingBefore.map((helper) => helper.helperId).slice(0, 4);
-        const selections = getClosePartialTasksSelections(interaction, helperIds);
-
-        let partialHelpers = normalizePartialHelpers(currentRaidInfo);
-        for (const helperId of helperIds) {
-            const rawSelected = (selections[helperId] || []);
-            const hasNone = rawSelected.includes('__none__');
-            const selectedTasks = hasNone
-                ? []
-                : [...new Set(rawSelected.map((task) => String(task).toLowerCase()).filter((task) => task !== '__none__'))];
-
-            partialHelpers = partialHelpers.filter((entry) => entry.helperId !== helperId);
-            partialHelpers.push({ helperId, tasks: selectedTasks });
-        }
-
-        await updateRaid(interaction.channel.id, { partialHelpers });
-
-        const refreshedRaidInfo = { ...raidInfo, partialHelpers };
-        const stillMissing = getPartialHelpersMissingTasks(refreshedRaidInfo, joinedHelpers);
-        if (stillMissing.length > 0) {
-            await interaction.reply({
-                content: stillMissing.length > 4
-                    ? `${stillMissing.length} partial helpers still need tasks. Use **Task Helped** on each, then press **Confirm Close** again.`
-                    : 'Some partial helpers still need tasks. Press **Confirm Close** again to finish assigning them.',
-                flags: MessageFlags.Ephemeral,
-            });
-            return;
-        }
-
-        await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-        await executeRaidClose(interaction, client, refreshedRaidInfo, joinedHelpers);
-        await interaction.editReply({ content: 'Raid closed successfully.' }).catch(() => {});
         return;
     }
 
@@ -962,21 +923,12 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
     /* ---------- CONFIRM CLOSING ---------- */
     if (interaction.customId === 'confirmCloseSelection') {
         const joinedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
-        const missingPartialTasks = getPartialHelpersMissingTasks(raidInfo, joinedHelpers);
-
-        if (missingPartialTasks.length > 4) {
-            await interaction.reply({
-                content: `${missingPartialTasks.length} partial helpers still need task assignments. Use **Task Helped** on each helper in the ticket, then press **Confirm Close** again.`,
-                flags: MessageFlags.Ephemeral,
-            });
-            return;
-        }
+        const missingPartialTasks = getPartialHelpersNeedingTaskAttach(raidInfo, joinedHelpers);
 
         if (missingPartialTasks.length > 0) {
             const helpersWithNames = await enrichPartialHelpersWithNames(interaction, missingPartialTasks);
-            await interaction.showModal(
-                buildClosePartialTasksModal(helpersWithNames, getUniqueRaidTaskKeys(raidInfo)),
-            );
+            const taskKeys = getAttachableTaskKeys(raidInfo);
+            await interaction.showModal(buildAttachPartialTasksModal(helpersWithNames, taskKeys));
             return;
         }
 

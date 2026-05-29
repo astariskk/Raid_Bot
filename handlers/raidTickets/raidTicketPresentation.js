@@ -23,8 +23,11 @@ export {
   buildExpLairThreadBreakdown,
   formatActiveHelperEmbedLines,
   formatPartialHelperEmbedLines,
+  getAttachableTaskKeys,
+  getPartialHelpersNeedingTaskAttach,
   mergePartialHelperAttachments,
   normalizePartialHelpers,
+  raidHasNonSpammingTasks,
 } from './domain/index.js';
 
 export {

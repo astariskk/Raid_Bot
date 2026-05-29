@@ -13,6 +13,8 @@ import {
   getAttachPartialTasksSelections,
 } from '../../Embeds/raidTicket/attachPartialTasksModal.js';
 import {
+  buildPartialHelperRecordOnLeave,
+  getAttachableTaskKeys,
   mergePartialHelperAttachments,
   normalizePartialHelpers,
 } from './domain/partialHelpers.js';
@@ -24,6 +26,7 @@ import {
   getHelperPingCooldownRemainingMs,
   getRaidHelperCapacity,
   computeRaidStatusFromHelpers,
+  getRaidTaskFieldDisplay,
   getRaidTicketMessageUrl,
   getVisibleHelpers,
   isSpammingRaid,
@@ -100,6 +103,11 @@ async function processHelperLeave(interaction, raidInfo, helperId) {
   await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
 
   const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+  const partialHelpers = buildPartialHelperRecordOnLeave(raidInfo, helperId, helpers);
+  if (partialHelpers.length !== (raidInfo?.partialHelpers?.length ?? 0)) {
+    await updateRaid(interaction.channel.id, { partialHelpers });
+    raidInfo = { ...raidInfo, partialHelpers };
+  }
   const activeHelperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
 
   await sendHelperLeftNotification({
@@ -354,14 +362,17 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const partialEntries = helpers.filter((helper) => helper.removedAt);
-    const taskKeys = getUniqueRaidTaskKeys(raidInfo);
+    const taskKeys = getAttachableTaskKeys(raidInfo);
 
     if (!partialEntries.length) {
       await interaction.reply({ content: 'No partial helpers to assign tasks to.', flags: MessageFlags.Ephemeral });
       return;
     }
     if (!taskKeys.length) {
-      await interaction.reply({ content: 'No tasks found on this ticket.', flags: MessageFlags.Ephemeral });
+      await interaction.reply({
+        content: 'This raid has no non-spamming tasks to attach. Spamming time is tracked automatically.',
+        flags: MessageFlags.Ephemeral,
+      });
       return;
     }
 
@@ -401,9 +412,14 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       helpers,
     });
 
-    const label = selectedTasks.join(', ');
+    const label = selectedTasks.length
+      ? getRaidTaskFieldDisplay(selectedTasks.join(', '))
+      : 'tasks';
+    const closingHint = raidInfo?.isAwaitingCompletion
+      ? ' Press **Confirm Close** to finish closing the raid.'
+      : '';
     await interaction.reply({
-      content: `Attached **${label}** to ${helperIds.map((id) => `<@${id}>`).join(', ')}.`,
+      content: `Attached **${label}** to ${helperIds.map((id) => `<@${id}>`).join(', ')}.${closingHint}`,
       flags: MessageFlags.Ephemeral,
     });
     return;
