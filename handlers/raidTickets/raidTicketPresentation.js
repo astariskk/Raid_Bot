@@ -125,7 +125,7 @@ export function buildRaidRequestEmbeds({ requester, raidInfo, helpers = [] }) {
         { name: 'Current Status', value: status, inline: false },
         { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers), inline: false },
       );
-    if (midRunPartials.length) {
+    if (midRunPartials.length && isSpammingRaid(raidInfo)) {
       statusEmbed.addFields({
         name: 'Partial Helpers',
         value: formatPartialHelperMentions(midRunPartials),
@@ -140,7 +140,7 @@ export function buildRaidRequestEmbeds({ requester, raidInfo, helpers = [] }) {
     { name: `Helpers: ${activeHelpers.length}/${helperCapacity}`, value: formatHelperLines(activeHelpers, { includeTime }), inline: false },
   );
 
-  if (midRunPartials.length) {
+  if (midRunPartials.length && isSpammingRaid(raidInfo)) {
     statusEmbed.addFields({
       name: 'Partial Helpers',
       value: formatPartialHelperMentions(midRunPartials),

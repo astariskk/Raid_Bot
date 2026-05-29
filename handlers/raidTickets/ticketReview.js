@@ -22,7 +22,7 @@ import {
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
 import { buildExpLairThreadBreakdown } from './domain/closePoints.js';
-import { normalizePartialHelpers } from './domain/partialHelpers.js';
+import { formatParticipationDuration, normalizePartialHelpers } from './domain/partialHelpers.js';
 import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
 import { getRaidTaskFieldDisplay, getTaskKeys, isSpammingRaid } from './raidTicketPresentation.js';
@@ -59,9 +59,10 @@ function formatPartialHelpersBlock(raidInfo) {
 
   const lines = partial
     .map((e) => {
-      const tasks = e.tasks?.length ? e.tasks.join(', ') : 'No task helped';
+      const duration = formatParticipationDuration(e.timeSeconds);
+      const display = duration ? `Time: ${duration}` : 'No time recorded';
       // Avoid pinging partial helpers in the admin review embed.
-      return `- \`${e.helperId}\`: ${tasks}`;
+      return `- \`${e.helperId}\`: ${display}`;
     })
     .join('\n')
     .slice(0, 1000);

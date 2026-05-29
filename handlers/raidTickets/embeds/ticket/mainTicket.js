@@ -10,7 +10,6 @@ import {
 import { EMBED_COLOR, RAID_STATUS, STATUS_COLORS } from '../../../../config/constants.js';
 import {
   addHelperButton,
-  attachTasksButton,
   cancelTicketButton,
   closeTicketButton,
   editDescriptionButton,
@@ -30,6 +29,7 @@ import { CLOSE_HELPER_HINT, HELPER_MANAGEMENT_HINT } from './constants.js';
 import {
   getRaidHelperCapacity,
   getRaidTaskFieldDisplay,
+  isSpammingRaid,
 } from '../../raidTicketLogic.js';
 
 function text(content) {
@@ -82,8 +82,8 @@ function addCurrentHelpersSection(container, { activeHelpers, helperCapacity, is
 }
 
 function addPartialHelpersSection(container, { midRunPartials, raidInfo }) {
-  if (!midRunPartials.length) return;
-  container.addSectionComponents(section('**Partial Helpers**', attachTasksButton));
+  if (!midRunPartials.length || !isSpammingRaid(raidInfo)) return;
+  container.addTextDisplayComponents(text('**Partial Helpers**'));
   container.addTextDisplayComponents(
     text(formatPartialHelperEmbedLines(midRunPartials, raidInfo?.partialHelpers, raidInfo).slice(0, 4000)),
   );

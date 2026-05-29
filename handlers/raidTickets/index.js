@@ -52,10 +52,7 @@ export function setupRaidHandlers(client) {
 
         // Completion Flow (Close, Helpers, Proof)
         if (
-            ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid', 'partialHelper_btn'].includes(interaction.customId) ||
-            interaction.customId.startsWith('partialHelper_') ||
-            interaction.customId.startsWith('taskHelped_') ||
-            interaction.customId.startsWith('taskHelpedModal_')
+            ['closeRaidTicket', 'closeRaid_SelectHelpers', 'confirmCloseSelection', 'provideProof', 'abortCloseRaid'].includes(interaction.customId)
         ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;
@@ -79,8 +76,6 @@ export function setupRaidHandlers(client) {
             interaction.customId === 'joinRaidTicket'
             || interaction.customId === 'leaveRaidTicket'
             || interaction.customId === 'addHelperButton'
-            || interaction.customId === 'attachTasks_btn'
-            || interaction.customId === 'attachPartialTasksModal'
             || interaction.customId === 'kickHelperSelect'
             || interaction.customId === 'pingHelpersButton'
             || interaction.customId.includes('raidmaps')

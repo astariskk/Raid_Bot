@@ -12,8 +12,8 @@ export function raidHasNonSpammingTasks(raidInfo) {
   return getAttachableTaskKeys(raidInfo).length > 0;
 }
 
-export function getPartialHelperNonSpammingTasks(entry) {
-  return (entry?.tasks ?? []).filter((task) => !SPAMMING_KEY_PATTERN(task));
+export function getPartialHelperNonSpammingTasks(/* entry */) {
+  return [];
 }
 
 export function formatNonSpammingTasksDisplay(taskKeys) {
@@ -28,7 +28,7 @@ export function normalizePartialHelpers(raidInfo) {
   return raw
     .map((entry) => ({
       helperId: entry?.helperId ? String(entry.helperId) : null,
-      tasks: Array.isArray(entry?.tasks) ? entry.tasks.map((t) => String(t).toLowerCase()).filter(Boolean) : [],
+      tasks: [],
       timeSeconds: Number.isFinite(Number(entry?.timeSeconds)) ? Number(entry.timeSeconds) : null,
     }))
     .filter((entry) => entry.helperId);
@@ -71,22 +71,17 @@ export function formatActiveHelperEmbedLines(activeHelpers, raidInfo) {
 }
 
 export function formatPartialHelperEmbedLines(midRunPartials, partialHelpers, raidInfo) {
-  if (!midRunPartials.length) return '';
-  const trackTime = isSpammingRaid(raidInfo);
+  if (!midRunPartials.length || !isSpammingRaid(raidInfo)) return '';
   const normalized = normalizePartialHelpers(raidInfo);
 
   return midRunPartials
     .map((helper) => {
       const entry = getPartialHelperEntry(normalized, helper.helperId);
-      const nonSpamTasks = getPartialHelperNonSpammingTasks(entry);
-      const taskLabel = nonSpamTasks.length
-        ? formatNonSpammingTasksDisplay(nonSpamTasks)
-        : 'No Task Helped';
       const duration = formatParticipationDuration(
-        getPartialHelperDisplaySeconds(helper, entry, { trackTime }),
+        getPartialHelperDisplaySeconds(helper, entry, { trackTime: true }),
       );
       const timeLine = duration ? `\n  * Time: ${duration}` : '';
-      return `* <@${helper.helperId}>: ${taskLabel}${timeLine}`;
+      return `* <@${helper.helperId}>${timeLine}`;
     })
     .join('\n');
 }
@@ -149,18 +144,16 @@ export function getPartialHelpersMissingTasks(raidInfo, joinedHelpers = []) {
 export function buildPartialHelperRecordOnLeave(raidInfo, helperId, helpers) {
   const partialHelpers = normalizePartialHelpers(raidInfo);
   if (!isSpammingRaid(raidInfo)) return partialHelpers;
-  const existing = getPartialHelperEntry(partialHelpers, helperId);
-  if (existing) return partialHelpers;
 
   const helperRow = (helpers || []).find((row) => String(row.helperId) === String(helperId));
   const timeSeconds = helperRow ? getHelperTotalSeconds(helperRow) : null;
+  const next = partialHelpers.filter((entry) => String(entry.helperId) !== String(helperId));
 
-  return [
-    ...partialHelpers,
-    {
-      helperId: String(helperId),
-      tasks: [],
-      ...(timeSeconds != null ? { timeSeconds } : {}),
-    },
-  ];
+  next.push({
+    helperId: String(helperId),
+    tasks: [],
+    ...(timeSeconds != null ? { timeSeconds } : {}),
+  });
+
+  return next;
 }

@@ -1,9 +1,9 @@
 export const HELPER_PING_COOLDOWN_MS = 30 * 60 * 1000;
 
 export const HELPER_MANAGEMENT_HINT =
-  'Use **➕ Add Helper** (top right of the helper list) or to manually add helpers. \nYou can remove someone with the dropdown under the list. \nUse 📝 **Attach Tasks** to assign tasks for helpers that left.';
+  'Use **➕ Add Helper** (top right of the helper list) or to manually add helpers. \nYou can remove someone with the dropdown under the list. \nPartial helper time is tracked automatically.';
 export const CLOSE_HELPER_HINT =
-  'Use **Attach Tasks** on partial helpers if needed, then confirm close. Spamming EXP is based on total time in the ticket.\n' +
+  'Spamming EXP is based on total time in the ticket.\n' +
   'Click **Close Raid** to start closing, then confirm when ready.';
 
 export const RAID_TICKET_HELP_TEXT =

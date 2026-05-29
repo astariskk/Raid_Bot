@@ -53,11 +53,6 @@ export const addHelperButton = new ButtonBuilder()
     .setLabel('➕ Add Helper')
     .setStyle(ButtonStyle.Secondary);
 
-export const attachTasksButton = new ButtonBuilder()
-    .setCustomId('attachTasks_btn')
-    .setLabel('📝 Attach Tasks')
-    .setStyle(ButtonStyle.Secondary);
-
 export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, raidmapsButton, closeTicketButton, cancelTicketButton);
 
 export function getEditRequestRow() {

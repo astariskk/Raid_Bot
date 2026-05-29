@@ -8,15 +8,7 @@ import {
   getAddHelperUserIds,
 } from './embeds/ticket/addHelperModal.js';
 import {
-  ATTACH_PARTIAL_TASKS_MODAL_ID,
-  buildAttachPartialTasksModal,
-  getAttachPartialTasksSelections,
-  NO_TASK_HELPED_VALUE,
-} from './embeds/ticket/attachPartialTasksModal.js';
-import {
   buildPartialHelperRecordOnLeave,
-  getAttachableTaskKeys,
-  mergePartialHelperAttachments,
   normalizePartialHelpers,
 } from './domain/partialHelpers.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
@@ -364,92 +356,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     return;
   }
 
-  if (interaction.customId === 'attachTasks_btn') {
-    if (!await requireAuth(interaction, raidInfo)) return;
-
-    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const partialEntries = helpers.filter((helper) => helper.removedAt);
-    const taskKeys = getAttachableTaskKeys(raidInfo);
-
-    if (!isSpammingRaid(raidInfo)) {
-      await interaction.reply({
-        content: 'Partial helper task assignment is only supported for spamming raids.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    if (!partialEntries.length) {
-      await interaction.reply({ content: 'No partial helpers to assign tasks to.', flags: MessageFlags.Ephemeral });
-      return;
-    }
-    if (!taskKeys.length) {
-      await interaction.reply({
-        content: 'This raid has no non-spamming tasks to attach. Spamming time is tracked automatically.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    const enrichedPartials = await Promise.all(
-      partialEntries.map(async (helper) => {
-        const member = await interaction.guild?.members?.fetch(helper.helperId).catch(() => null);
-        return { helperId: helper.helperId, displayName: member?.displayName || helper.helperId };
-      }),
-    );
-
-    await interaction.showModal(buildAttachPartialTasksModal(enrichedPartials, taskKeys));
-    return;
-  }
-
-  if (interaction.isModalSubmit?.() && interaction.customId === ATTACH_PARTIAL_TASKS_MODAL_ID) {
-    if (!await requireAuth(interaction, raidInfo)) return;
-
-    const { helperIds, tasks } = getAttachPartialTasksSelections(interaction);
-    const pickedNone = (tasks || []).includes(NO_TASK_HELPED_VALUE);
-    if (!helperIds.length || (!pickedNone && !tasks.length)) {
-      await interaction.reply({ content: 'Select at least one partial helper and one task (or choose No task helped).', flags: MessageFlags.Ephemeral });
-      return;
-    }
-
-    if (!isSpammingRaid(raidInfo)) {
-      await interaction.reply({
-        content: 'Partial helper task assignment is only supported for spamming raids.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    const selectedTasks = pickedNone
-      ? []
-      : [...new Set(tasks.map((task) => String(task).toLowerCase()).filter((t) => t && t !== NO_TASK_HELPED_VALUE))];
-    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const partialHelpers = mergePartialHelperAttachments(
-      raidInfo,
-      normalizePartialHelpers(raidInfo),
-      { helperIds, tasks: selectedTasks, helpers },
-    );
-
-    await updateRaid(interaction.channel.id, { partialHelpers });
-    await refreshRaidRequestMessage({
-      client: interaction.client,
-      channel: interaction.channel,
-      raidInfo: { ...raidInfo, partialHelpers },
-      helpers,
-    });
-
-    const label = selectedTasks.length
-      ? getRaidTaskFieldDisplay(selectedTasks.join(', '))
-      : 'No task helped';
-    const closingHint = raidInfo?.isAwaitingCompletion
-      ? ' Press **Confirm Close** to finish closing the raid.'
-      : '';
-    await interaction.reply({
-      content: `Attached **${label}** to ${helperIds.map((id) => `<@${id}>`).join(', ')}.${closingHint}`,
-      flags: MessageFlags.Ephemeral,
-    });
-    return;
-  }
+  // Attach task flow removed: partial helpers now only record time, no task assignment is performed.
 
   if (interaction.customId === 'pingHelpersButton') {
     if (!await requireAuth(interaction, raidInfo)) return;
