@@ -1,4 +1,4 @@
-import { MAX_XP_PER_RAID } from '../../../config/constants.js';
+import { MAX_XP_PER_RAID, TASK_DISPLAY_NAMES } from '../../../config/constants.js';
 import { calculateTaskPointsWithMultiplier } from '../../../utils/taskCalculations.js';
 import {
   calculateSpammingPoints,
@@ -7,6 +7,7 @@ import {
 import {
   getNormalTaskString,
   getRaidTaskFieldDisplay,
+  getTaskKeys,
   isSpammingRaid,
   SPAMMING_EXP_CAP,
   SPAMMING_RATE_PER_MINUTE,
@@ -23,6 +24,16 @@ function getResolvableTaskString(taskString = '') {
     .join(', ');
 }
 
+function formatTaskKeyForDisplay(taskKey) {
+  return TASK_DISPLAY_NAMES?.[taskKey] ?? taskKey;
+}
+
+async function resolveMemberDisplayName(guild, userId) {
+  if (!guild || !userId) return String(userId);
+  const member = await guild.members.fetch(userId).catch(() => null);
+  return member?.displayName ?? member?.user?.username ?? String(userId);
+}
+
 /**
  * Build helperId -> EXP awarded for raid close.
  */
@@ -31,7 +42,6 @@ export function buildClosePointsMap(raidInfo, joinedHelpers, selectedHelperIds =
   const partialsWithTasks = partialHelpers.filter((p) => p.tasks?.length > 0);
   const activeIds = joinedHelpers.filter((h) => !h.removedAt).map((h) => h.helperId);
   const removedIds = joinedHelpers.filter((h) => h.removedAt).map((h) => h.helperId);
-  const spamming = isSpammingRaid(raidInfo);
 
   const allHelperIds = [...new Set([
     ...selectedHelperIds,
@@ -64,7 +74,7 @@ export function buildClosePointsMap(raidInfo, joinedHelpers, selectedHelperIds =
     }
 
     const helperRow = joinedById.get(uid);
-    const spammingPoints = spamming && helperRow
+    const spammingPoints = isSpammingRaid(raidInfo) && helperRow
       ? calculateSpammingPoints({
         helper: helperRow,
         endedAt,
@@ -76,27 +86,93 @@ export function buildClosePointsMap(raidInfo, joinedHelpers, selectedHelperIds =
     pointsMap[uid] = Math.min(normalPoints + spammingPoints, MAX_XP_PER_RAID);
   }
 
-  return { pointsMap, partialHelpers, spamming, joinedById, endedAt };
+  return { pointsMap, partialHelpers, spamming: isSpammingRaid(raidInfo), joinedById, endedAt, fullTaskPoints };
 }
 
-export function buildExpLairThreadBreakdown(raidInfo, pointsMap, { partialHelpers, spamming, joinedById }) {
-  const lines = ['This thread contains the full details for the raid\n'];
+function buildTaskExpBreakdownSection(raidInfo, { spamming, joinedById, pointsMap }) {
+  const lines = ['', 'Task EXP Breakdown:'];
+  const resolvable = getResolvableTaskString(raidInfo?.task);
+  const taskCalc = calculateTaskPointsWithMultiplier(resolvable || '');
+
+  if (spamming) {
+    let totalMinutes = 0;
+    let totalSpamExp = 0;
+    for (const uid of Object.keys(pointsMap)) {
+      const helperRow = joinedById.get(uid);
+      if (!helperRow) continue;
+      const minutes = getHelperTotalMinutes(helperRow);
+      const spamExp = calculateSpammingPoints({
+        helper: helperRow,
+        ratePerMinute: SPAMMING_RATE_PER_MINUTE,
+        cap: SPAMMING_EXP_CAP,
+      });
+      totalMinutes += minutes;
+      totalSpamExp += spamExp;
+    }
+    lines.push(`Spamming: ${totalMinutes} min x ${SPAMMING_RATE_PER_MINUTE}/minute = ${totalSpamExp}`);
+  }
+
+  if (taskCalc.calculatedBreakdown.length) {
+    for (const row of taskCalc.calculatedBreakdown) {
+      const m = String(row).match(/^([a-z0-9_]+)(?:x(\d+))?:\s*(\d+)\s*EXP/i);
+      if (m) {
+        lines.push(`${formatTaskKeyForDisplay(m[1])}: ${m[3]} EXP`);
+      } else {
+        lines.push(row);
+      }
+    }
+  } else {
+    const keys = getTaskKeys(raidInfo?.task).filter(
+      (k) => k !== 'spamming' && !k.startsWith('spamming_'),
+    );
+    for (const key of keys) {
+      const single = calculateTaskPointsWithMultiplier(key);
+      if (single.originalTotalCalculatedPoints > 0) {
+        lines.push(`${formatTaskKeyForDisplay(key)}: ${single.originalTotalCalculatedPoints} EXP`);
+      }
+    }
+  }
+
+  return lines;
+}
+
+export async function buildExpLairThreadBreakdown(guild, raidInfo, pointsMap, {
+  partialHelpers = [],
+  spamming,
+  joinedById,
+}) {
   const totalAwarded = Object.values(pointsMap).reduce((sum, n) => sum + n, 0);
-
-  lines.push(`**Total EXP awarded to helpers:** ${totalAwarded} EXP\n`);
-  lines.push('**Points awarded to Helpers:**\n');
-
   const partialMap = new Map(
-    partialHelpers.filter((e) => e.tasks?.length).map((e) => [e.helperId, e]),
+    (partialHelpers || []).filter((e) => e.tasks?.length).map((e) => [e.helperId, e]),
   );
+  const fullTaskPoints = calculateTaskPointsWithMultiplier(
+    getResolvableTaskString(raidInfo?.task) || raidInfo?.task || '',
+  ).originalTotalCalculatedPoints;
+  const raidTaskDisplay = getRaidTaskFieldDisplay(raidInfo?.task);
+
+  const lines = [
+    'This thread contains the full details for the raid',
+    `Total EXP Calculated: ${totalAwarded} EXP`,
+    '',
+    'Points awarded to Helpers:',
+  ];
 
   for (const [uid, points] of Object.entries(pointsMap)) {
-    lines.push(`<@${uid}>: ${points} EXP`);
+    const name = await resolveMemberDisplayName(guild, uid);
+    lines.push(`${name}: ${points} EXP`);
+
     const partial = partialMap.get(uid);
+    const helperRow = joinedById.get(uid);
+
     if (partial?.tasks?.length) {
       lines.push(`* Tasks: ${getRaidTaskFieldDisplay(partial.tasks.join(', '))}`);
+    } else if (!partial && fullTaskPoints > 0 && raidTaskDisplay !== 'None') {
+      const taskOnlyDisplay = getRaidTaskFieldDisplay(getNormalTaskString(raidInfo?.task) || raidInfo?.task);
+      if (taskOnlyDisplay && taskOnlyDisplay !== 'Spamming') {
+        lines.push(`* Tasks: ${taskOnlyDisplay}`);
+      }
     }
-    const helperRow = joinedById.get(uid);
+
     if (spamming && helperRow) {
       const minutes = getHelperTotalMinutes(helperRow);
       const spamOnly = calculateSpammingPoints({
@@ -104,32 +180,13 @@ export function buildExpLairThreadBreakdown(raidInfo, pointsMap, { partialHelper
         ratePerMinute: SPAMMING_RATE_PER_MINUTE,
         cap: SPAMMING_EXP_CAP,
       });
-      lines.push(`* Spamming: ${minutes} min × ${SPAMMING_RATE_PER_MINUTE} EXP/min = ${spamOnly} EXP`);
-    }
-    lines.push('');
-  }
-
-  const resolvable = getResolvableTaskString(raidInfo?.task);
-  const taskCalc = calculateTaskPointsWithMultiplier(resolvable || '');
-  if (taskCalc.calculatedBreakdown.length) {
-    lines.push('**Task EXP reference (listed tasks):**\n');
-    for (const row of taskCalc.calculatedBreakdown) {
-      lines.push(`* ${row}`);
-    }
-  } else if (spamming) {
-    lines.push(`**Task:** ${getRaidTaskFieldDisplay(raidInfo?.task)}`);
-    lines.push(`* Spamming raids use **${SPAMMING_RATE_PER_MINUTE} EXP per minute** in ticket (cap ${SPAMMING_EXP_CAP} EXP per helper).`);
-  } else if (getRaidTaskFieldDisplay(raidInfo?.task) !== 'None') {
-    lines.push(`**Task:** ${getRaidTaskFieldDisplay(raidInfo?.task)}`);
-    lines.push('* Task EXP follows partial helper task assignments or manual staff review for generic runs.');
-  }
-
-  if (taskCalc.unknownTasks?.length) {
-    lines.push('\n⚠️ **Unrecognized task keys (no static EXP table):**');
-    for (const t of taskCalc.unknownTasks) {
-      lines.push(`* \`${t}\``);
+      if (spamOnly > 0) {
+        lines.push(`* Spamming: ${minutes} min x ${SPAMMING_RATE_PER_MINUTE} EXP/min = ${spamOnly} EXP`);
+      }
     }
   }
 
-  return lines.join('\n').trim();
+  lines.push(...buildTaskExpBreakdownSection(raidInfo, { spamming, joinedById, pointsMap }));
+
+  return lines.join('\n');
 }

@@ -22,7 +22,10 @@ import {
   pingHelpersButton,
   raidmapsButton,
 } from '../../handlers/raidTickets/buttons/threadButtons.js';
-import { formatPartialHelperEmbedLines } from '../../handlers/raidTickets/domain/partialHelpers.js';
+import {
+  formatActiveHelperEmbedLines,
+  formatPartialHelperEmbedLines,
+} from '../../handlers/raidTickets/domain/partialHelpers.js';
 import { CLOSE_HELPER_HINT, HELPER_MANAGEMENT_HINT } from './constants.js';
 import {
   getRaidHelperCapacity,
@@ -56,16 +59,11 @@ function formatMapServerBody(raidInfo) {
   return `**Server**\n${raidInfo?.server || 'None'}`;
 }
 
-function formatHelperLines(helpers) {
-  if (!helpers.length) return 'No helpers yet.';
-  return helpers.map((helper) => `<@${helper.helperId}>`).join('\n');
-}
-
 function getCurrentHelpersLabel(count) {
   return count === 1 ? 'Current Helper' : 'Current Helpers';
 }
 
-function addCurrentHelpersSection(container, { activeHelpers, helperCapacity, isClosing }) {
+function addCurrentHelpersSection(container, { activeHelpers, helperCapacity, isClosing, raidInfo }) {
   const label = getCurrentHelpersLabel(activeHelpers.length);
   const header = `**${label}: ${activeHelpers.length}/${helperCapacity}**`;
   if (isClosing) {
@@ -73,7 +71,7 @@ function addCurrentHelpersSection(container, { activeHelpers, helperCapacity, is
   } else {
     container.addSectionComponents(section(header, addHelperButton));
   }
-  container.addTextDisplayComponents(text(formatHelperLines(activeHelpers)));
+  container.addTextDisplayComponents(text(formatActiveHelperEmbedLines(activeHelpers, raidInfo)));
 
   if (!isClosing) {
     const kickSelectRow = getKickHelperSelectRow(activeHelpers);
@@ -117,12 +115,12 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
 
   if (!isClosing) {
     mainContainer.addTextDisplayComponents(text(`**Current Status**\n${status}`));
-    addCurrentHelpersSection(mainContainer, { activeHelpers, helperCapacity, isClosing: false });
+    addCurrentHelpersSection(mainContainer, { activeHelpers, helperCapacity, isClosing: false, raidInfo });
     addPartialHelpersSection(mainContainer, { midRunPartials, raidInfo });
     mainContainer.addActionRowComponents(buildMainActionRow());
   } else {
     mainContainer.addTextDisplayComponents(text('**Status**\nAwaiting Completion'));
-    addCurrentHelpersSection(mainContainer, { activeHelpers, helperCapacity, isClosing: true });
+    addCurrentHelpersSection(mainContainer, { activeHelpers, helperCapacity, isClosing: true, raidInfo });
     addPartialHelpersSection(mainContainer, { midRunPartials, raidInfo });
     mainContainer.addActionRowComponents(getCloseConfirmRow({ proofImageUrl: raidInfo?.proofImage }));
   }

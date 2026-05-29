@@ -21,6 +21,7 @@ export { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
 export {
   buildClosePointsMap,
   buildExpLairThreadBreakdown,
+  formatActiveHelperEmbedLines,
   formatPartialHelperEmbedLines,
   mergePartialHelperAttachments,
   normalizePartialHelpers,

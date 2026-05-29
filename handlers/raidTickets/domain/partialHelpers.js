@@ -32,6 +32,22 @@ export function getPartialHelperDisplaySeconds(helper, partialEntry, { trackTime
   return getHelperTotalSeconds(helper);
 }
 
+/** Active helpers: `* @user` plus optional `  * Time: …` when spamming is on the raid. */
+export function formatActiveHelperEmbedLines(activeHelpers, raidInfo) {
+  if (!activeHelpers.length) return 'No helpers yet.';
+  const trackTime = isSpammingRaid(raidInfo);
+
+  return activeHelpers
+    .map((helper) => {
+      const duration = trackTime
+        ? formatParticipationDuration(getHelperTotalSeconds(helper))
+        : null;
+      const timeLine = duration ? `\n  * Time: ${duration}` : '';
+      return `* <@${helper.helperId}>${timeLine}`;
+    })
+    .join('\n');
+}
+
 export function formatPartialHelperEmbedLines(midRunPartials, partialHelpers, raidInfo) {
   if (!midRunPartials.length) return '';
   const trackTime = isSpammingRaid(raidInfo);
@@ -47,7 +63,8 @@ export function formatPartialHelperEmbedLines(midRunPartials, partialHelpers, ra
         getPartialHelperDisplaySeconds(helper, entry, { trackTime }),
       );
       const timeLine = duration ? `\n  * Time: ${duration}` : '';
-      return `* <@${helper.helperId}>: ${tasks}${timeLine}`;
+      const taskSuffix = entry?.tasks?.length ? `: ${tasks}` : ': No Task Helped';
+      return `* <@${helper.helperId}>${taskSuffix}${timeLine}`;
     })
     .join('\n');
 }

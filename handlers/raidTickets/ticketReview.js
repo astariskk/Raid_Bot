@@ -132,18 +132,20 @@ export async function finalizeAdminReview(
 
         if (expLairChannel?.type === ChannelType.GuildText) {
           const helperIds = Object.keys(pointsAwarded);
-          const partialHelpers = normalizePartialHelpers(raidInfo).filter((e) => e.tasks?.length > 0);
-          const partialHelperIds = partialHelpers.map((e) => e.helperId);
-          const allHelpers = [...new Set([...helperIds, ...partialHelperIds])];
-
-          const helpers = allHelpers.length > 0 ? allHelpers.map((id) => `<@${id}>`).join(', ') : 'None';
+          const partialHelpers = normalizePartialHelpers(raidInfo);
+          const helperNames = helperIds.length
+            ? (await Promise.all(helperIds.map(async (id) => {
+              const member = await guild.members.fetch(id).catch(() => null);
+              return member?.displayName ?? id;
+            }))).join(', ')
+            : 'None';
 
           const expEmbed = new EmbedBuilder()
             .setColor(COLOR_EXP_LAIR)
             .setTitle("Raid Completed")
             .setDescription(
               `**Raid requested by:** ${requesterMember ?? `<@${raidInfo.requesterId}>`}\n` +
-              `**Helpers:** ${helpers}\n` +
+              `**Helpers:** ${helperNames}\n` +
               `**Task(s):** ${formatTaskStringForDisplay(raidInfo.task)}\n` +
               `**Description:** ${raidInfo.description || "No description provided."}`
             )
@@ -179,7 +181,7 @@ export async function finalizeAdminReview(
 
           const joinedHelpers = await listRaidHelpers(channel.id, { includeRemoved: true }).catch(() => []);
           const joinedById = new Map(joinedHelpers.map((helper) => [helper.helperId, helper]));
-          const breakdown = buildExpLairThreadBreakdown(raidInfo, pointsAwarded, {
+          const breakdown = await buildExpLairThreadBreakdown(guild, raidInfo, pointsAwarded, {
             partialHelpers,
             spamming: isSpammingRaid(raidInfo),
             joinedById,
