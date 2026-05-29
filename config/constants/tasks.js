@@ -357,5 +357,18 @@ export function raidNeedsModalMapName(tasks = []) {
   return (tasks || []).some((task) => taskUsesModalMaps(task));
 }
 
+function isGenericOrSpammingTask(taskKey) {
+  const key = normalizeTaskKey(taskKey);
+  if (!key) return false;
+  return key.startsWith('generic_') || key.startsWith('spamming_') || key === 'spamming';
+}
+
+/** True when every selected task is generic or spamming (map name required on create). */
+export function raidRequiresModalMapName(tasks = []) {
+  const keys = (tasks || []).map((task) => normalizeTaskKey(task)).filter(Boolean);
+  if (!keys.length) return false;
+  return keys.every((task) => isGenericOrSpammingTask(task));
+}
+
 // Populate synchronously so imported constants are usable before startup refreshes from MongoDB.
 applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', categoryRows: FALLBACK_CATEGORY_ROWS });

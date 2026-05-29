@@ -7,13 +7,19 @@ import {
   buildAddHelperModal,
   getAddHelperUserIds,
 } from '../../Embeds/raidTicket/addHelperModal.js';
+import {
+  ATTACH_PARTIAL_TASKS_MODAL_ID,
+  buildAttachPartialTasksModal,
+  getAttachPartialTasksSelections,
+} from '../../Embeds/raidTicket/attachPartialTasksModal.js';
+import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { generateRaidMapsEmbed } from '../../utils/raidMaps.js';
 import { joinRaidHelper, listRaidHelpers, removeRaidHelper } from '../../utils/raidParticipationStore.js';
 import {
   formatCooldownMinutes,
   getHelperPingCooldownRemainingMs,
   getRaidHelperCapacity,
-  getRaidStatusForHelpers,
+  computeRaidStatusFromHelpers,
   getRaidTicketMessageUrl,
   getVisibleHelpers,
   isSpammingRaid,
@@ -45,14 +51,40 @@ async function filterToWarriorHelperIds(interaction, selectedIds, requesterId) {
   return { filtered, rejected };
 }
 
-async function refreshRaidWithHelpers(interaction, raidInfo, helpers) {
-  const helperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((helper) => !helper.removedAt).length;
-  const spamming = isSpammingRaid(raidInfo);
-  const nextStatus = spamming
-    ? getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: getRaidHelperCapacity(raidInfo) })
-    : raidInfo.status;
+function getUniqueRaidTaskKeys(raidInfo) {
+  return [...new Set(parseRaidTasks(raidInfo?.task || '').map((task) => String(task).toLowerCase()).filter(Boolean))];
+}
 
-  if (spamming && nextStatus !== raidInfo.status) {
+function normalizePartialHelpers(raidInfo) {
+  const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
+  return raw
+    .map((entry) => ({
+      helperId: entry?.helperId ? String(entry.helperId) : null,
+      tasks: Array.isArray(entry?.tasks) ? entry.tasks.map((task) => String(task).toLowerCase()).filter(Boolean) : [],
+    }))
+    .filter((entry) => entry.helperId);
+}
+
+async function sendJoinNotification(interaction, raidInfo, displayName, activeHelperCount, helperCapacity) {
+  const requestMessageUrl = interaction.guildId && raidInfo.messageId
+    ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${raidInfo.messageId}`
+    : null;
+  if (!requestMessageUrl) return;
+
+  const components = [
+    new ContainerBuilder()
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${displayName} has joined this raid ticket. Status is ${activeHelperCount}/${helperCapacity}: [**View Raid Ticket**](${requestMessageUrl})`)),
+  ];
+  await interaction.channel.send({
+    flags: MessageFlags.IsComponentsV2,
+    components,
+  }).catch(() => {});
+}
+
+async function applyStatusAndRefreshEmbed(interaction, raidInfo, helpers, { afterLeave = false } = {}) {
+  const nextStatus = computeRaidStatusFromHelpers(raidInfo, helpers, { afterLeave });
+
+  if (nextStatus !== raidInfo.status) {
     await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
   }
 
@@ -64,6 +96,28 @@ async function refreshRaidWithHelpers(interaction, raidInfo, helpers) {
     helpers,
   });
   return refreshedRaidInfo;
+}
+
+async function refreshRaidWithHelpers(interaction, raidInfo, helpers) {
+  return applyStatusAndRefreshEmbed(interaction, raidInfo, helpers);
+}
+
+async function processHelperLeave(interaction, raidInfo, helperId) {
+  await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
+
+  const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+  const activeHelperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
+
+  await sendHelperLeftNotification({
+    channel: interaction.channel,
+    guildId: interaction.guildId,
+    raidInfo,
+    helperId,
+    activeHelperCount,
+  }).catch(() => {});
+
+  await applyStatusAndRefreshEmbed(interaction, raidInfo, helpers, { afterLeave: true });
+  return helpers;
 }
 
 // --- Main Message Handler ---
@@ -164,12 +218,23 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
     for (const helperId of warriorIds) {
       await joinRaidHelper(interaction.channel.id, helperId);
     }
 
     const updatedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    await refreshRaidWithHelpers(interaction, raidInfo, updatedHelpers);
+    const activeHelperCount = getVisibleHelpers(updatedHelpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
+
+    for (const helperId of warriorIds) {
+      const member = await interaction.guild?.members?.fetch(helperId).catch(() => null);
+      const displayName = member?.displayName || helperId;
+      await sendJoinNotification(interaction, raidInfo, displayName, activeHelperCount, helperCapacity);
+    }
+
+    await applyStatusAndRefreshEmbed(interaction, raidInfo, updatedHelpers);
 
     const addedMentions = warriorIds.map((id) => `<@${id}>`).join(', ');
     let reply = `Added ${warriorIds.length} helper(s): ${addedMentions}.`;
@@ -180,7 +245,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       reply += ` Only ${slotsLeft} slot(s) were available.`;
     }
 
-    await interaction.reply({ content: reply, flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: reply }).catch(() => {});
     return;
   }
 
@@ -212,48 +277,52 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
-    // Reply first to avoid interaction timeout, then do async operations
-    const replyContent = raidInfo.mapNumber
-      ? { content: 'You joined this raid ticket.', embeds: [generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber)], flags: MessageFlags.Ephemeral }
-      : { content: 'You joined this raid ticket. No map number is set yet.', flags: MessageFlags.Ephemeral };
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-    // Fire off reply immediately
-    const replyTask = interaction.reply(replyContent).catch(() => {});
-
-    // Then do async operations
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
     const updatedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const activeHelperCount = getVisibleHelpers(updatedHelpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
     const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
-
     const displayName = interaction.member?.displayName || interaction.user.globalName || interaction.user.username || 'A helper';
 
-    const spamming = isSpammingRaid(raidInfo);
-    const nextStatus = spamming
-      ? getRaidStatusForHelpers({ isSpamming: true, helperCount: activeHelperCount, maxHelpers: helperCapacity })
-      : raidInfo.status;
+    await sendJoinNotification(interaction, raidInfo, displayName, activeHelperCount, helperCapacity);
+    await applyStatusAndRefreshEmbed(interaction, raidInfo, updatedHelpers);
 
-    if (spamming && nextStatus !== raidInfo.status) {
-      await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
+    const replyContent = raidInfo.mapNumber
+      ? { content: 'You joined this raid ticket.', embeds: [generateRaidMapsEmbed(raidInfo, raidInfo.mapNumber)] }
+      : { content: 'You joined this raid ticket. No map number is set yet.' };
+    await interaction.editReply(replyContent).catch(() => {});
+    return;
+  }
+
+  if (interaction.customId === 'leaveRaidTicket') {
+    if (!await requireWarrior(interaction)) return;
+
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    const isActive = helpers.some((helper) => helper.helperId === interaction.user.id && !helper.removedAt);
+    if (!isActive) {
+      await interaction.reply({ content: 'You are not on the helper list.', flags: MessageFlags.Ephemeral });
+      return;
     }
 
-    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: { ...raidInfo, status: nextStatus }, helpers: updatedHelpers });
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await processHelperLeave(interaction, raidInfo, interaction.user.id);
+    await interaction.editReply({ content: 'You left this raid ticket.' }).catch(() => {});
+    return;
+  }
 
-    const requestMessageUrl = interaction.guildId && raidInfo.messageId
-      ? `https://discord.com/channels/${interaction.guildId}/${interaction.channel.id}/${raidInfo.messageId}`
-      : null;
-    if (requestMessageUrl) {
-      const components = [
-        new ContainerBuilder()
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(`${displayName} has joined this raid ticket. Status is ${activeHelperCount}/${helperCapacity}: [**View Raid Ticket**](${requestMessageUrl})`)),
-      ];
-      await interaction.channel.send({
-        flags: MessageFlags.IsComponentsV2,
-        components,
-      }).catch(() => {});
+  if (interaction.isStringSelectMenu?.() && interaction.customId === 'kickHelperSelect') {
+    if (!await requireAuth(interaction, raidInfo)) return;
+
+    const helperId = interaction.values?.[0];
+    if (!helperId) {
+      await interaction.reply({ content: 'Select a helper to remove.', flags: MessageFlags.Ephemeral });
+      return;
     }
 
-    await replyTask;
+    await interaction.deferUpdate();
+    await processHelperLeave(interaction, raidInfo, helperId);
+    await interaction.followUp({ content: `Removed <@${helperId}> from this raid ticket.`, flags: MessageFlags.Ephemeral }).catch(() => {});
     return;
   }
 
@@ -271,41 +340,77 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
-    // Reply first to avoid interaction timeout
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    await processHelperLeave(interaction, raidInfo, helperId);
     const replyContent = isSelfKick ? 'You left this raid ticket.' : `Removed <@${helperId}> from this raid ticket.`;
-    await interaction.reply({ content: replyContent, flags: MessageFlags.Ephemeral });
+    await interaction.editReply({ content: replyContent }).catch(() => {});
+    return;
+  }
 
-    // Then do async operations
-    await removeRaidHelper(interaction.channel.id, helperId, interaction.user.id);
-
-    const partialHelpers = (Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [])
-      .filter((entry) => String(entry?.helperId) !== String(helperId));
-    if (partialHelpers.length !== (raidInfo?.partialHelpers?.length ?? 0)) {
-      await updateRaid(interaction.channel.id, { partialHelpers });
+  if (interaction.customId === 'attachTasks_btn') {
+    if (!await requireAuth(interaction, raidInfo)) return;
+    if (!isSpammingRaid(raidInfo)) {
+      await interaction.reply({ content: 'Attach Tasks is only available on spamming raids.', flags: MessageFlags.Ephemeral });
+      return;
     }
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const activeHelperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
-    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
+    const partialEntries = helpers.filter((helper) => helper.removedAt);
+    const taskKeys = getUniqueRaidTaskKeys(raidInfo);
 
-    const spamming = isSpammingRaid(raidInfo);
-    const nextStatus = spamming
-      ? getRaidStatusForHelpers({ isSpamming: true, helperCount: activeHelperCount, maxHelpers: helperCapacity })
-      : RAID_STATUS.WAITING;
-
-    if (spamming && nextStatus !== raidInfo.status) {
-      await updateRaidStatus(interaction.client, interaction.channel.id, nextStatus);
+    if (!partialEntries.length) {
+      await interaction.reply({ content: 'No partial helpers to assign tasks to.', flags: MessageFlags.Ephemeral });
+      return;
+    }
+    if (!taskKeys.length) {
+      await interaction.reply({ content: 'No tasks found on this ticket.', flags: MessageFlags.Ephemeral });
+      return;
     }
 
-    await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: { ...raidInfo, status: nextStatus }, helpers });
+    const enrichedPartials = await Promise.all(
+      partialEntries.map(async (helper) => {
+        const member = await interaction.guild?.members?.fetch(helper.helperId).catch(() => null);
+        return { helperId: helper.helperId, displayName: member?.displayName || helper.helperId };
+      }),
+    );
 
-    await sendHelperLeftNotification({
+    await interaction.showModal(buildAttachPartialTasksModal(enrichedPartials, taskKeys));
+    return;
+  }
+
+  if (interaction.isModalSubmit?.() && interaction.customId === ATTACH_PARTIAL_TASKS_MODAL_ID) {
+    if (!await requireAuth(interaction, raidInfo)) return;
+
+    const { helperIds, tasks } = getAttachPartialTasksSelections(interaction);
+    if (!helperIds.length || !tasks.length) {
+      await interaction.reply({ content: 'Select at least one partial helper and one task.', flags: MessageFlags.Ephemeral });
+      return;
+    }
+
+    const selectedTasks = [...new Set(tasks.map((task) => String(task).toLowerCase()).filter(Boolean))];
+    let partialHelpers = normalizePartialHelpers(raidInfo);
+
+    for (const helperId of helperIds) {
+      const existing = partialHelpers.find((entry) => entry.helperId === helperId);
+      const mergedTasks = [...new Set([...(existing?.tasks ?? []), ...selectedTasks])];
+      partialHelpers = partialHelpers.filter((entry) => entry.helperId !== helperId);
+      partialHelpers.push({ helperId, tasks: mergedTasks });
+    }
+
+    await updateRaid(interaction.channel.id, { partialHelpers });
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    await refreshRaidRequestMessage({
+      client: interaction.client,
       channel: interaction.channel,
-      guildId: interaction.guildId,
-      raidInfo: raidInfo,
-      helperId,
-      activeHelperCount,
-    }).catch(() => {});
+      raidInfo: { ...raidInfo, partialHelpers },
+      helpers,
+    });
+
+    const label = selectedTasks.join(', ');
+    await interaction.reply({
+      content: `Attached **${label}** to ${helperIds.map((id) => `<@${id}>`).join(', ')}.`,
+      flags: MessageFlags.Ephemeral,
+    });
     return;
   }
 

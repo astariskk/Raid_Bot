@@ -93,6 +93,23 @@ export function getRaidStatusForHelpers({ isSpamming, helperCount, maxHelpers = 
   return RAID_STATUS.WAITING;
 }
 
+export function computeRaidStatusFromHelpers(raidInfo, helpers = [], { afterLeave = false } = {}) {
+  const helperCount = getVisibleHelpers(helpers, raidInfo?.requesterId).filter((helper) => !helper.removedAt).length;
+  const capacity = getRaidHelperCapacity(raidInfo);
+  const spamming = isSpammingRaid(raidInfo);
+
+  if (afterLeave) {
+    return helperCount >= capacity ? RAID_STATUS.FULL : RAID_STATUS.WAITING;
+  }
+  if (spamming) {
+    return getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: capacity });
+  }
+  if (helperCount >= capacity) {
+    return RAID_STATUS.FULL;
+  }
+  return raidInfo?.status ?? RAID_STATUS.WAITING;
+}
+
 function getPartySizeFromTaskKey(taskKey) {
   const roomMatch = String(taskKey).match(/_(\d)man$/);
   if (roomMatch) return Number(roomMatch[1]);

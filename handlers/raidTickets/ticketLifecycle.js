@@ -20,11 +20,12 @@ function text(content) {
 
 import {
     updateRaid,
-    getRaidInfo
+    getRaidInfo,
+    updateRaidStatus,
 } from '../../activeRaidState.js';
 
 import { EMBED_COLOR, TASK_CATEGORY_BY_TASK, TASK_DISPLAY_NAMES, raidNeedsModalMapName } from '../../config/constants.js';
-import { isSpammingRaid, refreshRaidRequestMessage } from './raidTicketPresentation.js';
+import { computeRaidStatusFromHelpers, refreshRaidRequestMessage } from './raidTicketPresentation.js';
 import { buildCancelRaidConfirmModal, CANCEL_RAID_MODAL_ID } from './embeds/cancelRaidModal.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { inferCategoryKeysFromTasks } from '../../utils/raidRequest.js';
@@ -84,6 +85,45 @@ function consumeEditRequestSession(sessionId) {
     const s = getEditRequestSession(sessionId);
     editRequestSessions.delete(sessionId);
     return s;
+}
+
+function isRaidTicketMessage(interaction, raidInfo) {
+    return Boolean(
+        raidInfo?.messageId
+        && interaction.message?.id
+        && String(interaction.message.id) === String(raidInfo.messageId),
+    );
+}
+
+async function refreshRaidTicketAfterEdit(client, channel, raidInfo, helpers) {
+    const nextStatus = computeRaidStatusFromHelpers(raidInfo, helpers);
+    let refreshedRaidInfo = { ...raidInfo };
+    if (nextStatus !== raidInfo.status) {
+        await updateRaidStatus(client, channel.id, nextStatus);
+        refreshedRaidInfo = { ...raidInfo, status: nextStatus };
+    }
+    await refreshRaidRequestMessage({
+        client,
+        channel,
+        raidInfo: refreshedRaidInfo,
+        helpers,
+    });
+}
+
+async function acknowledgeEditWizardComplete(interaction, raidInfo, message = 'Raid updated.') {
+    if (interaction.message && !isRaidTicketMessage(interaction, raidInfo)) {
+        await interaction.update({
+            components: [text(message)],
+            flags: MessageFlags.IsComponentsV2,
+        }).catch(() => {});
+        return;
+    }
+
+    if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({ content: message, flags: MessageFlags.Ephemeral }).catch(() => {});
+    } else {
+        await interaction.followUp({ content: message, flags: MessageFlags.Ephemeral }).catch(() => {});
+    }
 }
 
 function parseTaskRunsMap(taskString) {
@@ -402,28 +442,10 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
             await updateRaid(interaction.channel.id, { task: resolvedTasks.join(', ') });
 
             const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
-            await refreshRaidRequestMessage({
-                client,
-                channel: interaction.channel,
-                raidInfo: { ...raidInfo, task: resolvedTasks.join(', ') },
-                helpers,
-            });
+            const updatedRaidInfo = { ...raidInfo, task: resolvedTasks.join(', ') };
+            await refreshRaidTicketAfterEdit(client, interaction.channel, updatedRaidInfo, helpers);
 
-            try {
-                if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
-                    await interaction.update({
-                        components: [text('Raid updated.')],
-                        flags: MessageFlags.IsComponentsV2,
-                    });
-                } else {
-                    await interaction.reply({ content: 'Raid updated.', flags: MessageFlags.Ephemeral });
-                }
-            } catch (err) {
-                if (!interaction.replied && !interaction.deferred) {
-                    await interaction.reply({ content: 'Raid updated.', flags: MessageFlags.Ephemeral }).catch(() => {});
-                }
-                console.error('Failed to update edit wizard message after task submit:', err);
-            }
+            await acknowledgeEditWizardComplete(interaction, raidInfo);
         }
         return;
     }
@@ -469,30 +491,9 @@ export async function handleLifecycleInteractions(interaction, raidInfo, client)
         await updateRaid(interaction.channel.id, updates);
 
         const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true }).catch(() => []);
-        await refreshRaidRequestMessage({
-            client,
-            channel: interaction.channel,
-            raidInfo: { ...raidInfo, ...updates },
-            helpers,
-        });
+        await refreshRaidTicketAfterEdit(client, interaction.channel, { ...raidInfo, ...updates }, helpers);
 
-        const updatedContent = 'Raid updated.';
-
-        try {
-            if (typeof interaction.isFromMessage === 'function' && interaction.isFromMessage() && interaction.message) {
-                await interaction.update({
-                    components: [text(updatedContent)],
-                    flags: MessageFlags.IsComponentsV2,
-                });
-            } else {
-                await interaction.reply({ content: updatedContent, flags: MessageFlags.Ephemeral });
-            }
-        } catch (err) {
-            if (!interaction.replied && !interaction.deferred) {
-                await interaction.reply({ content: updatedContent, flags: MessageFlags.Ephemeral }).catch(() => {});
-            }
-            console.error('Failed to update edit wizard message after modal submit:', err);
-        }
+        await acknowledgeEditWizardComplete(interaction, raidInfo);
         return;
     }
 

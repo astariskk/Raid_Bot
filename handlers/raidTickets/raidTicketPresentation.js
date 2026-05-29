@@ -29,6 +29,7 @@ export {
   getJoinPrefixesForRaid,
   isSpammingRaid,
   getNormalTaskString,
+  computeRaidStatusFromHelpers,
   getRaidStatusForHelpers,
   getRaidPartySize,
   getRaidHelperCapacity,
@@ -192,12 +193,12 @@ export async function refreshRaidRequestMessage({ client, channel, raidInfo, hel
   if (!message) return;
   const requester = await targetChannel.guild?.members?.fetch(raidInfo.requesterId).catch(() => null);
   const displayHelpers = await enrichHelpersWithDisplayNames(targetChannel.guild, helpers);
-  const visibleHelpers = getVisibleHelpers(displayHelpers, raidInfo?.requesterId);
+  const ticketHelpers = getVisibleHelpers(displayHelpers, raidInfo?.requesterId);
   const isClosing = Boolean(raidInfo?.isAwaitingCompletion || raidInfo?.status === RAID_STATUS.AWAITING_COMPLETION);
   await message.edit(buildRaidRequestMessagePayload({
     requester,
     raidInfo,
-    helpers: visibleHelpers,
+    helpers: ticketHelpers,
     isClosing,
   }));
 }

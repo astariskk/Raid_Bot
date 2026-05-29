@@ -1,4 +1,4 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 
 export const joinTicketButton = new ButtonBuilder()
     .setCustomId('joinRaidTicket')
@@ -51,6 +51,16 @@ export const pingHelpersButton = new ButtonBuilder()
 export const addHelperButton = new ButtonBuilder()
     .setCustomId('addHelperButton')
     .setLabel('➕ Add Helper')
+    .setStyle(ButtonStyle.Secondary);
+
+export const leaveRaidButton = new ButtonBuilder()
+    .setCustomId('leaveRaidTicket')
+    .setLabel('Leave')
+    .setStyle(ButtonStyle.Secondary);
+
+export const attachTasksButton = new ButtonBuilder()
+    .setCustomId('attachTasks_btn')
+    .setLabel('Attach Tasks')
     .setStyle(ButtonStyle.Secondary);
 
 export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, raidmapsButton, closeTicketButton, cancelTicketButton);
@@ -138,4 +148,35 @@ export function getHelperControlRow(helper, { showTaskHelped = false, showKick =
     if (showKick) components.push(kick);
     if (showTaskHelped) components.push(taskHelped);
     return new ActionRowBuilder().addComponents(...components);
+}
+
+export function getHelperManagementRow() {
+    return new ActionRowBuilder().addComponents(joinTicketButton, leaveRaidButton, addHelperButton);
+}
+
+export function getKickHelperSelectRow(helpers = []) {
+    const active = helpers
+        .filter((helper) => !helper.removedAt && String(helper?.helperId ?? '').trim())
+        .slice(0, 25);
+
+    if (!active.length) return null;
+
+    return new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+            .setCustomId('kickHelperSelect')
+            .setPlaceholder('Remove a helper…')
+            .setMinValues(1)
+            .setMaxValues(1)
+            .addOptions(
+                active.map((helper) => {
+                    const helperId = String(helper.helperId);
+                    const name = String(helper.displayName || helperId).slice(0, 100);
+                    return {
+                        label: `Remove ${name}`.slice(0, 100),
+                        value: helperId,
+                        description: `Kick ${name}`.slice(0, 100),
+                    };
+                }),
+            ),
+    );
 }

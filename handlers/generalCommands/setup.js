@@ -24,6 +24,7 @@ import {
     RAID_MANAGEMENT_CHANNEL_ID,
     TASK_DISPLAY_NAMES,
     raidNeedsModalMapName,
+    raidRequiresModalMapName,
 } from '../../config/constants.js';
 
 import {
@@ -184,18 +185,16 @@ function getWizardCategoryV2(sessionId, categoryKeys) {
 
     const optionCount = getRaidWizardTaskOptionsCount(categoryKeys);
     const canContinue = categoryKeys.length > 0 && optionCount <= 25;
-    const taskCountText = canContinue
-        ? `This selection will show **${optionCount}** options on Page 2.`
-        : categoryKeys.length > 0
-            ? `Too many tasks (**${optionCount}** options). Select fewer categories (max 25 options).`
-            : '*Select categories to continue*';
+    const continueHint = categoryKeys.length > 0 && optionCount > 25
+        ? `Too many tasks (**${optionCount}** options). Select fewer categories (max 25 options).`
+        : 'Note: you can scroll down to see more options.';
 
     return new ContainerBuilder()
         .setAccentColor(EMBED_COLOR)
         .addTextDisplayComponents(text('### Start Raid - Page 1/2'))
         .addTextDisplayComponents(text('Select a task category.'))
         .addTextDisplayComponents(text(`**Selected Categories**\n${categoryText}`))
-        .addTextDisplayComponents(text(`**Task Count**\n${taskCountText}`))
+        .addTextDisplayComponents(text(continueHint))
         .addActionRowComponents(getRaidWizardCategorySelectRow(sessionId, categoryKeys))
         .addSeparatorComponents(separator())
         .addActionRowComponents(getRaidWizardNavRow(sessionId, { step: 'category', canContinue }));
@@ -210,6 +209,7 @@ function getWizardTasksV2(sessionId, categoryKeys, tasks) {
         text('### Start Raid - Page 2/2'),
         text(`Select task(s) for **${categoryLabel || 'selected categories'}**.`),
         text(`**Selected Tasks**\n${taskText}`),
+        text('Note: you can scroll down to see more options.'),
     ];
 
     if ((categoryKeys || []).some((key) => key === 'generic' || key === 'spamming')) {
@@ -505,9 +505,11 @@ export function setupGeneralCommandsHandler(client) {
                     return;
                 }
 
-                const includeMapName = raidNeedsModalMapName(session.tasks || []);
+                const tasks = session.tasks || [];
+                const includeMapName = raidNeedsModalMapName(tasks);
+                const requireMapName = raidRequiresModalMapName(tasks);
 
-                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { includeMapName }));
+                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { includeMapName, requireMapName }));
                 return;
             }
         }

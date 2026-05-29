@@ -15,7 +15,7 @@ import {
 
 import { EMBED_COLOR, POINTS_CONFIG, RAID_TASK_CATEGORIES, TASK_DISPLAY_NAMES } from '../../../config/constants.js';
 
-function buildRaidWizardDetailsModal({ customId, title, includeMapName = false, defaults }) {
+function buildRaidWizardDetailsModal({ customId, title, includeMapName = false, requireMapName = false, defaults }) {
     const modal = new ModalBuilder()
         .setCustomId(customId)
         .setTitle(title);
@@ -53,9 +53,9 @@ function buildRaidWizardDetailsModal({ customId, title, includeMapName = false, 
     if (includeMapName) {
         const mapNameInput = new TextInputBuilder()
             .setCustomId('mapNameInput')
-            .setLabel('Map Name (optional):')
+            .setLabel(requireMapName ? 'Map Name (required):' : 'Map Name (optional):')
             .setStyle(TextInputStyle.Short)
-            .setRequired(false)
+            .setRequired(requireMapName)
             .setPlaceholder('Comma-separated e.g., doomwood, necropolis')
             .setValue(defaults.mapName ?? '');
         rows.unshift(new ActionRowBuilder().addComponents(mapNameInput));
@@ -91,11 +91,12 @@ function getRaidWizardEditDetailsModalFields(defaults = {}) {
     return rows;
 }
 
-export function getRaidWizardDetailsModal(sessionId, { includeMapName = false, defaults = {} } = {}) {
+export function getRaidWizardDetailsModal(sessionId, { includeMapName = false, requireMapName = false, defaults = {} } = {}) {
     return buildRaidWizardDetailsModal({
         customId: `raidWizardDetailsModal_${sessionId}`,
         title: 'Raid Assistance Request',
         includeMapName,
+        requireMapName,
         defaults,
     });
 }

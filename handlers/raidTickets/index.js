@@ -78,7 +78,11 @@ export function setupRaidHandlers(client) {
         // Commands (Maps, helpers)
         if (
             interaction.customId === 'joinRaidTicket'
+            || interaction.customId === 'leaveRaidTicket'
             || interaction.customId === 'addHelperButton'
+            || interaction.customId === 'attachTasks_btn'
+            || interaction.customId === 'attachPartialTasksModal'
+            || interaction.customId === 'kickHelperSelect'
             || interaction.customId === 'pingHelpersButton'
             || interaction.customId.includes('raidmaps')
             || interaction.customId.startsWith('kickRaidHelper_')

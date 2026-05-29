@@ -268,6 +268,7 @@ function getRemovedPartialHelpers(joinedHelpers = [], requesterId = null) {
 }
 
 function getPartialHelpersMissingTasks(raidInfo, joinedHelpers = []) {
+    if (isSpammingRaid(raidInfo)) return [];
     const partialHelpers = normalizePartialHelpers(raidInfo);
     const partialsWithTasks = new Set(partialHelpers.map(e => e.helperId));
     return getRemovedPartialHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => !partialsWithTasks.has(helper.helperId));
@@ -317,7 +318,7 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
 
         const spammingPoints = spamming && joinedById.has(uid)
             ? calculateSpammingPoints({
-                joinedAt: joinedById.get(uid).joinedAt,
+                helper: joinedById.get(uid),
                 endedAt,
                 ratePerMinute: SPAMMING_RATE_PER_MINUTE,
                 cap: SPAMMING_EXP_CAP,

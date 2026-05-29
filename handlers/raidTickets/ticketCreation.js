@@ -3,6 +3,8 @@ import { RAID_CATEGORY_ID, RAID_HELPER_ROLE_ID, RAID_STATUS } from '../../config
 import { createRaid } from '../../activeRaidState.js';
 import { validateAndResolveTaskList } from '../../utils/allowedTasks.js';
 import { consumeRaidWizardSession } from './raidWizardSession.js';
+import { raidRequiresModalMapName } from '../../config/constants.js';
+import { parseMapNameList } from './raidTicketLogic.js';
 import { normalizeRoomNumber } from '../../utils/roomNumber.js';
 import { sendRaidTicketMessages } from './raidTicketPresentation.js';
 
@@ -63,6 +65,16 @@ export async function handleRaidCreation(interaction) {
 
     if (!mapNumber) {
         const msg = 'Room Number must contain at least one digit.';
+        if (interaction.replied || interaction.deferred) {
+            await interaction.editReply({ content: msg }).catch(() => {});
+        } else {
+            await interaction.reply({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
+        }
+        return;
+    }
+
+    if (raidRequiresModalMapName(resolvedTasks) && !parseMapNameList(mapName).length) {
+        const msg = 'Map Name is required for generic or spamming-only raids. Enter at least one map name.';
         if (interaction.replied || interaction.deferred) {
             await interaction.editReply({ content: msg }).catch(() => {});
         } else {

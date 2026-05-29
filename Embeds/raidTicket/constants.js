@@ -1,10 +1,10 @@
 export const HELPER_PING_COOLDOWN_MS = 30 * 60 * 1000;
 
 export const HELPER_MANAGEMENT_HINT =
-  'Use **Kick** beside a helper to remove them (helpers can kick themselves). Use **Add Helper** to add warriors manually. Helpers who leave before closing appear under **Partial Helpers**.';
+  'Use **➕ Add Helper** (top right of the helper list) or **Join** below. Remove someone with the dropdown under the list. On spamming raids, helpers who leave appear under **Partial Helpers** — use **Attach Tasks** to record what they helped with.';
 
 export const CLOSE_HELPER_HINT =
-  'Use **Kick Helper** or **Task Helped** beside each helper. Partial helpers must have tasks assigned before you confirm close.\n' +
+  'Use **Attach Tasks** on partial helpers if needed, then confirm close. Spamming EXP is based on total time in the ticket.\n' +
   'Click **Close Raid** to start closing, then confirm when ready.';
 
 export const RAID_TICKET_HELP_TEXT =
