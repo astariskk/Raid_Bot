@@ -53,14 +53,9 @@ export const addHelperButton = new ButtonBuilder()
     .setLabel('➕ Add Helper')
     .setStyle(ButtonStyle.Secondary);
 
-export const leaveRaidButton = new ButtonBuilder()
-    .setCustomId('leaveRaidTicket')
-    .setLabel('Leave')
-    .setStyle(ButtonStyle.Secondary);
-
 export const attachTasksButton = new ButtonBuilder()
     .setCustomId('attachTasks_btn')
-    .setLabel('Attach Tasks')
+    .setLabel('📝 Attach Tasks')
     .setStyle(ButtonStyle.Secondary);
 
 export const threadActionRow = new ActionRowBuilder().addComponents(joinTicketButton, raidmapsButton, closeTicketButton, cancelTicketButton);
@@ -151,7 +146,7 @@ export function getHelperControlRow(helper, { showTaskHelped = false, showKick =
 }
 
 export function getHelperManagementRow() {
-    return new ActionRowBuilder().addComponents(joinTicketButton, leaveRaidButton, addHelperButton);
+    return new ActionRowBuilder().addComponents(joinTicketButton, addHelperButton);
 }
 
 export function getKickHelperSelectRow(helpers = []) {

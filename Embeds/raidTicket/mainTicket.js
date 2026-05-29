@@ -22,11 +22,11 @@ import {
   pingHelpersButton,
   raidmapsButton,
 } from '../../handlers/raidTickets/buttons/threadButtons.js';
+import { formatPartialHelperEmbedLines } from '../../handlers/raidTickets/domain/partialHelpers.js';
 import { CLOSE_HELPER_HINT, HELPER_MANAGEMENT_HINT } from './constants.js';
 import {
   getRaidHelperCapacity,
   getRaidTaskFieldDisplay,
-  isSpammingRaid,
 } from '../../handlers/raidTickets/raidTicketLogic.js';
 
 function text(content) {
@@ -56,25 +56,9 @@ function formatMapServerBody(raidInfo) {
   return `**Server**\n${raidInfo?.server || 'None'}`;
 }
 
-function getPartialHelperTaskLabel(helper, partialHelpers) {
-  const entry = partialHelpers.find((e) => String(e.helperId) === String(helper.helperId));
-  if (entry?.tasks?.length) return getRaidTaskFieldDisplay(entry.tasks.join(', '));
-  return 'No Task Helped';
-}
-
 function formatHelperLines(helpers) {
   if (!helpers.length) return 'No helpers yet.';
   return helpers.map((helper) => `<@${helper.helperId}>`).join('\n');
-}
-
-function formatPartialHelperLines(helpers, partialHelpers) {
-  if (!helpers.length) return '';
-  return helpers
-    .map((helper) => {
-      const tasks = getPartialHelperTaskLabel(helper, partialHelpers);
-      return `* <@${helper.helperId}>: ${tasks}`;
-    })
-    .join('\n');
 }
 
 function getCurrentHelpersLabel(count) {
@@ -99,13 +83,11 @@ function addCurrentHelpersSection(container, { activeHelpers, helperCapacity, is
   }
 }
 
-function addPartialHelpersSection(container, { midRunPartials, partialHelpers }) {
+function addPartialHelpersSection(container, { midRunPartials, raidInfo }) {
   if (!midRunPartials.length) return;
-  container.addSectionComponents(
-    section('**Partial Helpers**', attachTasksButton),
-  );
+  container.addSectionComponents(section('**Partial Helpers**', attachTasksButton));
   container.addTextDisplayComponents(
-    text(formatPartialHelperLines(midRunPartials, partialHelpers).slice(0, 4000)),
+    text(formatPartialHelperEmbedLines(midRunPartials, raidInfo?.partialHelpers, raidInfo).slice(0, 4000)),
   );
 }
 
@@ -116,12 +98,10 @@ export function buildMainTicketMessagePayload({ requester, raidInfo, helpers = [
 
 function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClosing }) {
   const taskFieldValue = getRaidTaskFieldDisplay(raidInfo?.task);
-  const partialHelpers = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
   const activeHelpers = helpers.filter((helper) => !helper.removedAt);
   const midRunPartials = helpers.filter((helper) => helper.removedAt);
   const status = raidInfo?.status || RAID_STATUS.WAITING;
   const helperCapacity = getRaidHelperCapacity(raidInfo);
-  const spamming = isSpammingRaid(raidInfo);
 
   const mainContainer = new ContainerBuilder()
     .setAccentColor(STATUS_COLORS?.[status] ?? EMBED_COLOR)
@@ -138,21 +118,12 @@ function buildRaidRequestComponentsV2({ requester, raidInfo, helpers = [], isClo
   if (!isClosing) {
     mainContainer.addTextDisplayComponents(text(`**Current Status**\n${status}`));
     addCurrentHelpersSection(mainContainer, { activeHelpers, helperCapacity, isClosing: false });
-
-    if (spamming) {
-      addPartialHelpersSection(mainContainer, { midRunPartials, partialHelpers });
-    }
-
+    addPartialHelpersSection(mainContainer, { midRunPartials, raidInfo });
     mainContainer.addActionRowComponents(buildMainActionRow());
   } else {
-    mainContainer
-      .addTextDisplayComponents(text('**Status**\nAwaiting Completion'));
+    mainContainer.addTextDisplayComponents(text('**Status**\nAwaiting Completion'));
     addCurrentHelpersSection(mainContainer, { activeHelpers, helperCapacity, isClosing: true });
-
-    if (spamming) {
-      addPartialHelpersSection(mainContainer, { midRunPartials, partialHelpers });
-    }
-
+    addPartialHelpersSection(mainContainer, { midRunPartials, raidInfo });
     mainContainer.addActionRowComponents(getCloseConfirmRow({ proofImageUrl: raidInfo?.proofImage }));
   }
 

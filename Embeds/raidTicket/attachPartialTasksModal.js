@@ -47,7 +47,7 @@ export function buildAttachPartialTasksModal(partialHelpers, taskKeys) {
     .setTitle('Attach Tasks')
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        'Assign tasks to partial helpers who left before the raid closed. Time spent is tracked automatically for spamming raids.',
+        'Assign tasks to partial helpers who left or were removed. On spamming raids, time in ticket is recorded when you attach tasks.',
       ),
     )
     .addLabelComponents(

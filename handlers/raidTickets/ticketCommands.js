@@ -12,6 +12,10 @@ import {
   buildAttachPartialTasksModal,
   getAttachPartialTasksSelections,
 } from '../../Embeds/raidTicket/attachPartialTasksModal.js';
+import {
+  mergePartialHelperAttachments,
+  normalizePartialHelpers,
+} from './domain/partialHelpers.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { generateRaidMapsEmbed } from '../../utils/raidMaps.js';
 import { joinRaidHelper, listRaidHelpers, removeRaidHelper } from '../../utils/raidParticipationStore.js';
@@ -53,16 +57,6 @@ async function filterToWarriorHelperIds(interaction, selectedIds, requesterId) {
 
 function getUniqueRaidTaskKeys(raidInfo) {
   return [...new Set(parseRaidTasks(raidInfo?.task || '').map((task) => String(task).toLowerCase()).filter(Boolean))];
-}
-
-function normalizePartialHelpers(raidInfo) {
-  const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
-  return raw
-    .map((entry) => ({
-      helperId: entry?.helperId ? String(entry.helperId) : null,
-      tasks: Array.isArray(entry?.tasks) ? entry.tasks.map((task) => String(task).toLowerCase()).filter(Boolean) : [],
-    }))
-    .filter((entry) => entry.helperId);
 }
 
 async function sendJoinNotification(interaction, raidInfo, displayName, activeHelperCount, helperCapacity) {
@@ -312,17 +306,25 @@ export async function handleCommandInteractions(interaction, raidInfo) {
   }
 
   if (interaction.isStringSelectMenu?.() && interaction.customId === 'kickHelperSelect') {
-    if (!await requireAuth(interaction, raidInfo)) return;
-
     const helperId = interaction.values?.[0];
     if (!helperId) {
       await interaction.reply({ content: 'Select a helper to remove.', flags: MessageFlags.Ephemeral });
       return;
     }
 
+    const isSelfLeave = helperId === interaction.user.id;
+    if (isSelfLeave) {
+      if (!await requireWarrior(interaction)) return;
+    } else if (!await requireAuth(interaction, raidInfo)) {
+      return;
+    }
+
     await interaction.deferUpdate();
     await processHelperLeave(interaction, raidInfo, helperId);
-    await interaction.followUp({ content: `Removed <@${helperId}> from this raid ticket.`, flags: MessageFlags.Ephemeral }).catch(() => {});
+    const msg = isSelfLeave
+      ? 'You left this raid ticket.'
+      : `Removed <@${helperId}> from this raid ticket.`;
+    await interaction.followUp({ content: msg, flags: MessageFlags.Ephemeral }).catch(() => {});
     return;
   }
 
@@ -349,10 +351,6 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
   if (interaction.customId === 'attachTasks_btn') {
     if (!await requireAuth(interaction, raidInfo)) return;
-    if (!isSpammingRaid(raidInfo)) {
-      await interaction.reply({ content: 'Attach Tasks is only available on spamming raids.', flags: MessageFlags.Ephemeral });
-      return;
-    }
 
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const partialEntries = helpers.filter((helper) => helper.removedAt);
@@ -388,17 +386,14 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     }
 
     const selectedTasks = [...new Set(tasks.map((task) => String(task).toLowerCase()).filter(Boolean))];
-    let partialHelpers = normalizePartialHelpers(raidInfo);
-
-    for (const helperId of helperIds) {
-      const existing = partialHelpers.find((entry) => entry.helperId === helperId);
-      const mergedTasks = [...new Set([...(existing?.tasks ?? []), ...selectedTasks])];
-      partialHelpers = partialHelpers.filter((entry) => entry.helperId !== helperId);
-      partialHelpers.push({ helperId, tasks: mergedTasks });
-    }
+    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
+    const partialHelpers = mergePartialHelperAttachments(
+      raidInfo,
+      normalizePartialHelpers(raidInfo),
+      { helperIds, tasks: selectedTasks, helpers },
+    );
 
     await updateRaid(interaction.channel.id, { partialHelpers });
-    const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     await refreshRaidRequestMessage({
       client: interaction.client,
       channel: interaction.channel,

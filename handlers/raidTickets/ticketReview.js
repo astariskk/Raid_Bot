@@ -19,11 +19,13 @@ import {
   RAID_STATUS,
   TASK_DISPLAY_NAMES,
 } from '../../config/constants.js';
-import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { updateRaid, deleteRaid } from '../../activeRaidState.js';
 import { updateLeaderboard } from '../leaderboard/core.js';
+import { buildExpLairThreadBreakdown } from './domain/closePoints.js';
+import { normalizePartialHelpers } from './domain/partialHelpers.js';
+import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
 import { requireAuth, isStaff } from './ticketUtils.js';
-import { getRaidTaskFieldDisplay, getTaskKeys } from './raidTicketPresentation.js';
+import { getRaidTaskFieldDisplay, getTaskKeys, isSpammingRaid } from './raidTicketPresentation.js';
 
 const COLOR_INFO = EMBED_COLOR;
 const COLOR_EXP_LAIR = BLUE_EMBED_COLOR;
@@ -49,32 +51,6 @@ function formatTaskStringForDisplay(taskString) {
     .map((t) => formatTaskTokenForDisplay(t))
     .filter(Boolean)
     .join(', ');
-}
-
-function formatTaskArrayForDisplay(tasks) {
-  return (tasks || []).map((t) => (TASK_DISPLAY_NAMES?.[t] ?? t)).join(', ');
-}
-
-function formatCalculatedBreakdown(calculatedBreakdown) {
-  return (calculatedBreakdown || []).map((line) => {
-    const m = String(line ?? '').match(/^([a-z0-9_]+)(?:x(\d+))?:\s*(.+)$/i);
-    if (!m) return line;
-    const key = String(m[1]).toLowerCase();
-    const mult = m[2] ? parseInt(m[2], 10) : 1;
-    const rest = m[3];
-    const display = TASK_DISPLAY_NAMES?.[key] ?? key;
-    return `${display}${mult > 1 ? ` x${mult}` : ''}: ${rest}`;
-  });
-}
-
-function normalizePartialHelpers(raidInfo) {
-  const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
-  return raw
-    .map((e) => ({
-      helperId: e?.helperId ? String(e.helperId) : null,
-      tasks: Array.isArray(e?.tasks) ? e.tasks.map((t) => String(t).toLowerCase()).filter(Boolean) : [],
-    }))
-    .filter((e) => e.helperId);
 }
 
 function formatPartialHelpersBlock(raidInfo) {
@@ -201,50 +177,13 @@ export async function finalizeAdminReview(
             autoArchiveDuration: 60
           });
 
-          /* ---------- Task EXP Calculation ---------- */
-          const {
-            calculatedBreakdown,
-            originalTotalCalculatedPoints,
-            totalCalculatedPoints,
-            unknownTasks
-          } = calculateTaskPointsWithMultiplier(raidInfo.task);
-
-          /* ---------- Thread Breakdown Message ---------- */
-          let breakdown =
-            `This thread contains the full details for the raid\n`;
-
-          breakdown += `**Total EXP Calculated:** ${totalCalculatedPoints} EXP ${
-            originalTotalCalculatedPoints !== totalCalculatedPoints
-              ? ` / ${originalTotalCalculatedPoints} EXP \n The Points were capped.`
-              : ""
-          }\n\n**Points awarded to Helpers:**\n`;
-
-          const partialMap = new Map(partialHelpers.filter((e) => e.tasks?.length > 0).map((e) => [e.helperId, e.tasks]));
-
-          for (const uid of Object.keys(pointsAwarded)) {
-            const member = await guild.members.fetch(uid).catch(() => null);
-            const displayName = member?.displayName ?? `<@${uid}>`;
-            breakdown += `${displayName}: ${pointsAwarded[uid]} EXP\n`;
-
-            const tasks = partialMap.get(uid) ?? null;
-            if (tasks && tasks.length) {
-              breakdown += `* Tasks: ${formatTaskArrayForDisplay(tasks)}\n`;
-            }
-          }
-
-          if (calculatedBreakdown.length) {
-            breakdown += "\n**Task EXP Breakdown:**\n";
-            breakdown += formatCalculatedBreakdown(calculatedBreakdown).map(t => `* ${t}`).join("\n");
-
-          } else {
-            breakdown += "No valid tasks were recognized for EXP calculation.";
-          }
-          
-          if (unknownTasks.length) {
-            breakdown +=
-              `\n\n⚠️ **Unrecognized Task Entries:**\n` +
-              unknownTasks.map(t => `• \`${t}\``).join("\n");
-          }
+          const joinedHelpers = await listRaidHelpers(channel.id, { includeRemoved: true }).catch(() => []);
+          const joinedById = new Map(joinedHelpers.map((helper) => [helper.helperId, helper]));
+          const breakdown = buildExpLairThreadBreakdown(raidInfo, pointsAwarded, {
+            partialHelpers,
+            spamming: isSpammingRaid(raidInfo),
+            joinedById,
+          });
 
           await thread.send(breakdown);
         }

@@ -19,6 +19,14 @@ import {
 export { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
 
 export {
+  buildClosePointsMap,
+  buildExpLairThreadBreakdown,
+  formatPartialHelperEmbedLines,
+  mergePartialHelperAttachments,
+  normalizePartialHelpers,
+} from './domain/index.js';
+
+export {
   SPAMMING_TASK_KEY,
   SPAMMING_RATE_PER_MINUTE,
   SPAMMING_EXP_CAP,

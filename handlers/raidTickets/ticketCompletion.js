@@ -11,7 +11,7 @@ import {
 } from 'discord.js';
 
 import { getRaidInfo, updateRaid } from '../../activeRaidState.js';
-import { EMBED_COLOR, MAX_HELPERS, MAX_XP_PER_RAID, RAID_HELPER_ROLE_ID, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
+import { EMBED_COLOR, MAX_HELPERS, RAID_HELPER_ROLE_ID, RAID_STATUS, TASK_DISPLAY_NAMES } from '../../config/constants.js';
 import {
   buildClosePartialTasksModal,
   CLOSE_PARTIAL_TASKS_MODAL_ID,
@@ -22,19 +22,20 @@ import {
   getTaskHelpedModalSelections,
 } from '../../Embeds/raidTicket/taskHelpedModal.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
-import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
-import { calculateSpammingPoints, listRaidHelpers } from '../../utils/raidParticipationStore.js';
+import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
+import { buildClosePointsMap } from './domain/closePoints.js';
+import {
+    getPartialHelpersMissingTasks,
+    normalizePartialHelpers,
+} from './domain/partialHelpers.js';
 import { requireAuth } from './ticketUtils.js';
 import { finalizeAdminReview } from './ticketReview.js';
 import {
-  getNormalTaskString,
   getRaidHelperCapacity,
   getRaidStatusForHelpers,
   getRaidTaskFieldDisplay,
   isSpammingRaid,
   refreshRaidRequestMessage,
-  SPAMMING_EXP_CAP,
-  SPAMMING_RATE_PER_MINUTE,
 } from './raidTicketPresentation.js';
 import {
     consumePartialHelperSession,
@@ -251,44 +252,13 @@ function getUniqueRaidTaskKeys(raidInfo) {
     return [...new Set(tokens)];
 }
 
-function normalizePartialHelpers(raidInfo) {
-    const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
-    return raw
-        .map((e) => ({
-            helperId: e?.helperId ? String(e.helperId) : null,
-            tasks: Array.isArray(e?.tasks) ? e.tasks.map((t) => String(t).toLowerCase()).filter(Boolean) : [],
-        }))
-        .filter((e) => e.helperId);
-}
-
-function getRemovedPartialHelpers(joinedHelpers = [], requesterId = null) {
-    return joinedHelpers.filter(
-        (helper) => helper.removedAt && String(helper.helperId) !== String(requesterId ?? ''),
-    );
-}
-
-function getPartialHelpersMissingTasks(raidInfo, joinedHelpers = []) {
-    if (isSpammingRaid(raidInfo)) return [];
-    const partialHelpers = normalizePartialHelpers(raidInfo);
-    const partialsWithTasks = new Set(partialHelpers.map(e => e.helperId));
-    return getRemovedPartialHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => !partialsWithTasks.has(helper.helperId));
-}
-
 async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelpers) {
     const selectedIds = currentRaidInfo.pendingHelperIds || [];
     const partialHelpers = normalizePartialHelpers(currentRaidInfo);
-    const partialIds = partialHelpers.map((e) => e.helperId);
-    const activeJoinedIds = joinedHelpers.filter((helper) => !helper.removedAt).map((helper) => helper.helperId);
-    const removedJoinedIds = joinedHelpers.filter((helper) => helper.removedAt).map((helper) => helper.helperId);
-    const spamming = isSpammingRaid(currentRaidInfo);
+    const { pointsMap } = buildClosePointsMap(currentRaidInfo, joinedHelpers, selectedIds);
 
-    const partialsToInclude = partialHelpers.filter((p) => p.tasks?.length > 0).map((e) => e.helperId);
-    const allHelperIds = [...new Set([...selectedIds, ...partialsToInclude, ...activeJoinedIds, ...(spamming ? removedJoinedIds : [])])]
-        .filter(Boolean)
-        .filter((id) => id !== currentRaidInfo.requesterId);
-
-    const hasHelpersWithTasks = allHelperIds.length > 0 || partialHelpers.some((p) => p.tasks?.length > 0);
-    if (!hasHelpersWithTasks) {
+    const hasHelpers = Object.keys(pointsMap).length > 0;
+    if (!hasHelpers) {
         const noHelpersPayload = { content: 'No helpers with tasks selected.', flags: MessageFlags.Ephemeral };
         if (interaction.deferred || interaction.replied) {
             await interaction.followUp(noHelpersPayload).catch(() => interaction.editReply(noHelpersPayload).catch(() => {}));
@@ -296,36 +266,6 @@ async function executeRaidClose(interaction, client, currentRaidInfo, joinedHelp
             await interaction.reply(noHelpersPayload).catch(() => {});
         }
         return false;
-    }
-
-    const endedAt = new Date();
-    const normalTaskString = getNormalTaskString(currentRaidInfo.task);
-    const { originalTotalCalculatedPoints } = calculateTaskPointsWithMultiplier(normalTaskString || currentRaidInfo.task);
-    const joinedById = new Map(joinedHelpers.map((helper) => [helper.helperId, helper]));
-
-    const pointsMap = {};
-    for (const uid of allHelperIds) {
-        const partial = partialHelpers.find((e) => e.helperId === uid);
-        let normalPoints = 0;
-
-        if (partial) {
-            const subset = partial.tasks.filter((task) => String(task).toLowerCase() !== 'spamming').join(', ');
-            const { originalTotalCalculatedPoints: subsetPoints } = calculateTaskPointsWithMultiplier(subset);
-            normalPoints = subsetPoints;
-        } else {
-            normalPoints = originalTotalCalculatedPoints;
-        }
-
-        const spammingPoints = spamming && joinedById.has(uid)
-            ? calculateSpammingPoints({
-                helper: joinedById.get(uid),
-                endedAt,
-                ratePerMinute: SPAMMING_RATE_PER_MINUTE,
-                cap: SPAMMING_EXP_CAP,
-            })
-            : 0;
-
-        pointsMap[uid] = Math.min(normalPoints + spammingPoints, MAX_XP_PER_RAID);
     }
 
     await finalizeAdminReview(client, interaction.channel, currentRaidInfo, pointsMap, interaction.user.id, 'completed');
