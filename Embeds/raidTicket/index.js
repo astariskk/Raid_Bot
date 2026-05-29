@@ -1,7 +1,2 @@
-export * from './constants.js';
-export * from './addHelperModal.js';
-export * from './messagePayloads.js';
-export * from './mainTicket.js';
-export * from './helperNotifications.js';
-export * from './taskHelpedModal.js';
-export * from './closePartialTasksModal.js';
+/** @deprecated Import from `handlers/raidTickets/embeds/ticket` instead. */
+export * from '../../handlers/raidTickets/embeds/ticket/index.js';

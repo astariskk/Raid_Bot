@@ -133,11 +133,9 @@ export async function finalizeAdminReview(
         if (expLairChannel?.type === ChannelType.GuildText) {
           const helperIds = Object.keys(pointsAwarded);
           const partialHelpers = normalizePartialHelpers(raidInfo);
-          const helperNames = helperIds.length
-            ? (await Promise.all(helperIds.map(async (id) => {
-              const member = await guild.members.fetch(id).catch(() => null);
-              return member?.displayName ?? id;
-            }))).join(', ')
+          // EXP-lair embed should mention users; the thread breakdown uses display names only.
+          const helperMentions = helperIds.length
+            ? helperIds.map((id) => `<@${id}>`).join(', ')
             : 'None';
 
           const expEmbed = new EmbedBuilder()
@@ -145,7 +143,7 @@ export async function finalizeAdminReview(
             .setTitle("Raid Completed")
             .setDescription(
               `**Raid requested by:** ${requesterMember ?? `<@${raidInfo.requesterId}>`}\n` +
-              `**Helpers:** ${helperNames}\n` +
+              `**Helpers:** ${helperMentions}\n` +
               `**Task(s):** ${formatTaskStringForDisplay(raidInfo.task)}\n` +
               `**Description:** ${raidInfo.description || "No description provided."}`
             )

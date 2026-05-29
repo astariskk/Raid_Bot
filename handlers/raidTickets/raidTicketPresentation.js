@@ -4,11 +4,11 @@ import {
   RAID_STATUS,
   STATUS_COLORS,
 } from '../../config/constants.js';
-import { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
 import {
   buildRaidRequestMessagePayload,
+  HELPER_PING_COOLDOWN_MS,
   sendHelperLeftNotification as sendHelperLeftNotificationEmbed,
-} from '../../Embeds/raidTicket/index.js';
+} from './embeds/ticket/index.js';
 import {
   getRaidHelperCapacity,
   getRaidTaskFieldDisplay,
@@ -16,7 +16,7 @@ import {
   isSpammingRaid,
 } from './raidTicketLogic.js';
 
-export { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
+export { HELPER_PING_COOLDOWN_MS } from './embeds/ticket/constants.js';
 
 export {
   buildClosePointsMap,
@@ -55,7 +55,7 @@ export {
   buildMainTicketMessagePayload,
   sendRaidTicketMessages,
   getRaidTicketMessageUrl,
-} from '../../Embeds/raidTicket/index.js';
+} from './embeds/ticket/index.js';
 
 export { getHelperRoleMentionCooldownRemainingMs as getHelperPingCooldownRemainingMs } from './helperRoleMention.js';
 

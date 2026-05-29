@@ -23,6 +23,7 @@ export function formatNonSpammingTasksDisplay(taskKeys) {
 }
 
 export function normalizePartialHelpers(raidInfo) {
+  if (!isSpammingRaid(raidInfo)) return [];
   const raw = Array.isArray(raidInfo?.partialHelpers) ? raidInfo.partialHelpers : [];
   return raw
     .map((entry) => ({
@@ -92,7 +93,8 @@ export function formatPartialHelperEmbedLines(midRunPartials, partialHelpers, ra
 
 /** Merge attached tasks; snapshot participation time on spamming raids when tasks are set. */
 export function mergePartialHelperAttachments(raidInfo, partialHelpers, { helperIds, tasks, helpers }) {
-  const trackTime = isSpammingRaid(raidInfo);
+  if (!isSpammingRaid(raidInfo)) return [];
+  const trackTime = true;
   const participationById = new Map((helpers || []).map((row) => [String(row.helperId), row]));
   const cleanedTasks = [...new Set(
     (tasks || []).map((t) => String(t).toLowerCase()).filter((t) => t && !SPAMMING_KEY_PATTERN(t)),
@@ -129,7 +131,7 @@ export function getRemovedParticipationHelpers(joinedHelpers = [], requesterId =
 
 /** Removed helpers who still need non-spamming tasks attached (mixed raids only). */
 export function getPartialHelpersNeedingTaskAttach(raidInfo, joinedHelpers = []) {
-  if (!raidHasNonSpammingTasks(raidInfo)) return [];
+  if (!isSpammingRaid(raidInfo) || !raidHasNonSpammingTasks(raidInfo)) return [];
 
   const partialHelpers = normalizePartialHelpers(raidInfo);
   return getRemovedParticipationHelpers(joinedHelpers, raidInfo?.requesterId).filter((helper) => {
@@ -146,12 +148,12 @@ export function getPartialHelpersMissingTasks(raidInfo, joinedHelpers = []) {
 /** Create or keep partial-helper row when someone leaves (tasks default empty). */
 export function buildPartialHelperRecordOnLeave(raidInfo, helperId, helpers) {
   const partialHelpers = normalizePartialHelpers(raidInfo);
+  if (!isSpammingRaid(raidInfo)) return partialHelpers;
   const existing = getPartialHelperEntry(partialHelpers, helperId);
   if (existing) return partialHelpers;
 
   const helperRow = (helpers || []).find((row) => String(row.helperId) === String(helperId));
-  const trackTime = isSpammingRaid(raidInfo);
-  const timeSeconds = trackTime && helperRow ? getHelperTotalSeconds(helperRow) : null;
+  const timeSeconds = helperRow ? getHelperTotalSeconds(helperRow) : null;
 
   return [
     ...partialHelpers,

@@ -1,5 +1,5 @@
 import { updateRaid } from '../../activeRaidState.js';
-import { HELPER_PING_COOLDOWN_MS } from '../../Embeds/raidTicket/constants.js';
+import { HELPER_PING_COOLDOWN_MS } from './embeds/ticket/constants.js';
 
 export function getLastHelperRoleMentionAt(raidInfo) {
   return (

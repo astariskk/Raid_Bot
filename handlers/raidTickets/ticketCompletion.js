@@ -15,11 +15,11 @@ import { EMBED_COLOR, MAX_HELPERS, RAID_HELPER_ROLE_ID, RAID_STATUS, TASK_DISPLA
 import {
   ATTACH_PARTIAL_TASKS_MODAL_ID,
   buildAttachPartialTasksModal,
-} from '../../Embeds/raidTicket/attachPartialTasksModal.js';
+} from './embeds/ticket/attachPartialTasksModal.js';
 import {
   buildTaskHelpedModal,
   getTaskHelpedModalSelections,
-} from '../../Embeds/raidTicket/taskHelpedModal.js';
+} from './embeds/ticket/taskHelpedModal.js';
 import { parseRaidTasks } from '../../utils/raidMaps.js';
 import { listRaidHelpers } from '../../utils/raidParticipationStore.js';
 import { buildClosePointsMap } from './domain/closePoints.js';
@@ -498,6 +498,14 @@ export async function handleCompletionInteractions(interaction, raidInfo, client
 
     /* ---------- PARTIAL HELPER WIZARD (START) ---------- */
     if (interaction.isButton?.() && interaction.customId === 'partialHelper_btn') {
+        if (!isSpammingRaid(raidInfo)) {
+            await interaction.reply({
+                content: 'Partial helpers are only supported for spamming raids.',
+                flags: MessageFlags.Ephemeral,
+            });
+            return;
+        }
+
         const sessionId = createPartialHelperSession({
             userId: interaction.user.id,
             guildId: interaction.guildId,

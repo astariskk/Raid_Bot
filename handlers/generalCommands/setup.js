@@ -2,14 +2,9 @@ import {
     ActionRowBuilder,
     ButtonBuilder,
     ButtonStyle,
-    ContainerBuilder,
     EmbedBuilder,
     MessageFlags,
-    SectionBuilder,
-    SeparatorBuilder,
-    SeparatorSpacingSize,
     StringSelectMenuBuilder,
-    TextDisplayBuilder,
 } from 'discord.js';
 
 import {
@@ -22,19 +17,18 @@ import {
     RAID_HELPER_ROLE_ID,
     RAID_MANAGER_ROLE_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
-    TASK_DISPLAY_NAMES,
     raidNeedsModalMapName,
     raidRequiresModalMapName,
 } from '../../config/constants.js';
 
 import {
-    getRaidWizardCategoryDef,
-    getRaidWizardCategorySelectRow,
     getRaidWizardDetailsModal,
-    getRaidWizardNavRow,
     getRaidWizardTaskOptionsCount,
-    getRaidWizardTasksSelectRow,
+    getWizardCategoryV2,
+    getWizardTasksV2,
 } from '../raidTickets/embeds/raidWizardUi.js';
+import { WIZARD_MODE } from '../raidTickets/wizard/constants.js';
+import { handleRaidWizardNavButtons, handleRaidWizardTaskSelect } from '../raidTickets/wizard/raidWizardFlow.js';
 
 import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
 import { isSpammingRaid } from '../raidTickets/raidTicketPresentation.js';
@@ -122,113 +116,6 @@ async function applyLeaderboardBackupObject(obj) {
 
     invalidateLeaderboardCache();
     return { updated: entries.length, scanned: Object.keys(obj || {}).length };
-}
-
-function getWizardCategoryEmbed({ categoryKeys = [] } = {}) {
-    const categories = (categoryKeys || []).map(getRaidWizardCategoryDef).filter(Boolean);
-
-    const embed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('Start Raid')
-        .setDescription('Page 1/2: Select a category.');
-
-    if (categories.length) {
-        embed.addFields({
-            name: 'Selected Categories',
-            value: categories.map((c) => `• **${c.label}**`).join('\n').slice(0, 1024),
-            inline: false,
-        });
-    }
-
-    return embed;
-}
-
-function getWizardTasksEmbed({ categoryKeys, tasks = [] }) {
-    const categories = (categoryKeys || []).map(getRaidWizardCategoryDef).filter(Boolean);
-    const categoryLabel = categories.length ? categories.map((c) => c.label).join(', ') : (categoryKeys || []).join(', ');
-
-    const embed = new EmbedBuilder()
-        .setColor(EMBED_COLOR)
-        .setTitle('Start Raid')
-        .setDescription(`Page 2/2: Select task(s) for **${categoryLabel || 'selected categories'}**.`);
-
-    embed.addFields({
-        name: 'Selected Tasks',
-        value: tasks.length ? tasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') : '*None*',
-        inline: false,
-    });
-
-    if ((categoryKeys || []).some((key) => key === 'generic' || key === 'spamming')) {
-        embed.addFields({
-            name: 'Generic & Spamming',
-            value:
-                '• **Generic** — choose a 2/4/5/7-man room task and enter map name(s) in the raid form.\n' +
-                '• **Spamming** — choose a 2/4/5/7-man spamming task and enter map name(s). EXP is time-based (300/min, cap 10,000).',
-            inline: false,
-        });
-    }
-
-    return embed;
-}
-
-function text(content) {
-    return new TextDisplayBuilder().setContent(String(content || '\u200b').slice(0, 4000));
-}
-
-function separator() {
-    return new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
-}
-
-function getWizardCategoryV2(sessionId, categoryKeys) {
-    const categories = categoryKeys.map(getRaidWizardCategoryDef).filter(Boolean);
-    const categoryText = categories.length ? categories.map((c) => `• **${c.label}**`).join('\n') : '*None*';
-
-    const optionCount = getRaidWizardTaskOptionsCount(categoryKeys);
-    const canContinue = categoryKeys.length > 0 && optionCount <= 25;
-    const continueHint = categoryKeys.length > 0 && optionCount > 25
-        ? `Too many tasks (**${optionCount}** options). Select fewer categories (max 25 options).`
-        : 'Note: you can scroll down to see more options.';
-
-    return new ContainerBuilder()
-        .setAccentColor(EMBED_COLOR)
-        .addTextDisplayComponents(text('### Start Raid - Page 1/2'))
-        .addTextDisplayComponents(text('Select a task category.'))
-        .addTextDisplayComponents(text(`**Selected Categories**\n${categoryText}`))
-        .addTextDisplayComponents(text(continueHint))
-        .addActionRowComponents(getRaidWizardCategorySelectRow(sessionId, categoryKeys))
-        .addSeparatorComponents(separator())
-        .addActionRowComponents(getRaidWizardNavRow(sessionId, { step: 'category', canContinue }));
-}
-
-function getWizardTasksV2(sessionId, categoryKeys, tasks) {
-    const categories = categoryKeys.map(getRaidWizardCategoryDef).filter(Boolean);
-    const categoryLabel = categories.length ? categories.map((c) => c.label).join(', ') : categoryKeys.join(', ');
-    const taskText = tasks.length ? tasks.map((t) => TASK_DISPLAY_NAMES?.[t] ?? t).join(', ') : '*None*';
-
-    const components = [
-        text('### Start Raid - Page 2/2'),
-        text(`Select task(s) for **${categoryLabel || 'selected categories'}**.`),
-        text(`**Selected Tasks**\n${taskText}`),
-        text('Note: you can scroll down to see more options.'),
-    ];
-
-    if ((categoryKeys || []).some((key) => key === 'generic' || key === 'spamming')) {
-        components.push(
-            text('**Generic & Spamming**\n• **Generic** — choose a 2/4/5/7-man room task and enter map name(s) in the raid form.\n• **Spamming** — choose a 2/4/5/7-man spamming task and enter map name(s). EXP is time-based (300/min, cap 10,000).'),
-        );
-    }
-
-    const container = new ContainerBuilder()
-        .setAccentColor(EMBED_COLOR);
-
-    for (const c of components) {
-        container.addTextDisplayComponents(c);
-    }
-
-    return container
-        .addActionRowComponents(getRaidWizardTasksSelectRow(sessionId, categoryKeys, tasks))
-        .addSeparatorComponents(separator())
-        .addActionRowComponents(getRaidWizardNavRow(sessionId, { step: 'tasks', canContinue: tasks.length > 0 }));
 }
 
 export function setupGeneralCommandsHandler(client) {
@@ -445,73 +332,21 @@ export function setupGeneralCommandsHandler(client) {
         }
 
         if (interaction.customId.startsWith('raidWizard_')) {
-            const pick = (prefix) => (interaction.customId.startsWith(prefix) ? interaction.customId.slice(prefix.length) : null);
-
-            const cancelSessionId = pick('raidWizard_cancel_');
-            const backSessionId = pick('raidWizard_back_');
-            const continueSessionId = pick('raidWizard_continue_');
-
-            const sessionId = cancelSessionId || backSessionId || continueSessionId;
-            if (!sessionId) return;
-
-            const session = getRaidWizardSession(sessionId);
-            if (!session || session.userId !== interaction.user.id) {
-                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-
-            if (cancelSessionId) {
-                consumeRaidWizardSession(cancelSessionId);
-                await interaction.update({
-                    components: [text('Raid creation cancelled.')],
-                    flags: MessageFlags.IsComponentsV2,
-                });
-                return;
-            }
-
-            if (backSessionId) {
-                const updated = updateRaidWizardSession(backSessionId, { step: 'category' });
-                await interaction.update({
-                    components: [getWizardCategoryV2(backSessionId, updated.categoryKeys)],
-                    flags: MessageFlags.IsComponentsV2,
-                });
-                return;
-            }
-
-            if (continueSessionId) {
-                if (session.step === 'category') {
-                    if (!session.categoryKeys?.length) {
-                        await interaction.reply({ content: 'Select at least one category first.', flags: MessageFlags.Ephemeral });
-                        return;
-                    }
-
-                    const optionCount = getRaidWizardTaskOptionsCount(session.categoryKeys);
-                    if (optionCount > 25) {
-                        await interaction.reply({ content: 'Too many tasks selected. Pick fewer categories (max 25 options).', flags: MessageFlags.Ephemeral });
-                        return;
-                    }
-
-                    const updated = updateRaidWizardSession(continueSessionId, { step: 'tasks' });
-
-                    await interaction.update({
-                        components: [getWizardTasksV2(continueSessionId, updated.categoryKeys, updated.tasks)],
-                        flags: MessageFlags.IsComponentsV2,
-                    });
-                    return;
-                }
-
-                if (!session.tasks?.length) {
-                    await interaction.reply({ content: 'Select at least one task first.', flags: MessageFlags.Ephemeral });
-                    return;
-                }
-
-                const tasks = session.tasks || [];
-                const includeMapName = raidNeedsModalMapName(tasks);
-                const requireMapName = raidRequiresModalMapName(tasks);
-
-                await interaction.showModal(getRaidWizardDetailsModal(continueSessionId, { includeMapName, requireMapName }));
-                return;
-            }
+            const handled = await handleRaidWizardNavButtons(interaction, WIZARD_MODE.CREATE, {
+                getSession: getRaidWizardSession,
+                validateSession: (session) => session.userId === interaction.user.id,
+                onCancel: consumeRaidWizardSession,
+                onBack: (sessionId) => updateRaidWizardSession(sessionId, { step: 'category' }),
+                onAdvanceToTasks: (sessionId) => updateRaidWizardSession(sessionId, { step: 'tasks' }),
+                onContinueFromTasks: async (navInteraction, session) => {
+                    const tasks = session.tasks || [];
+                    await navInteraction.showModal(getRaidWizardDetailsModal(session.sessionId, {
+                        includeMapName: raidNeedsModalMapName(tasks),
+                        requireMapName: raidRequiresModalMapName(tasks),
+                    }));
+                },
+            });
+            if (handled) return;
         }
 
         switch (interaction.customId) {
@@ -604,70 +439,19 @@ export function setupGeneralCommandsHandler(client) {
         if (await handleGifCommandCrudInteraction(interaction)) return;
         if (await handleRaidTaskCrudInteraction(interaction)) return;
 
-        if (interaction.customId.startsWith('raidWizard_category_')) {
-            const sessionId = interaction.customId.slice('raidWizard_category_'.length);
-            const session = getRaidWizardSession(sessionId);
-            if (!session || session.userId !== interaction.user.id) {
-                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-
-            const categoryKeys = interaction.values || [];
-
-            const optionCount = getRaidWizardTaskOptionsCount(categoryKeys);
-            const canContinue = categoryKeys.length > 0 && optionCount <= 25;
-            const nextStep = canContinue ? 'tasks' : 'category';
-
-            const updated = updateRaidWizardSession(sessionId, { categoryKeys, step: nextStep, tasks: [] });
-
-// Auto-advance to Page 2 when the category selection is valid.
-            if (canContinue) {
-                await interaction.update({
-                    components: [getWizardTasksV2(sessionId, updated.categoryKeys, [])],
-                    flags: MessageFlags.IsComponentsV2,
-                });
-                return;
-            }
-
-await interaction.update({
-                components: [getWizardCategoryV2(sessionId, updated.categoryKeys)],
-                flags: MessageFlags.IsComponentsV2,
-            });
-            return;
-        }
-
-        if (interaction.customId.startsWith('raidWizard_tasks_')) {
-            const sessionId = interaction.customId.slice('raidWizard_tasks_'.length);
-            const session = getRaidWizardSession(sessionId);
-            if (!session || session.userId !== interaction.user.id) {
-                await interaction.reply({ content: 'This raid creation session expired. Press Start Raid again.', flags: MessageFlags.Ephemeral });
-                return;
-            }
-
-            const rawSelected = interaction.values || [];
-            const categories = (session.categoryKeys || []).map(getRaidWizardCategoryDef).filter(Boolean);
-            const allTasksForAllCategories = [...new Set(categories.flatMap((c) => c.tasks))];
-
-            let tasks = [];
-            if (rawSelected.includes('__all_selected__')) {
-                tasks = allTasksForAllCategories;
-            } else {
-                const perCategoryAll = rawSelected
-                    .filter((v) => v.startsWith('__all__:'))
-                    .map((v) => v.slice('__all__:'.length));
-
-                const expanded = perCategoryAll.flatMap((catKey) => getRaidWizardCategoryDef(catKey)?.tasks ?? []);
-                const explicit = rawSelected.filter((v) => !v.startsWith('__all__:') && v !== '__all_selected__');
-                tasks = [...new Set([...expanded, ...explicit])].filter(Boolean);
-            }
-
-            const updated = updateRaidWizardSession(sessionId, { tasks, step: 'tasks' });
-
-            await interaction.update({
-                components: [getWizardTasksV2(sessionId, updated.categoryKeys, tasks)],
-                flags: MessageFlags.IsComponentsV2,
-            });
-        }
+        const wizardSelectHandled = await handleRaidWizardTaskSelect(interaction, WIZARD_MODE.CREATE, {
+            getSession: getRaidWizardSession,
+            validateSession: (session) => session.userId === interaction.user.id,
+            autoAdvanceOnValidCategory: true,
+            updateCategoryKeys: (sessionId, categoryKeys, { autoAdvance } = {}) => {
+                const optionCount = getRaidWizardTaskOptionsCount(categoryKeys);
+                const canContinue = categoryKeys.length > 0 && optionCount <= 25;
+                const nextStep = autoAdvance && canContinue ? 'tasks' : 'category';
+                return updateRaidWizardSession(sessionId, { categoryKeys, step: nextStep, tasks: [] });
+            },
+            updateTasks: (sessionId, tasks) => updateRaidWizardSession(sessionId, { tasks, step: 'tasks' }),
+        });
+        if (wizardSelectHandled) return;
     });
 
     client.on('interactionCreate', async (interaction) => {

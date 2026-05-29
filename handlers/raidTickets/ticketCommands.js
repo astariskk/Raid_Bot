@@ -6,12 +6,13 @@ import {
   ADD_HELPER_MODAL_ID,
   buildAddHelperModal,
   getAddHelperUserIds,
-} from '../../Embeds/raidTicket/addHelperModal.js';
+} from './embeds/ticket/addHelperModal.js';
 import {
   ATTACH_PARTIAL_TASKS_MODAL_ID,
   buildAttachPartialTasksModal,
   getAttachPartialTasksSelections,
-} from '../../Embeds/raidTicket/attachPartialTasksModal.js';
+  NO_TASK_HELPED_VALUE,
+} from './embeds/ticket/attachPartialTasksModal.js';
 import {
   buildPartialHelperRecordOnLeave,
   getAttachableTaskKeys,
@@ -279,15 +280,21 @@ export async function handleCommandInteractions(interaction, raidInfo) {
       return;
     }
 
+    const activeHelperCount = getVisibleHelpers(helpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
+    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
+    if (activeHelperCount >= helperCapacity) {
+      await interaction.reply({ content: `This raid ticket is full (${activeHelperCount}/${helperCapacity}).`, flags: MessageFlags.Ephemeral });
+      return;
+    }
+
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
     await joinRaidHelper(interaction.channel.id, interaction.user.id);
     const updatedHelpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
-    const activeHelperCount = getVisibleHelpers(updatedHelpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
-    const helperCapacity = Math.max(1, getRaidHelperCapacity(raidInfo));
+    const nextActiveHelperCount = getVisibleHelpers(updatedHelpers, raidInfo.requesterId).filter((h) => !h.removedAt).length;
     const displayName = interaction.member?.displayName || interaction.user.globalName || interaction.user.username || 'A helper';
 
-    await sendJoinNotification(interaction, raidInfo, displayName, activeHelperCount, helperCapacity);
+    await sendJoinNotification(interaction, raidInfo, displayName, nextActiveHelperCount, helperCapacity);
     await applyStatusAndRefreshEmbed(interaction, raidInfo, updatedHelpers);
 
     const replyContent = raidInfo.mapNumber
@@ -364,6 +371,14 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     const partialEntries = helpers.filter((helper) => helper.removedAt);
     const taskKeys = getAttachableTaskKeys(raidInfo);
 
+    if (!isSpammingRaid(raidInfo)) {
+      await interaction.reply({
+        content: 'Partial helper task assignment is only supported for spamming raids.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
     if (!partialEntries.length) {
       await interaction.reply({ content: 'No partial helpers to assign tasks to.', flags: MessageFlags.Ephemeral });
       return;
@@ -391,12 +406,23 @@ export async function handleCommandInteractions(interaction, raidInfo) {
     if (!await requireAuth(interaction, raidInfo)) return;
 
     const { helperIds, tasks } = getAttachPartialTasksSelections(interaction);
-    if (!helperIds.length || !tasks.length) {
-      await interaction.reply({ content: 'Select at least one partial helper and one task.', flags: MessageFlags.Ephemeral });
+    const pickedNone = (tasks || []).includes(NO_TASK_HELPED_VALUE);
+    if (!helperIds.length || (!pickedNone && !tasks.length)) {
+      await interaction.reply({ content: 'Select at least one partial helper and one task (or choose No task helped).', flags: MessageFlags.Ephemeral });
       return;
     }
 
-    const selectedTasks = [...new Set(tasks.map((task) => String(task).toLowerCase()).filter(Boolean))];
+    if (!isSpammingRaid(raidInfo)) {
+      await interaction.reply({
+        content: 'Partial helper task assignment is only supported for spamming raids.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    const selectedTasks = pickedNone
+      ? []
+      : [...new Set(tasks.map((task) => String(task).toLowerCase()).filter((t) => t && t !== NO_TASK_HELPED_VALUE))];
     const helpers = await listRaidHelpers(interaction.channel.id, { includeRemoved: true });
     const partialHelpers = mergePartialHelperAttachments(
       raidInfo,
@@ -414,7 +440,7 @@ export async function handleCommandInteractions(interaction, raidInfo) {
 
     const label = selectedTasks.length
       ? getRaidTaskFieldDisplay(selectedTasks.join(', '))
-      : 'tasks';
+      : 'No task helped';
     const closingHint = raidInfo?.isAwaitingCompletion
       ? ' Press **Confirm Close** to finish closing the raid.'
       : '';

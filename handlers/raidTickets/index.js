@@ -56,7 +56,6 @@ export function setupRaidHandlers(client) {
             interaction.customId.startsWith('partialHelper_') ||
             interaction.customId.startsWith('taskHelped_') ||
             interaction.customId.startsWith('taskHelpedModal_')
-            || interaction.customId === 'closePartialTasksModal'
         ) {
             await handleCompletionInteractions(interaction, raidInfo, client);
             return;
