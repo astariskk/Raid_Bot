@@ -1,5 +1,5 @@
 // config/constants/tasks.js
-import { connectMongo, getMongoDb } from '../../utils/mongoClient.js';
+import { supabaseSelect } from '../../utils/Supabase/client.js';
 
 export const MAX_XP_PER_RAID = 30000; // 30,000 EXP per raid
 
@@ -306,17 +306,22 @@ function applyTaskRows(rows, { source = 'database', error = null, categoryRows =
 
 export async function loadRaidTasksCache({ fallbackOnError = true } = {}) {
   try {
-    await connectMongo();
-    const db = getMongoDb();
     const [data, categoryData] = await Promise.all([
-      db.collection('raid_tasks')
-        .find({}, { projection: { _id: 0 } })
-        .sort({ category: 1, sort_order: 1, key: 1 })
-        .toArray(),
-      db.collection('raid_task_categories')
-        .find({}, { projection: { _id: 0 } })
-        .sort({ sort_order: 1, display_name: 1 })
-        .toArray(),
+      supabaseSelect('raid_tasks', {
+        select: '*',
+        order: [
+          { column: 'category', direction: 'asc' },
+          { column: 'sort_order', direction: 'asc' },
+          { column: 'key', direction: 'asc' },
+        ],
+      }),
+      supabaseSelect('raid_task_categories', {
+        select: '*',
+        order: [
+          { column: 'sort_order', direction: 'asc' },
+          { column: 'display_name', direction: 'asc' },
+        ],
+      }),
     ]);
 
     const rows = data?.length ? data : FALLBACK_TASK_ROWS;
@@ -324,7 +329,7 @@ export async function loadRaidTasksCache({ fallbackOnError = true } = {}) {
   } catch (error) {
     if (!fallbackOnError) throw error;
     applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', error, categoryRows: FALLBACK_CATEGORY_ROWS });
-    console.warn('Failed to load raid tasks from database; using fallback constants:', error?.message || error);
+    console.warn('Failed to load raid tasks from Supabase; using fallback constants:', error?.message || error);
   }
 
   return getRaidTasksCacheState();
@@ -370,5 +375,5 @@ export function raidRequiresModalMapName(tasks = []) {
   return keys.every((task) => isGenericOrSpammingTask(task));
 }
 
-// Populate synchronously so imported constants are usable before startup refreshes from MongoDB.
+// Populate synchronously so imported constants are usable before startup refreshes from Supabase.
 applyTaskRows(FALLBACK_TASK_ROWS, { source: 'fallback', categoryRows: FALLBACK_CATEGORY_ROWS });

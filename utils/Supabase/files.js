@@ -1,8 +1,11 @@
 import { EMBED_COLOR } from '../../config/constants.js';
 import { resolveAssetUrl } from '../assetUrls.js';
-
-const GIFT_FILE_PATH = 'files/gif_commands.json';
-const CHART_FILE_PATH = 'files/charts.json';
+import {
+  supabaseDelete,
+  supabaseSelect,
+  supabaseSelectOne,
+  supabaseUpsert,
+} from './client.js';
 
 const cache = {
   loadedAtMs: 0,
@@ -12,83 +15,6 @@ const cache = {
   byCategoryKey: {},
   triggerToTypeKey: {},
 };
-
-function env(name, fallback = '') {
-  return String(process.env[name] ?? fallback).trim();
-}
-
-function getSupabaseConfig() {
-  const url = env('SUPABASE_URL').replace(/\/$/, '');
-  const key = env('SUPABASE_SERVICE_ROLE_KEY');
-  const bucket = env('SUPABASE_GIF_BUCKET');
-
-  if (!url) throw new Error('SUPABASE_URL is not defined.');
-  if (!key) throw new Error('SUPABASE_SERVICE_ROLE_KEY is not defined.');
-  if (!bucket) throw new Error('SUPABASE_GIF_BUCKET is not defined.');
-
-  return { url, key, bucket };
-}
-
-function buildObjectUrl(bucket, objectPath) {
-  const encodedPath = String(objectPath)
-    .split('/')
-    .filter(Boolean)
-    .map(encodeURIComponent)
-    .join('/');
-
-  return `${getSupabaseConfig().url}/storage/v1/object/${encodeURIComponent(bucket)}/${encodedPath}`;
-}
-
-async function readJsonObject(objectPath, fallbackValue) {
-  const { key, bucket } = getSupabaseConfig();
-  const response = await fetch(buildObjectUrl(bucket, objectPath), {
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-    },
-  });
-
-  if (response.status === 404) return fallbackValue;
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`Failed to read Supabase file ${objectPath}: ${response.status} ${detail.slice(0, 200)}`);
-  }
-
-  const raw = await response.text();
-  if (!String(raw ?? '').trim()) return fallbackValue;
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallbackValue;
-  }
-}
-
-async function writeJsonObject(objectPath, value) {
-  const { key, bucket } = getSupabaseConfig();
-  const response = await fetch(buildObjectUrl(bucket, objectPath), {
-    method: 'PUT',
-    headers: {
-      apikey: key,
-      Authorization: `Bearer ${key}`,
-      'Content-Type': 'application/json',
-      'x-upsert': 'true',
-    },
-    body: JSON.stringify(value, null, 2),
-  });
-
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '');
-    throw new Error(`Failed to write Supabase file ${objectPath}: ${response.status} ${detail.slice(0, 200)}`);
-  }
-}
-
-function unwrapRows(value, fallback = []) {
-  if (Array.isArray(value)) return value;
-  if (Array.isArray(value?.rows)) return value.rows;
-  if (Array.isArray(value?.data)) return value.data;
-  return fallback;
-}
 
 function normalizeTypeKey(key) {
   return String(key ?? '').trim().toLowerCase().replace(/^\//, '').replace(/[^\w-]/g, '').slice(0, 32);
@@ -109,10 +35,8 @@ function normalizeVariantKey(key) {
 }
 
 function normalizeVariantsRow(row) {
-  const raw = row?.variants;
-  const rawVariants = Array.isArray(raw) ? raw : (raw ? JSON.parse(raw) : null);
-
-  if (Array.isArray(rawVariants) && rawVariants.length) {
+  const rawVariants = Array.isArray(row?.variants) ? row.variants : [];
+  if (rawVariants.length) {
     return rawVariants
       .map((v) => ({
         key: normalizeVariantKey(v?.key) || normalizeVariantKey(v?.name) || normalizeVariantKey(v?.title) || 'main',
@@ -124,25 +48,9 @@ function normalizeVariantsRow(row) {
       .slice(0, 25);
   }
 
-  const legacyPages = Array.isArray(row?.pages) ? row.pages : (row?.pages ? JSON.parse(row.pages) : []);
+  const legacyPages = Array.isArray(row?.pages) ? row.pages : [];
   const legacyTitle = String(row?.title ?? row?.key ?? 'Chart').trim() || 'Chart';
-  return [{ key: 'main', name: legacyTitle, embed_title: null, pages: Array.isArray(legacyPages) ? legacyPages : [] }];
-}
-
-async function readCollection(objectPath) {
-  return unwrapRows(await readJsonObject(objectPath, []), []);
-}
-
-async function writeCollection(objectPath, rows) {
-  await writeJsonObject(objectPath, { rows, updated_at: new Date().toISOString() });
-}
-
-async function loadGifRows() {
-  return readCollection(GIFT_FILE_PATH);
-}
-
-async function loadChartRows() {
-  return readCollection(CHART_FILE_PATH);
+  return [{ key: 'main', name: legacyTitle, embed_title: null, pages: legacyPages }];
 }
 
 function buildGifCaches(rows) {
@@ -230,22 +138,12 @@ function buildChartCaches(rows) {
   return { byTypeKey, byCategoryKey, triggerToTypeKey };
 }
 
-async function loadGifState() {
-  const rows = await loadGifRows();
-  return buildGifCaches(rows);
-}
-
-async function loadChartState() {
-  const rows = await loadChartRows();
-  return buildChartCaches(rows);
-}
-
 function cloneRow(row) {
   if (row == null) return null;
   return JSON.parse(JSON.stringify(row));
 }
 
-function normalizeGifCommandRow(row) {
+function normalizeGifCommandRow(row, createdAt = row?.created_at ?? new Date().toISOString()) {
   return {
     command: String(row.command ?? '').trim().toLowerCase(),
     kind: row.kind ?? 'gif',
@@ -259,40 +157,58 @@ function normalizeGifCommandRow(row) {
     text_content: row.text_content ?? null,
     color: row.color ?? null,
     enabled: row.enabled !== false,
-    created_at: row.created_at ?? new Date().toISOString(),
+    created_at: createdAt,
     updated_at: new Date().toISOString(),
   };
 }
 
-function normalizeChartRow(row) {
+function normalizeChartRow(row, createdAt = row?.created_at ?? new Date().toISOString()) {
   return {
     key: normalizeTypeKey(row.key),
     category: String(row.category ?? 'general').trim() || 'general',
     title: String(row.title ?? row.key),
     triggers: Array.isArray(row.triggers) ? row.triggers.map(normalizeTrigger).filter(Boolean) : [],
     variants: Array.isArray(row.variants) ? row.variants : [],
+    pages: Array.isArray(row.pages) ? row.pages : [],
     enabled: row.enabled !== false,
-    created_at: row.created_at ?? new Date().toISOString(),
+    created_at: createdAt,
     updated_at: new Date().toISOString(),
   };
 }
 
-function findGifIndex(rows, command) {
-  const cmd = String(command ?? '').trim().toLowerCase();
-  return rows.findIndex((row) => String(row.command ?? '').trim().toLowerCase() === cmd);
+async function loadGifRows() {
+  return supabaseSelect('gif_commands', {
+    order: [{ column: 'command', direction: 'asc' }],
+  });
 }
 
-function findChartIndex(rows, key) {
-  const k = normalizeTypeKey(key);
-  return rows.findIndex((row) => normalizeTypeKey(row.key) === k);
+async function loadChartRows() {
+  return supabaseSelect('charts', {
+    order: [{ column: 'key', direction: 'asc' }],
+  });
+}
+
+async function refreshGifCache() {
+  const rows = await loadGifRows();
+  const { gifCommands, textGifCommands } = buildGifCaches(rows);
+  cache.loadedAtMs = Date.now();
+  cache.gifCommands = gifCommands;
+  cache.textGifCommands = textGifCommands;
+  return { gifCommands, textGifCommands };
+}
+
+async function refreshChartCache() {
+  const rows = await loadChartRows();
+  const { byTypeKey, byCategoryKey, triggerToTypeKey } = buildChartCaches(rows);
+  cache.loadedAtMs = Date.now();
+  cache.charts = byTypeKey;
+  cache.byCategoryKey = byCategoryKey;
+  cache.triggerToTypeKey = triggerToTypeKey;
+  return byTypeKey;
 }
 
 export async function loadGifCommandsCache() {
-  const state = await loadGifState();
-  cache.loadedAtMs = Date.now();
-  cache.gifCommands = state.gifCommands;
-  cache.textGifCommands = state.textGifCommands;
-  return { gifCommands: cache.gifCommands, textGifCommands: cache.textGifCommands };
+  return refreshGifCache();
 }
 
 export function getGifCommandsCache() {
@@ -304,10 +220,9 @@ export function getGifCommandsCache() {
 }
 
 export async function getGifCommand(command) {
-  const rows = await loadGifRows();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-  return cloneRow(rows.find((row) => String(row.command ?? '').trim().toLowerCase() === cmd) ?? null);
+  return cloneRow(await supabaseSelectOne('gif_commands', { filters: [{ column: 'command', op: 'eq', value: cmd }] }));
 }
 
 export async function upsertGifCommand({
@@ -326,88 +241,49 @@ export async function upsertGifCommand({
 }) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-
-  const rows = await loadGifRows();
-  const nextRow = normalizeGifCommandRow({
+  const existing = await getGifCommand(cmd).catch(() => null);
+  const row = normalizeGifCommandRow({
     command: cmd,
-    kind: kind ?? 'gif',
-    title,
-    footer,
-    text_content: textContent,
-    image_path: imagePath,
-    asset_path: assetPath,
-    ping_user_ids: pingUserIds,
-    text_label: textLabel,
-    text_description: textDescription,
-    color,
+    kind: kind ?? existing?.kind ?? 'gif',
+    title: title ?? existing?.title ?? null,
+    footer: footer ?? existing?.footer ?? null,
+    text_content: textContent ?? existing?.text_content ?? null,
+    image_path: imagePath ?? existing?.image_path ?? null,
+    asset_path: assetPath ?? existing?.asset_path ?? null,
+    ping_user_ids: pingUserIds ?? existing?.ping_user_ids ?? [],
+    text_label: textLabel ?? existing?.text_label ?? null,
+    text_description: textDescription ?? existing?.text_description ?? '',
+    color: color ?? existing?.color ?? null,
     enabled,
-    created_at: rows.find((row) => String(row.command ?? '').trim().toLowerCase() === cmd)?.created_at ?? new Date().toISOString(),
+    created_at: existing?.created_at ?? new Date().toISOString(),
   });
 
-  const index = findGifIndex(rows, cmd);
-  if (index >= 0) rows[index] = { ...rows[index], ...nextRow, created_at: rows[index].created_at ?? nextRow.created_at };
-  else rows.push(nextRow);
-
-  await writeCollection(GIFT_FILE_PATH, rows);
-  await loadGifCommandsCache();
+  await supabaseUpsert('gif_commands', row, { onConflict: 'command' });
+  await refreshGifCache();
 }
 
 export async function updateGifCommand(command, patch = {}) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-
-  const rows = await loadGifRows();
-  const index = findGifIndex(rows, cmd);
-  if (index < 0) return;
-
-  const current = rows[index];
-  rows[index] = {
-    ...current,
-    ...patch,
-    command: cmd,
-    updated_at: new Date().toISOString(),
-  };
-
-  await writeCollection(GIFT_FILE_PATH, rows);
-  await loadGifCommandsCache();
+  await supabaseUpsert('gif_commands', { command: cmd, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'command' });
+  await refreshGifCache();
 }
 
 export async function deleteGifCommand(command) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-
-  const rows = await loadGifRows();
-  const nextRows = rows.filter((row) => String(row.command ?? '').trim().toLowerCase() !== cmd);
-  await writeCollection(GIFT_FILE_PATH, nextRows);
-  await loadGifCommandsCache();
+  await supabaseDelete('gif_commands', [{ column: 'command', op: 'eq', value: cmd }]);
+  await refreshGifCache();
 }
 
 export async function updateGifCommandImage(command, imagePath) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-
-  const rows = await loadGifRows();
-  const index = findGifIndex(rows, cmd);
-  if (index < 0) return;
-
-  rows[index] = {
-    ...rows[index],
-    asset_path: imagePath,
-    image_path: imagePath,
-    updated_at: new Date().toISOString(),
-  };
-
-  await writeCollection(GIFT_FILE_PATH, rows);
-  await loadGifCommandsCache();
+  await updateGifCommand(cmd, { asset_path: imagePath, image_path: imagePath });
 }
 
 export async function loadChartsCache() {
-  const state = await loadChartState();
-  cache.loadedAtMs = Date.now();
-  cache.charts = state.byTypeKey;
-  cache.byCategoryKey = state.byCategoryKey;
-  cache.triggerToTypeKey = state.triggerToTypeKey;
-  return cache.charts;
+  return refreshChartCache();
 }
 
 export function getChartsCache() {
@@ -416,13 +292,12 @@ export function getChartsCache() {
 
 export async function listChartsKeys() {
   const rows = await loadChartRows();
-  return rows.map((row) => normalizeTypeKey(row.key)).filter(Boolean).sort((a, b) => a.localeCompare(b));
+  return rows.map((r) => normalizeTypeKey(r.key)).filter(Boolean);
 }
 
 export async function listChartCategories() {
   if (!cache.loadedAtMs) await loadChartsCache().catch(() => {});
   const cats = Object.values(cache.byCategoryKey || {}).map((c) => c.category);
-
   const seen = new Set();
   const out = [];
   for (const c of cats) {
@@ -437,19 +312,16 @@ export async function listChartCategories() {
 
 export async function listChartTypesInCategory(category) {
   if (!cache.loadedAtMs) await loadChartsCache().catch(() => {});
-  const catKey = normalizeCategoryKey(category);
-  const entry = cache.byCategoryKey?.[catKey];
+  const entry = cache.byCategoryKey?.[normalizeCategoryKey(category)];
   if (!entry) return [];
   return entry.keys.map((k) => cache.charts[k]).filter(Boolean);
 }
 
 export async function getChart(key) {
-  const rows = await loadChartRows();
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
-  const row = rows.find((entry) => normalizeTypeKey(entry.key) === k);
+  const row = await supabaseSelectOne('charts', { filters: [{ column: 'key', op: 'eq', value: k }] });
   if (!row) return null;
-
   return {
     key: k,
     category: String(row.category ?? 'general').trim() || 'general',
@@ -460,69 +332,58 @@ export async function getChart(key) {
   };
 }
 
-export async function upsertChart({ key, category = 'general', title, triggers = [], variants, enabled = true }) {
+export async function upsertChart({ key, category = 'general', title, triggers = [], variants, pages, enabled = true }) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
-
-  const rows = await loadChartRows();
-  const index = findChartIndex(rows, k);
-  const nextRow = normalizeChartRow({
+  const existing = await getChart(k).catch(() => null);
+  const row = normalizeChartRow({
     key: k,
     category,
     title,
     triggers,
     variants,
+    pages,
     enabled,
-    created_at: index >= 0 ? rows[index].created_at : new Date().toISOString(),
+    created_at: existing?.created_at ?? new Date().toISOString(),
   });
-
-  if (index >= 0) rows[index] = { ...rows[index], ...nextRow, created_at: rows[index].created_at ?? nextRow.created_at };
-  else rows.push(nextRow);
-
-  await writeCollection(CHART_FILE_PATH, rows);
-  await loadChartsCache();
+  await supabaseUpsert('charts', row, { onConflict: 'key' });
+  await refreshChartCache();
 }
 
 export async function updateChart(key, patch = {}) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
+  const existing = await getChart(k).catch(() => null);
+  if (!existing) return;
 
-  const rows = await loadChartRows();
-  const index = findChartIndex(rows, k);
-  if (index < 0) return;
-
-  const normalizedPatch = { ...patch };
-  if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'category')) {
-    normalizedPatch.category = String(normalizedPatch.category ?? 'general').trim() || 'general';
+  const nextPatch = { ...patch };
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'category')) {
+    nextPatch.category = String(nextPatch.category ?? 'general').trim() || 'general';
   }
-  if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'triggers')) {
-    normalizedPatch.triggers = Array.isArray(normalizedPatch.triggers)
-      ? normalizedPatch.triggers.map(normalizeTrigger).filter(Boolean)
-      : [];
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'triggers')) {
+    nextPatch.triggers = Array.isArray(nextPatch.triggers) ? nextPatch.triggers.map(normalizeTrigger).filter(Boolean) : [];
   }
-  if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'variants')) {
-    normalizedPatch.variants = Array.isArray(normalizedPatch.variants) ? normalizedPatch.variants : [];
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'variants')) {
+    nextPatch.variants = Array.isArray(nextPatch.variants) ? nextPatch.variants : [];
+  }
+  if (Object.prototype.hasOwnProperty.call(nextPatch, 'pages')) {
+    nextPatch.pages = Array.isArray(nextPatch.pages) ? nextPatch.pages : [];
   }
 
-  rows[index] = {
-    ...rows[index],
-    ...normalizedPatch,
+  await supabaseUpsert('charts', {
     key: k,
+    ...existing,
+    ...nextPatch,
     updated_at: new Date().toISOString(),
-  };
-
-  await writeCollection(CHART_FILE_PATH, rows);
-  await loadChartsCache();
+  }, { onConflict: 'key' });
+  await refreshChartCache();
 }
 
 export async function deleteChart(key) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
-
-  const rows = await loadChartRows();
-  const nextRows = rows.filter((row) => normalizeTypeKey(row.key) !== k);
-  await writeCollection(CHART_FILE_PATH, nextRows);
-  await loadChartsCache();
+  await supabaseDelete('charts', [{ column: 'key', op: 'eq', value: k }]);
+  await refreshChartCache();
 }
 
 export async function findChartKeyByTrigger(trigger) {

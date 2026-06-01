@@ -1,5 +1,11 @@
 import { loadRaidTasksCache } from '../config/constants/tasks.js';
-import { connectMongo, getMongoDb } from './mongoClient.js';
+import {
+  supabaseDelete,
+  supabaseSelect,
+  supabaseSelectOne,
+  supabaseUpsert,
+  supabaseUpdate,
+} from './Supabase/client.js';
 
 function normalizeTaskKey(value) {
   return String(value ?? '')
@@ -18,10 +24,6 @@ function formatCategoryLabel(key) {
 
 function normalizeLooseText(value) {
   return String(value ?? '').trim();
-}
-
-function escapeRegex(value) {
-  return String(value ?? '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 function normalizeStringList(value) {
@@ -52,8 +54,7 @@ function toTaskRow(input = {}, { partial = false } = {}) {
     row.points = Math.floor(points);
   }
   if (!partial || input.category !== undefined) {
-    const category = normalizeTaskKey(input.category || 'generic') || 'generic';
-    row.category = category;
+    row.category = normalizeTaskKey(input.category || 'generic') || 'generic';
   }
   if (!partial || input.active !== undefined || input.available !== undefined) {
     row.active = Boolean(input.active ?? input.available ?? true);
@@ -87,24 +88,14 @@ export function parseBooleanInput(value) {
 export async function getRaidTask(key) {
   const taskKey = normalizeTaskKey(key);
   if (!taskKey) throw new Error('Task key/name is required.');
-
-  await connectMongo();
-  const db = getMongoDb();
-  const data = await db.collection('raid_tasks').findOne({ key: taskKey }, { projection: { _id: 0 } });
-  return data ?? null;
+  return supabaseSelectOne('raid_tasks', { filters: [{ column: 'key', op: 'eq', value: taskKey }] });
 }
 
 export async function getRaidTaskByDisplayName(displayName) {
   const name = normalizeLooseText(displayName);
   if (!name) throw new Error('Task display name is required.');
-
-  await connectMongo();
-  const db = getMongoDb();
-  const data = await db.collection('raid_tasks').findOne(
-    { display_name: { $regex: `^${escapeRegex(name)}$`, $options: 'i' } },
-    { projection: { _id: 0 } },
-  );
-  return data ?? null;
+  const tasks = await supabaseSelect('raid_tasks', { select: '*' });
+  return (tasks ?? []).find((task) => String(task.display_name ?? '').trim().toLowerCase() === name.toLowerCase()) ?? null;
 }
 
 export async function resolveRaidTask(identifier) {
@@ -118,25 +109,27 @@ export async function resolveRaidTask(identifier) {
 }
 
 export async function listRaidTasks({ includeInactive = true } = {}) {
-  await connectMongo();
-  const db = getMongoDb();
-  const filter = includeInactive ? {} : { active: true };
-  const data = await db.collection('raid_tasks')
-    .find(filter, { projection: { _id: 0 } })
-    .sort({ category: 1, sort_order: 1, display_name: 1 })
-    .toArray();
-  return data ?? [];
+  const tasks = await supabaseSelect('raid_tasks', {
+    select: '*',
+    order: [
+      { column: 'category', direction: 'asc' },
+      { column: 'sort_order', direction: 'asc' },
+      { column: 'display_name', direction: 'asc' },
+    ],
+  });
+  return includeInactive ? (tasks ?? []) : (tasks ?? []).filter((task) => task.active);
 }
 
 export async function listRaidTaskCategories() {
-  await connectMongo();
-  const db = getMongoDb();
-  const data = await db.collection('raid_task_categories')
-    .find({}, { projection: { _id: 0 } })
-    .sort({ sort_order: 1, display_name: 1 })
-    .toArray();
+  const categories = await supabaseSelect('raid_task_categories', {
+    select: '*',
+    order: [
+      { column: 'sort_order', direction: 'asc' },
+      { column: 'display_name', direction: 'asc' },
+    ],
+  });
 
-  if (data.length) return data;
+  if (categories?.length) return categories;
 
   const tasks = await listRaidTasks({ includeInactive: true });
   const byCategory = new Map();
@@ -157,10 +150,7 @@ export async function getRaidTaskCategory(key) {
   const categoryKey = normalizeTaskKey(key);
   if (!categoryKey) throw new Error('Category is required.');
 
-  await connectMongo();
-  const db = getMongoDb();
-  const data = await db.collection('raid_task_categories').findOne({ key: categoryKey }, { projection: { _id: 0 } });
-
+  const data = await supabaseSelectOne('raid_task_categories', { filters: [{ column: 'key', op: 'eq', value: categoryKey }] });
   if (data) return data;
   return {
     key: categoryKey,
@@ -183,13 +173,7 @@ export async function upsertRaidTaskCategory(input = {}) {
     sort_order: Math.floor(sortOrder),
   };
 
-  await connectMongo();
-  const db = getMongoDb();
-  await db.collection('raid_task_categories').updateOne(
-    { key },
-    { $set: { ...row, updated_at: new Date() }, $setOnInsert: { created_at: new Date() } },
-    { upsert: true },
-  );
+  await supabaseUpsert('raid_task_categories', row, { onConflict: 'key' });
   return getRaidTaskCategory(key);
 }
 
@@ -208,14 +192,12 @@ export async function updateRaidTaskCategory(categoryKey, patch = {}) {
     sort_order: Math.floor(nextSort),
   };
 
-  await connectMongo();
-  const db = getMongoDb();
   if (nextKey !== existing.key) {
-    await db.collection('raid_task_categories').updateOne({ key: nextKey }, { $set: { ...row, updated_at: new Date() } }, { upsert: true });
-    await db.collection('raid_tasks').updateMany({ category: existing.key }, { $set: { category: nextKey, updated_at: new Date() } });
-    await db.collection('raid_task_categories').deleteOne({ key: existing.key });
+    await supabaseUpsert('raid_task_categories', row, { onConflict: 'key' });
+    await supabaseUpdate('raid_tasks', { category: nextKey }, [{ column: 'category', op: 'eq', value: existing.key }]);
+    await supabaseDelete('raid_task_categories', [{ column: 'key', op: 'eq', value: existing.key }]);
   } else {
-    await db.collection('raid_task_categories').updateOne({ key: existing.key }, { $set: { ...row, updated_at: new Date() } });
+    await supabaseUpsert('raid_task_categories', row, { onConflict: 'key' });
   }
 
   await loadRaidTasksCache().catch((error) => {
@@ -227,16 +209,14 @@ export async function updateRaidTaskCategory(categoryKey, patch = {}) {
 
 export async function deleteRaidTaskCategory(categoryKey, { deleteTasks = false } = {}) {
   const existing = await getRaidTaskCategory(categoryKey);
-  await connectMongo();
-  const db = getMongoDb();
 
   if (deleteTasks) {
-    await db.collection('raid_tasks').deleteMany({ category: existing.key });
+    await supabaseDelete('raid_tasks', [{ column: 'category', op: 'eq', value: existing.key }]);
   } else {
-    await db.collection('raid_tasks').updateMany({ category: existing.key }, { $set: { category: 'generic', updated_at: new Date() } });
+    await supabaseUpdate('raid_tasks', { category: 'generic' }, [{ column: 'category', op: 'eq', value: existing.key }]);
   }
 
-  await db.collection('raid_task_categories').deleteOne({ key: existing.key });
+  await supabaseDelete('raid_task_categories', [{ column: 'key', op: 'eq', value: existing.key }]);
 
   await loadRaidTasksCache().catch((cacheError) => {
     console.warn('Failed to refresh raid task cache after category delete:', cacheError?.message || cacheError);
@@ -255,16 +235,14 @@ export async function reorderRaidTasks(category, orderedKeys = []) {
   const selected = keys.filter((key, index) => valid.has(key) && keys.indexOf(key) === index);
   if (!selected.length) return tasks;
 
-  await connectMongo();
-  const db = getMongoDb();
   for (const [index, key] of selected.entries()) {
-    await db.collection('raid_tasks').updateOne({ key }, { $set: { sort_order: (index + 1) * 10, updated_at: new Date() } });
+    await supabaseUpsert('raid_tasks', { key, sort_order: (index + 1) * 10, updated_at: new Date().toISOString() }, { onConflict: 'key' });
   }
 
   let nextOrder = (selected.length + 1) * 10;
   for (const task of tasks) {
     if (selected.includes(task.key)) continue;
-    await db.collection('raid_tasks').updateOne({ key: task.key }, { $set: { sort_order: nextOrder, updated_at: new Date() } });
+    await supabaseUpsert('raid_tasks', { key: task.key, sort_order: nextOrder, updated_at: new Date().toISOString() }, { onConflict: 'key' });
     nextOrder += 10;
   }
 
@@ -278,29 +256,21 @@ export async function reorderRaidTasks(category, orderedKeys = []) {
 export async function listRaidTasksByCategory(category, { includeInactive = true } = {}) {
   const categoryKey = normalizeTaskKey(category);
   if (!categoryKey) return [];
-
-  await connectMongo();
-  const db = getMongoDb();
-  const filter = { category: categoryKey };
-  if (!includeInactive) filter.active = true;
-  const data = await db.collection('raid_tasks')
-    .find(filter, { projection: { _id: 0 } })
-    .sort({ sort_order: 1, display_name: 1 })
-    .toArray();
-  return data ?? [];
+  const tasks = await supabaseSelect('raid_tasks', {
+    select: '*',
+    filters: [{ column: 'category', op: 'eq', value: categoryKey }],
+    order: [
+      { column: 'sort_order', direction: 'asc' },
+      { column: 'display_name', direction: 'asc' },
+    ],
+  });
+  return includeInactive ? (tasks ?? []) : (tasks ?? []).filter((task) => task.active);
 }
 
 export async function upsertRaidTask(input = {}) {
   const existing = await resolveRaidTask(input.key ?? input.displayName ?? input.display_name ?? input.name).catch(() => null);
   const row = toTaskRow({ ...input, key: existing?.key }, { partial: false });
-  await connectMongo();
-  const db = getMongoDb();
-
-  await db.collection('raid_tasks').updateOne(
-    { key: row.key },
-    { $set: { ...row, updated_at: new Date() }, $setOnInsert: { created_at: new Date() } },
-    { upsert: true },
-  );
+  await supabaseUpsert('raid_tasks', { ...row, updated_at: new Date().toISOString() }, { onConflict: 'key' });
 
   await loadRaidTasksCache().catch((error) => {
     console.warn('Failed to refresh raid task cache after upsert:', error?.message || error);
@@ -318,9 +288,11 @@ export async function updateRaidTask(identifier, patch = {}) {
 
   if (!Object.keys(row).length) return existing;
 
-  await connectMongo();
-  const db = getMongoDb();
-  await db.collection('raid_tasks').updateOne({ key: existing.key }, { $set: { ...row, updated_at: new Date() } });
+  await supabaseUpsert('raid_tasks', {
+    key: existing.key,
+    ...row,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'key' });
 
   await loadRaidTasksCache().catch((error) => {
     console.warn('Failed to refresh raid task cache after update:', error?.message || error);
@@ -333,9 +305,7 @@ export async function deleteRaidTask(identifier) {
   const existing = await resolveRaidTask(identifier);
   if (!existing) throw new Error(`Task \`${identifier}\` does not exist.`);
 
-  await connectMongo();
-  const db = getMongoDb();
-  await db.collection('raid_tasks').deleteOne({ key: existing.key });
+  await supabaseDelete('raid_tasks', [{ column: 'key', op: 'eq', value: existing.key }]);
 
   await loadRaidTasksCache().catch((cacheError) => {
     console.warn('Failed to refresh raid task cache after delete:', cacheError?.message || cacheError);

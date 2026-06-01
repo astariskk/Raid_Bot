@@ -46,47 +46,37 @@ node index.js
 ## Environment variables
 
 - `DISCORD_TOKEN` = your bot token
-- `MONGODB_URI` = MongoDB Atlas connection string
-- `MONGODB_DB` = database name to use, for example `raid_bot`
+- `SUPABASE_URL` = your Supabase project URL
+- `SUPABASE_SERVICE_ROLE_KEY` = service role key for server-side table access
+- `SUPABASE_GIF_BUCKET` = Supabase storage bucket that holds the source media
 - `GUILD_ID` = guild/server ID where slash commands are registered
 - `BACKUP_LEADERBOARD_CHANNEL_ID` = channel where leaderboard JSON backups are posted
 - `PORT` = optional health server port, defaults to `3000`
 
-MongoDB Atlas setup:
+Supabase setup:
 
-1. Create a free Atlas cluster at `cloud.mongodb.com`.
-2. In **Database Access**, create a database user with read/write access.
-3. In **Network Access**, add your host IP. For many bot hosts, use `0.0.0.0/0` only if you understand that it allows any IP to attempt a login.
-4. Click **Connect** -> **Drivers** and copy the Node.js connection string.
-5. Put the URI in `.env`, replacing `<db_password>` with the database user's password. Keep `MONGODB_DB=raid_bot` unless you want a different database name.
+1. Create a Supabase project.
+2. Open the project settings and copy the `Project URL` and `service_role` key.
+3. Create the storage bucket that contains your source media.
+4. Put the values in `.env` and keep the service role key private.
 
-Example `.env` database section:
-
-```env
-MONGODB_URI=mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/?retryWrites=true&w=majority
-MONGODB_DB=raid_bot
-MONGODB_DNS_SERVERS=8.8.8.8,8.8.4.4
-```
-
-GIF/chart command definitions now live in Supabase files, while the uploaded images are stored as Discord attachment URLs. When adding or editing them, upload the image through the bot flow.
-
-If `mongodb+srv://` fails with a `_mongodb._tcp...` DNS error, set `MONGODB_DNS_SERVERS` as shown above or use Atlas's non-SRV `mongodb://host1,host2,host3/...` connection string.
-
-## Migrating old Supabase JSON exports
-
-Place the exported files in `DB_DATA/`, then run:
-
-```bash
-npm run migrate:db-data:dry
-npm run migrate:db-data
-```
-
-The real migration needs these temporary old Supabase values so it can download private storage objects before uploading them to Discord:
+Example `.env` section:
 
 ```env
 SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_SERVICE_ROLE_KEY=your_old_service_role_key
+SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 SUPABASE_GIF_BUCKET=images-storage
+```
+
+GIF/chart command definitions live in Supabase tables, while the uploaded images are stored as Discord attachment URLs. When adding or editing them, upload the image through the bot flow.
+
+## Migrating media references
+
+Run:
+
+```bash
+npm run migrate:supabase-media:dry
+npm run migrate:supabase-media
 ```
 
 By default, media is reposted to:
@@ -97,12 +87,6 @@ By default, media is reposted to:
 The normal `GUILD_ID` remains the main Discord server for slash-command registration. The media archive channels can be in a separate backup server. Set `MIGRATE_BACKUP_GUILD_ID` to that backup server ID if you want the migration to verify the channels before uploading.
 
 Override the archive channels with `MIGRATE_GIF_CHANNEL_ID` and `MIGRATE_CHART_CHANNEL_ID` if needed.
-
-To migrate the media references into those Discord archive channels, run:
-
-```bash
-npm run migrate:supabase-media
-```
 
 ## GIF/Text commands
 
