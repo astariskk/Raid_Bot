@@ -1,4 +1,4 @@
--- Legacy SQL schema kept only for old exports. The bot now uses MongoDB Atlas.
+-- Supabase schema for Raid_Bot.
 
 -- --------------------
 -- Raid tickets / state
@@ -45,6 +45,7 @@ create table if not exists public.raid_ticket_helpers (
   joined_at timestamptz not null default now(),
   removed_at timestamptz null,
   removed_by text null,
+  accumulated_seconds bigint not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   primary key (raid_id, helper_id)

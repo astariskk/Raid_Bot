@@ -1,4 +1,4 @@
--- Legacy SQL schema kept only for old exports. The bot now uses MongoDB Atlas.
+-- Supabase schema for raid task tables.
 -- After running this file, run database/seed_raid_tasks.sql to load categories and tasks.
 
 create or replace function public.set_updated_at()
