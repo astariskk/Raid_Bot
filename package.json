@@ -6,7 +6,9 @@
   "scripts": {
     "start": "node index.js",
     "migrate:db-data": "node scripts/migrateSupabaseJsonToMongo.js",
-    "migrate:db-data:dry": "node scripts/migrateSupabaseJsonToMongo.js --dry-run"
+    "migrate:db-data:dry": "node scripts/migrateSupabaseJsonToMongo.js --dry-run",
+    "migrate:supabase-media": "node scripts/migrateSupabaseJsonToMongo.js",
+    "migrate:supabase-media:dry": "node scripts/migrateSupabaseJsonToMongo.js --dry-run"
   },
   "repository": {
     "type": "git",

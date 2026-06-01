@@ -68,7 +68,7 @@ MONGODB_DB=raid_bot
 MONGODB_DNS_SERVERS=8.8.8.8,8.8.4.4
 ```
 
-GIF/chart images are stored as Discord attachment URLs in MongoDB. When adding or editing them, upload the image through the bot flow.
+GIF/chart command definitions now live in Supabase files, while the uploaded images are stored as Discord attachment URLs. When adding or editing them, upload the image through the bot flow.
 
 If `mongodb+srv://` fails with a `_mongodb._tcp...` DNS error, set `MONGODB_DNS_SERVERS` as shown above or use Atlas's non-SRV `mongodb://host1,host2,host3/...` connection string.
 
@@ -97,6 +97,12 @@ By default, media is reposted to:
 The normal `GUILD_ID` remains the main Discord server for slash-command registration. The media archive channels can be in a separate backup server. Set `MIGRATE_BACKUP_GUILD_ID` to that backup server ID if you want the migration to verify the channels before uploading.
 
 Override the archive channels with `MIGRATE_GIF_CHANNEL_ID` and `MIGRATE_CHART_CHANNEL_ID` if needed.
+
+To migrate the media references into those Discord archive channels, run:
+
+```bash
+npm run migrate:supabase-media
+```
 
 ## GIF/Text commands
 
