@@ -161,3 +161,20 @@ Helpers must press `Join Ticket` so the bot can record their join time. The `Map
 - add moderation role embed selector thing
 - add which role to ping
 - ping helper button only 30 minutes/rule, mods have no timer
+## Archive Media References
+
+The bot now treats Discord archive-channel posts as the canonical storage for GIF and chart media.
+
+Each stored row keeps:
+
+- `attachment_url`
+- `message_url`
+- `message_id`
+- `channel_id`
+
+For new uploads, configure:
+
+```env
+GIF_ARCHIVE_CHANNEL_ID=
+CHART_ARCHIVE_CHANNEL_ID=
+```

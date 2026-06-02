@@ -14,6 +14,7 @@ import {
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { deleteGifCommand, getGifCommand, updateGifCommand, updateGifCommandImage, upsertGifCommand } from '../../utils/gifCommandsStore.js';
 import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
+import { uploadAttachmentToArchive } from '../../utils/discordMediaArchive.js';
 
 const sessions = new Map(); // messageId -> { command, kind, ownerId }
 const createWizards = new Map(); // wizardSessionId -> { ownerId, command, kind|null, step, pingUserIds }
@@ -71,8 +72,22 @@ async function uploadAssetFromAttachment({ command, attachment, kind }) {
   const assetUrl = getStoredAssetValueFromAttachment(attachment);
   if (!assetUrl) throw new Error('Attachment URL is missing.');
 
-  await updateGifCommandImage(safeCmd, assetUrl);
-  return assetUrl;
+  const uploaded = await uploadAttachmentToArchive({
+    kind: 'gif',
+    attachment,
+    fileName: attachment?.name || `${safeCmd}.${String(attachment?.contentType || '').includes('gif') ? 'gif' : 'png'}`,
+    message: `GIF/text command: ${safeCmd}\nSource: ${assetUrl}`,
+  });
+
+  await updateGifCommandImage(safeCmd, {
+    asset_path: uploaded.attachmentUrl,
+    image_path: uploaded.attachmentUrl,
+    attachment_url: uploaded.attachmentUrl,
+    message_url: uploaded.messageUrl,
+    message_id: uploaded.messageId,
+    channel_id: uploaded.channelId,
+  });
+  return uploaded.attachmentUrl;
 }
 
 async function editPreviewMessage(channel, messageId, payload) {
@@ -117,12 +132,13 @@ function buildPreviewEmbed({ command, kind, row }) {
     const description = String(row?.text_description ?? '').trim();
     const label = String(row?.text_label ?? '').trim();
 
-    const maybePath = row?.asset_path || row?.image_path;
+    const maybePath = row?.attachment_url || row?.asset_path || row?.image_path;
     const url = resolveAssetUrl(maybePath) || '';
+    const linkUrl = row?.message_url || url;
 
     const prefix = mentions ? `${mentions} ` : '';
     const mid = description ? `${description} ` : '';
-    const outlined = label && url ? `[**${label}**](${url})` : (row?.text_content ? String(row.text_content) : '*Incomplete text command (missing image or label).*');
+    const outlined = label && url ? `[**${label}**](${linkUrl})` : (row?.text_content ? String(row.text_content) : '*Incomplete text command (missing image or label).*');
 
     embed.setDescription(`${prefix}${mid}${outlined}`.trim());
     if (url) embed.setImage(url);
@@ -133,8 +149,8 @@ function buildPreviewEmbed({ command, kind, row }) {
   embed.setTitle(row?.title ? String(row.title) : `${command}`);
   if (row?.footer) embed.setFooter({ text: String(row.footer) });
 
-  if (row?.asset_path || row?.image_path) {
-    const url = resolveAssetUrl(row.asset_path || row.image_path);
+  if (row?.attachment_url || row?.asset_path || row?.image_path) {
+    const url = resolveAssetUrl(row.attachment_url || row.asset_path || row.image_path);
     if (url) embed.setImage(url);
   } else {
     embed.setDescription('*No image set yet. Use `Change Image`.*');

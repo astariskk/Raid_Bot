@@ -105,3 +105,15 @@ Override the archive channels with `MIGRATE_GIF_CHANNEL_ID` and `MIGRATE_CHART_C
   - `"330781632103710741": 0,`
   - `"327400347381399554": 5000`
 - Rows with `0` are ignored.
+## Media Storage
+
+GIF, text, and chart media are archived in Discord channels and the bot stores the message reference fields alongside the attachment URL.
+
+Use these env vars for the archive targets:
+
+```env
+GIF_ARCHIVE_CHANNEL_ID=
+CHART_ARCHIVE_CHANNEL_ID=
+```
+
+The migration script still accepts the older `MIGRATE_GIF_CHANNEL_ID` and `MIGRATE_CHART_CHANNEL_ID` names as fallback values.

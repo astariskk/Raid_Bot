@@ -12,6 +12,7 @@ import {
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
 import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
+import { uploadAttachmentToArchive } from '../../utils/discordMediaArchive.js';
 import {
   findChartKeyByTrigger,
   getChart,
@@ -88,8 +89,8 @@ function buildWizardEmbed(session) {
   embed.setTitle(String(variant?.title ?? chart?.title ?? 'Chart'));
   embed.setDescription(null);
 
-  if (page?.asset_path) {
-    const url = resolveAssetUrl(page.asset_path);
+  if (page?.attachment_url || page?.asset_path || page?.image_path) {
+    const url = resolveAssetUrl(page.attachment_url || page.asset_path || page.image_path);
     if (url) embed.setImage(url);
   } else {
     embed.addFields({ name: 'No pages yet', value: 'Use `Add Page` to upload an image.', inline: false });
@@ -122,8 +123,8 @@ function buildEditorEmbeds(session) {
     .setDescription(null)
     .setFooter({ text: total ? `Page ${idx + 1}/${total}` : 'Page 0/0' });
 
-  if (page?.asset_path) {
-    const url = resolveAssetUrl(page.asset_path);
+  if (page?.attachment_url || page?.asset_path || page?.image_path) {
+    const url = resolveAssetUrl(page.attachment_url || page.asset_path || page.image_path);
     if (url) variantEmbed.setImage(url);
   } else {
     variantEmbed.addFields({ name: 'No pages yet', value: 'Use `Add Page` to upload an image.', inline: false });
@@ -411,7 +412,12 @@ function buildEditTriggersModal({ messageId, initialTriggers = '' }) {
 async function uploadChartPage({ typeKey, variantKey, attachment }) {
   const url = getStoredAssetValueFromAttachment(attachment);
   if (!url) throw new Error('Attachment URL is missing.');
-  return url;
+  return uploadAttachmentToArchive({
+    kind: 'chart',
+    attachment,
+    fileName: attachment?.name || `${normalizeTypeKey(typeKey)}_${normalizeChartVariantKey(variantKey) || 'page'}.png`,
+    message: `Chart page: ${typeKey}/${variantKey}\nSource: ${url}`,
+  });
 }
 
 async function deleteAllTypeAssets(chart) {
@@ -1084,12 +1090,19 @@ export async function handleChartsCrudInteraction(interaction) {
           errors: ['time'],
         });
         const attachment = collected.first().attachments.first();
-        const assetPath = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
+        const uploaded = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
 
         const updatedVariants = [...chart.variants];
         const updatedVariant = { ...updatedVariants[variantIndex] };
         const defaultTitle = `${String(chart.category ?? 'Chart')} ${String(chart.title ?? '')}`.trim();
-        updatedVariant.pages = [...pages, { asset_path: assetPath, title: defaultTitle || null }];
+        updatedVariant.pages = [...pages, {
+          asset_path: uploaded.attachmentUrl,
+          attachment_url: uploaded.attachmentUrl,
+          message_url: uploaded.messageUrl,
+          message_id: uploaded.messageId,
+          channel_id: uploaded.channelId,
+          title: defaultTitle || null,
+        }];
         updatedVariants[variantIndex] = updatedVariant;
 
         await updateChart(chart.key, { variants: updatedVariants });
@@ -1129,10 +1142,17 @@ export async function handleChartsCrudInteraction(interaction) {
           errors: ['time'],
         });
         const attachment = collected.first().attachments.first();
-        const assetPath = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
+        const uploaded = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
 
         const updatedPages = [...pages];
-        updatedPages[idx] = { ...updatedPages[idx], asset_path: assetPath };
+        updatedPages[idx] = {
+          ...updatedPages[idx],
+          asset_path: uploaded.attachmentUrl,
+          attachment_url: uploaded.attachmentUrl,
+          message_url: uploaded.messageUrl,
+          message_id: uploaded.messageId,
+          channel_id: uploaded.channelId,
+        };
 
         const updatedVariants = [...chart.variants];
         updatedVariants[variantIndex] = { ...updatedVariants[variantIndex], pages: updatedPages };

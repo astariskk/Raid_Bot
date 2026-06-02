@@ -1,11 +1,14 @@
 import 'dotenv/config';
-import { Blob } from 'buffer';
 import {
   supabaseDownloadObject,
   supabaseSelect,
   supabaseUpsert,
-  supabaseStorageObjectUrl,
 } from '../utils/Supabase/client.js';
+import {
+  fetchDiscordMessageAttachmentUrl,
+  parseDiscordMessageUrl,
+  uploadAttachmentToArchive,
+} from '../utils/discordMediaArchive.js';
 
 const DEFAULT_BACKUP_GUILD_ID = '953464422377087046';
 const DEFAULT_GIF_CHANNEL_ID = '1509062194212503603';
@@ -32,31 +35,15 @@ function requireMediaEnv() {
   getSupabaseBucketNames();
 }
 
-function isHttpUrl(value) {
-  return /^https?:\/\//i.test(String(value ?? ''));
-}
-
 function fileNameFromPath(objectPath) {
   const name = String(objectPath ?? '').split('/').filter(Boolean).pop() || 'asset';
   return name.replace(/[^\w.\-()[\] ]/g, '_').slice(0, 120) || 'asset';
 }
 
-async function discordRequestWithRetry(url, options, attempt = 0) {
-  const response = await fetch(url, options);
-  if (response.status !== 429) return response;
-
-  const body = await response.json().catch(() => ({}));
-  const retryAfterMs = Math.ceil(Number(body.retry_after ?? 1) * 1000) + 250;
-  if (attempt > 4) return response;
-  await new Promise((resolve) => setTimeout(resolve, retryAfterMs));
-  return discordRequestWithRetry(url, options, attempt + 1);
-}
-
 async function validateDiscordChannel(channelId, expectedGuildId, label) {
   if (!expectedGuildId || DRY_RUN || SKIP_MEDIA) return;
-
   const token = env('DISCORD_TOKEN');
-  const response = await discordRequestWithRetry(`https://discord.com/api/v10/channels/${channelId}`, {
+  const response = await fetch(`https://discord.com/api/v10/channels/${channelId}`, {
     headers: { Authorization: `Bot ${token}` },
   });
   const body = await response.json().catch(() => ({}));
@@ -68,71 +55,96 @@ async function validateDiscordChannel(channelId, expectedGuildId, label) {
   }
 }
 
-async function uploadToDiscordChannel(channelId, { bytes, contentType, fileName, message }) {
-  const token = env('DISCORD_TOKEN');
-  const form = new FormData();
-  form.append('payload_json', JSON.stringify({ content: message.slice(0, 1900) }));
-  form.append('files[0]', new Blob([bytes], { type: contentType }), fileName);
-
-  const response = await discordRequestWithRetry(`https://discord.com/api/v10/channels/${channelId}/messages`, {
-    method: 'POST',
-    headers: { Authorization: `Bot ${token}` },
-    body: form,
-  });
-
-  const body = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(`Discord upload failed for ${fileName}: ${response.status} ${JSON.stringify(body).slice(0, 300)}`);
-  }
-
-  const attachmentUrl = body?.attachments?.[0]?.url || body?.attachments?.[0]?.proxy_url;
-  if (!attachmentUrl) throw new Error(`Discord upload did not return an attachment URL for ${fileName}.`);
-  return { attachmentUrl, messageId: body.id };
-}
-
 const mediaCache = new Map();
 
-async function migrateMediaPath({ sourcePath, bucket, channelId, label }) {
-  if (!sourcePath || isHttpUrl(sourcePath)) return sourcePath || null;
-  const cacheKey = `${bucket}/${sourcePath}`;
+async function downloadSourceAsset(sourcePath, bucket) {
+  const raw = String(sourcePath ?? '').trim();
+  if (!raw) throw new Error('sourcePath is required');
+
+  if (/^https?:\/\//i.test(raw)) {
+    const parsed = parseDiscordMessageUrl(raw);
+    const mediaUrl = parsed
+      ? await fetchDiscordMessageAttachmentUrl({ channelId: parsed.channelId, messageId: parsed.messageId })
+      : raw;
+    const response = await fetch(mediaUrl);
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(`Failed to download remote asset ${mediaUrl}: ${response.status} ${detail.slice(0, 200)}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return {
+      bytes: Buffer.from(arrayBuffer),
+      contentType: response.headers.get('content-type') || 'application/octet-stream',
+      sourceKind: parsed ? 'discord-message' : 'discord-cdn',
+      sourceUrl: mediaUrl,
+    };
+  }
+
+  const asset = await supabaseDownloadObject(bucket, raw);
+  return {
+    ...asset,
+    sourceKind: 'supabase-object',
+    sourceUrl: raw,
+  };
+}
+
+async function migrateMediaPath({ sourcePath, bucket, kind, label }) {
+  if (!sourcePath) return null;
+  const cacheKey = `${kind}:${sourcePath}`;
   if (mediaCache.has(cacheKey)) return mediaCache.get(cacheKey);
 
   if (DRY_RUN || SKIP_MEDIA) {
-    console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] ${cacheKey} -> ${channelId}`);
+    console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] ${cacheKey}`);
     return sourcePath;
   }
 
-  const asset = await supabaseDownloadObject(bucket, sourcePath);
-  const upload = await uploadToDiscordChannel(channelId, {
-    ...asset,
+  const asset = await downloadSourceAsset(sourcePath, bucket);
+  const upload = await uploadAttachmentToArchive({
+    kind,
+    attachment: {
+      url: `data:${asset.contentType};base64,${asset.bytes.toString('base64')}`,
+      contentType: asset.contentType,
+    },
     fileName: fileNameFromPath(sourcePath),
-    message: `${label}\nSource: ${sourcePath}`,
+    message: `${label}\nSource: ${asset.sourceUrl}`,
   });
 
-  mediaCache.set(cacheKey, upload.attachmentUrl);
-  console.log(`[media] ${cacheKey} -> ${upload.attachmentUrl}`);
-  return upload.attachmentUrl;
+  const mediaRef = {
+    asset_path: upload.attachmentUrl,
+    image_path: upload.attachmentUrl,
+    attachment_url: upload.attachmentUrl,
+    message_url: upload.messageUrl,
+    message_id: upload.messageId,
+    channel_id: upload.channelId,
+  };
+  mediaCache.set(cacheKey, mediaRef);
+  console.log(`[media] ${cacheKey} -> ${upload.messageUrl}`);
+  return mediaRef;
 }
 
-function normalizeGifRowForUpdate(row, assetPath) {
+function normalizeGifRowForUpdate(row, mediaRef) {
   return {
     ...row,
-    image_path: assetPath,
-    asset_path: assetPath,
+    image_path: mediaRef.attachment_url,
+    asset_path: mediaRef.attachment_url,
+    attachment_url: mediaRef.attachment_url,
+    message_url: mediaRef.message_url,
+    message_id: mediaRef.message_id,
+    channel_id: mediaRef.channel_id,
     updated_at: new Date().toISOString(),
   };
 }
 
 async function migrateGifRow(row, channelId) {
-  const assetPath = row.asset_path || row.image_path || null;
-  const discordUrl = await migrateMediaPath({
+  const assetPath = row.asset_path || row.image_path || row.attachment_url || row.message_url || null;
+  const mediaRef = await migrateMediaPath({
     sourcePath: assetPath,
     bucket: getSupabaseBucketNames().gifBucket,
-    channelId,
+    kind: 'gif',
     label: `GIF/text command: ${row.command}`,
   });
 
-  const next = normalizeGifRowForUpdate(row, discordUrl);
+  const next = normalizeGifRowForUpdate(row, mediaRef);
   if (DRY_RUN) return next;
   await supabaseUpsert('gif_commands', next, { onConflict: 'command' });
   return next;
@@ -154,13 +166,20 @@ async function migrateChartRow(row, channelId) {
   for (const variant of next.variants) {
     const pages = Array.isArray(variant.pages) ? variant.pages : [];
     for (const page of pages) {
-      if (!page?.asset_path) continue;
-      page.asset_path = await migrateMediaPath({
-        sourcePath: page.asset_path,
+      const sourcePath = page?.asset_path || page?.attachment_url || page?.image_path || page?.message_url || null;
+      if (!sourcePath) continue;
+      const mediaRef = await migrateMediaPath({
+        sourcePath,
         bucket: chartsBucket,
-        channelId,
+        kind: 'chart',
         label: `Chart: ${row.category || row.key} / ${row.title || row.key}`,
       });
+      page.asset_path = mediaRef.attachment_url;
+      page.image_path = mediaRef.attachment_url;
+      page.attachment_url = mediaRef.attachment_url;
+      page.message_url = mediaRef.message_url;
+      page.message_id = mediaRef.message_id;
+      page.channel_id = mediaRef.channel_id;
     }
   }
 
@@ -175,11 +194,11 @@ async function main() {
 
   const mainGuildId = env('GUILD_ID');
   const backupGuildId = env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID);
-  const gifChannelId = env('MIGRATE_GIF_CHANNEL_ID', DEFAULT_GIF_CHANNEL_ID);
-  const chartChannelId = env('MIGRATE_CHART_CHANNEL_ID', DEFAULT_CHART_CHANNEL_ID);
+  const gifChannelId = env('GIF_ARCHIVE_CHANNEL_ID', env('MIGRATE_GIF_CHANNEL_ID', DEFAULT_GIF_CHANNEL_ID));
+  const chartChannelId = env('CHART_ARCHIVE_CHANNEL_ID', env('MIGRATE_CHART_CHANNEL_ID', DEFAULT_CHART_CHANNEL_ID));
 
   console.log(`Main guild: ${mainGuildId || '(not set)'}`);
-  console.log(`Backup/media guild: ${backupGuildId || '(not checked)'}`);
+  console.log(`Archive guild: ${backupGuildId || '(not checked)'}`);
   console.log(`GIF archive channel: ${gifChannelId}`);
   console.log(`Chart archive channel: ${chartChannelId}`);
   if (DRY_RUN) console.log('Dry run enabled: no Discord uploads or Supabase writes.');

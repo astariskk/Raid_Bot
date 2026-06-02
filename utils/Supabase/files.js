@@ -62,8 +62,9 @@ function buildGifCaches(rows) {
     if (!cmd) continue;
 
     if (row.kind === 'text') {
-      const maybePath = row.asset_path || row.image_path;
+      const maybePath = row.attachment_url || row.asset_path || row.image_path;
       const url = resolveAssetUrl(maybePath);
+      const linkUrl = row.message_url || row.asset_path || row.attachment_url || maybePath;
 
       const pingIds = Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [];
       const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
@@ -73,7 +74,7 @@ function buildGifCaches(rows) {
       if (url && label) {
         const prefix = mentions ? `${mentions} ` : '';
         const mid = description ? `${description} ` : '';
-        textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${url})`.trim();
+        textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${linkUrl || url})`.trim();
       } else if (row.text_content) {
         textGifCommands[cmd] = String(row.text_content);
       }
@@ -82,7 +83,7 @@ function buildGifCaches(rows) {
 
     if (row.kind === 'gif') {
       let image = null;
-      const maybePath = row.asset_path || row.image_path;
+      const maybePath = row.attachment_url || row.asset_path || row.image_path;
       if (maybePath) image = resolveAssetUrl(maybePath);
 
       gifCommands[cmd] = {
@@ -151,6 +152,10 @@ function normalizeGifCommandRow(row, createdAt = row?.created_at ?? new Date().t
     footer: row.footer ?? null,
     image_path: row.image_path ?? null,
     asset_path: row.asset_path ?? null,
+    attachment_url: row.attachment_url ?? null,
+    message_url: row.message_url ?? null,
+    channel_id: row.channel_id ?? null,
+    message_id: row.message_id ?? null,
     ping_user_ids: Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [],
     text_label: row.text_label ?? null,
     text_description: row.text_description ?? '',
@@ -233,6 +238,10 @@ export async function upsertGifCommand({
   textContent,
   imagePath,
   assetPath,
+  attachmentUrl,
+  messageUrl,
+  channelId,
+  messageId,
   pingUserIds,
   textLabel,
   textDescription,
@@ -250,6 +259,10 @@ export async function upsertGifCommand({
     text_content: textContent ?? existing?.text_content ?? null,
     image_path: imagePath ?? existing?.image_path ?? null,
     asset_path: assetPath ?? existing?.asset_path ?? null,
+    attachment_url: attachmentUrl ?? existing?.attachment_url ?? null,
+    message_url: messageUrl ?? existing?.message_url ?? null,
+    channel_id: channelId ?? existing?.channel_id ?? null,
+    message_id: messageId ?? existing?.message_id ?? null,
     ping_user_ids: pingUserIds ?? existing?.ping_user_ids ?? [],
     text_label: textLabel ?? existing?.text_label ?? null,
     text_description: textDescription ?? existing?.text_description ?? '',
@@ -276,10 +289,21 @@ export async function deleteGifCommand(command) {
   await refreshGifCache();
 }
 
-export async function updateGifCommandImage(command, imagePath) {
+export async function updateGifCommandImage(command, media = {}) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-  await updateGifCommand(cmd, { asset_path: imagePath, image_path: imagePath });
+  const next = typeof media === 'string'
+    ? { asset_path: media, image_path: media, attachment_url: media }
+    : {
+        asset_path: media.asset_path ?? media.attachment_url ?? null,
+        image_path: media.image_path ?? media.attachment_url ?? media.asset_path ?? null,
+        attachment_url: media.attachment_url ?? media.asset_path ?? null,
+        message_url: media.message_url ?? null,
+        channel_id: media.channel_id ?? null,
+        message_id: media.message_id ?? null,
+      };
+
+  await updateGifCommand(cmd, next);
 }
 
 export async function loadChartsCache() {
