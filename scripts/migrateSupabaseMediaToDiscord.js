@@ -95,7 +95,14 @@ async function migrateMediaPath({ sourcePath, bucket, kind, label }) {
 
   if (DRY_RUN || SKIP_MEDIA) {
     console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] ${cacheKey}`);
-    return sourcePath;
+    return {
+      asset_path: sourcePath,
+      image_path: sourcePath,
+      attachment_url: sourcePath,
+      message_url: null,
+      message_id: null,
+      channel_id: null,
+    };
   }
 
   const asset = await downloadSourceAsset(sourcePath, bucket);
@@ -123,19 +130,23 @@ async function migrateMediaPath({ sourcePath, bucket, kind, label }) {
 }
 
 function normalizeGifRowForUpdate(row, mediaRef) {
+  const attachmentUrl = typeof mediaRef === 'string' ? mediaRef : mediaRef?.attachment_url ?? null;
   return {
     ...row,
-    image_path: mediaRef.attachment_url,
-    asset_path: mediaRef.attachment_url,
-    attachment_url: mediaRef.attachment_url,
-    message_url: mediaRef.message_url,
-    message_id: mediaRef.message_id,
-    channel_id: mediaRef.channel_id,
+    image_path: attachmentUrl,
+    asset_path: attachmentUrl,
+    attachment_url: attachmentUrl,
+    message_url: typeof mediaRef === 'string' ? row.message_url ?? null : mediaRef?.message_url ?? null,
+    message_id: typeof mediaRef === 'string' ? row.message_id ?? null : mediaRef?.message_id ?? null,
+    channel_id: typeof mediaRef === 'string' ? row.channel_id ?? null : mediaRef?.channel_id ?? null,
     updated_at: new Date().toISOString(),
   };
 }
 
 async function migrateGifRow(row, channelId) {
+  if (String(row.channel_id ?? '') === String(channelId) && (row.message_url || row.attachment_url)) {
+    return row;
+  }
   const assetPath = row.asset_path || row.image_path || row.attachment_url || row.message_url || null;
   const mediaRef = await migrateMediaPath({
     sourcePath: assetPath,
@@ -166,6 +177,9 @@ async function migrateChartRow(row, channelId) {
   for (const variant of next.variants) {
     const pages = Array.isArray(variant.pages) ? variant.pages : [];
     for (const page of pages) {
+      if (String(page.channel_id ?? '') === String(channelId) && (page.message_url || page.attachment_url)) {
+        continue;
+      }
       const sourcePath = page?.asset_path || page?.attachment_url || page?.image_path || page?.message_url || null;
       if (!sourcePath) continue;
       const mediaRef = await migrateMediaPath({
@@ -174,12 +188,13 @@ async function migrateChartRow(row, channelId) {
         kind: 'chart',
         label: `Chart: ${row.category || row.key} / ${row.title || row.key}`,
       });
-      page.asset_path = mediaRef.attachment_url;
-      page.image_path = mediaRef.attachment_url;
-      page.attachment_url = mediaRef.attachment_url;
-      page.message_url = mediaRef.message_url;
-      page.message_id = mediaRef.message_id;
-      page.channel_id = mediaRef.channel_id;
+      const attachmentUrl = typeof mediaRef === 'string' ? mediaRef : mediaRef?.attachment_url ?? null;
+      page.asset_path = attachmentUrl;
+      page.image_path = attachmentUrl;
+      page.attachment_url = attachmentUrl;
+      page.message_url = typeof mediaRef === 'string' ? page.message_url ?? null : mediaRef?.message_url ?? null;
+      page.message_id = typeof mediaRef === 'string' ? page.message_id ?? null : mediaRef?.message_id ?? null;
+      page.channel_id = typeof mediaRef === 'string' ? page.channel_id ?? null : mediaRef?.channel_id ?? null;
     }
   }
 
