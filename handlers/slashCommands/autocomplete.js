@@ -1,4 +1,4 @@
-import { getGifCommandsCache, loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
+import { getGifCommandsCache, loadGifCommandsCache } from '../../utils/Supabase/files.js';
 import { listRaidTasks } from '../../utils/raidTasksStore.js';
 
 function normalizeQuery(value) {

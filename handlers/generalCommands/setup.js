@@ -40,7 +40,6 @@ import {
 } from '../raidTickets/raidWizardSession.js';
 
 import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
-import { loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
 import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
 import { handleChartsCrudInteraction, maybeHandleEditChartMessage } from './chartsCrud.js';
 import { handleRaidTaskCrudInteraction, maybeHandleRaidTaskCrudMessage } from './raidTasksCrud.js';
@@ -119,8 +118,6 @@ async function applyLeaderboardBackupObject(obj) {
 }
 
 export function setupGeneralCommandsHandler(client) {
-    loadGifCommandsCache().catch((err) => console.error('Failed to load gif/text commands cache:', err));
-
     client.on('messageCreate', async (message) => {
         if (message.author.bot) return;
 

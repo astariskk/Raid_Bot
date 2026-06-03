@@ -40,6 +40,92 @@ function fileNameFromPath(objectPath) {
   return name.replace(/[^\w.\-()[\] ]/g, '_').slice(0, 120) || 'asset';
 }
 
+function isHttpUrl(value) {
+  return /^https?:\/\//i.test(String(value ?? '').trim());
+}
+
+function sameMediaSource(left, right) {
+  const a = String(left ?? '').trim();
+  const b = String(right ?? '').trim();
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (isHttpUrl(a) && isHttpUrl(b)) {
+    const stripQuery = (value) => value.replace(/[?#].*$/, '');
+    return stripQuery(a) === stripQuery(b);
+  }
+  return false;
+}
+
+function buildMentionLine(pingUserIds = []) {
+  const ids = Array.isArray(pingUserIds) ? pingUserIds.filter(Boolean).map(String) : [];
+  return ids.length ? ids.map((id) => `<@${id}>`).join(' ') : '';
+}
+
+function compactText(...parts) {
+  return parts
+    .flatMap((part) => String(part ?? '').split(/\r?\n+/g))
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+function buildGifArchiveContent(row) {
+  const triggerword = String(row.command ?? '').trim();
+  const mentionLine = buildMentionLine(row.ping_user_ids);
+  const body = compactText(
+    row.text_content,
+    row.text_label ? [row.text_label, row.text_description].filter(Boolean).join(': ') : '',
+    row.text_description,
+    row.title,
+    row.footer,
+  );
+
+  const lines = [triggerword || '!gif'];
+  const secondLine = compactText(mentionLine, body);
+  if (secondLine) lines.push(secondLine);
+  return lines.join('\n');
+}
+
+function buildChartArchiveContent(row, variant, page) {
+  const triggerword = String(row.key ?? '').trim();
+  const variantName = String(variant?.name ?? variant?.title ?? '').trim();
+  const pageBody = compactText(
+    page?.text_content,
+    page?.caption,
+    page?.description,
+    page?.text_label,
+    page?.title,
+    row.title,
+    row.category,
+    variantName,
+  );
+
+  const lines = [triggerword || '!chart'];
+  if (pageBody) lines.push(pageBody);
+  return lines.join('\n');
+}
+
+async function editDiscordMessage(channelId, messageId, content) {
+  if (DRY_RUN || SKIP_MEDIA) {
+    console.log(`[message:${DRY_RUN ? 'dry' : 'skip'}] edit ${channelId}/${messageId}`);
+    return null;
+  }
+  const token = env('DISCORD_TOKEN');
+  const response = await fetch(`https://discord.com/api/v10/channels/${channelId}/messages/${messageId}`, {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bot ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ content }),
+  });
+  if (!response.ok) {
+    const detail = await response.text().catch(() => '');
+    throw new Error(`Failed to edit Discord message ${channelId}/${messageId}: ${response.status} ${detail.slice(0, 200)}`);
+  }
+  return response.json().catch(() => null);
+}
+
 async function validateDiscordChannel(channelId, expectedGuildId, label) {
   if (!expectedGuildId || DRY_RUN || SKIP_MEDIA) return;
   const token = env('DISCORD_TOKEN');
@@ -88,7 +174,7 @@ async function downloadSourceAsset(sourcePath, bucket) {
   };
 }
 
-async function migrateMediaPath({ sourcePath, bucket, kind, label }) {
+async function migrateMediaPath({ sourcePath, bucket, kind, content }) {
   if (!sourcePath) return null;
   const cacheKey = `${kind}:${sourcePath}`;
   if (mediaCache.has(cacheKey)) return mediaCache.get(cacheKey);
@@ -113,7 +199,7 @@ async function migrateMediaPath({ sourcePath, bucket, kind, label }) {
       contentType: asset.contentType,
     },
     fileName: fileNameFromPath(sourcePath),
-    message: `${label}\nSource: ${asset.sourceUrl}`,
+    message: content,
   });
 
   const mediaRef = {
@@ -127,6 +213,16 @@ async function migrateMediaPath({ sourcePath, bucket, kind, label }) {
   mediaCache.set(cacheKey, mediaRef);
   console.log(`[media] ${cacheKey} -> ${upload.messageUrl}`);
   return mediaRef;
+}
+
+async function syncExistingArchiveMessage({ channelId, messageId, content }) {
+  if (!channelId || !messageId) return null;
+  await editDiscordMessage(channelId, messageId, content);
+  return {
+    channel_id: channelId,
+    message_id: messageId,
+    message_url: `https://discord.com/channels/${env('GUILD_ID') || DEFAULT_BACKUP_GUILD_ID}/${channelId}/${messageId}`,
+  };
 }
 
 function normalizeGifRowForUpdate(row, mediaRef) {
@@ -144,15 +240,33 @@ function normalizeGifRowForUpdate(row, mediaRef) {
 }
 
 async function migrateGifRow(row, channelId) {
-  if (String(row.channel_id ?? '') === String(channelId) && (row.message_url || row.attachment_url)) {
-    return row;
-  }
   const assetPath = row.asset_path || row.image_path || row.attachment_url || row.message_url || null;
+  const archiveSource = row.attachment_url || row.asset_path || row.image_path || null;
+  const archiveContent = buildGifArchiveContent(row);
+
+  if (
+    String(row.channel_id ?? '') === String(channelId)
+    && row.message_id
+    && row.message_url
+    && sameMediaSource(assetPath, archiveSource)
+  ) {
+    await editDiscordMessage(row.channel_id, row.message_id, archiveContent);
+    const next = normalizeGifRowForUpdate(row, {
+      attachment_url: row.attachment_url || archiveSource,
+      message_url: row.message_url,
+      message_id: row.message_id,
+      channel_id: row.channel_id,
+    });
+    if (DRY_RUN) return next;
+    await supabaseUpsert('gif_commands', next, { onConflict: 'command' });
+    return next;
+  }
+
   const mediaRef = await migrateMediaPath({
     sourcePath: assetPath,
     bucket: getSupabaseBucketNames().gifBucket,
     kind: 'gif',
-    label: `GIF/text command: ${row.command}`,
+    content: archiveContent,
   });
 
   const next = normalizeGifRowForUpdate(row, mediaRef);
@@ -177,16 +291,30 @@ async function migrateChartRow(row, channelId) {
   for (const variant of next.variants) {
     const pages = Array.isArray(variant.pages) ? variant.pages : [];
     for (const page of pages) {
-      if (String(page.channel_id ?? '') === String(channelId) && (page.message_url || page.attachment_url)) {
+      const archiveContent = buildChartArchiveContent(row, variant, page);
+      const assetPath = page?.asset_path || page?.attachment_url || page?.image_path || page?.message_url || null;
+      const archiveSource = page?.attachment_url || page?.asset_path || page?.image_path || null;
+
+      if (
+        String(page.channel_id ?? '') === String(channelId)
+        && page.message_id
+        && page.message_url
+        && sameMediaSource(assetPath, archiveSource)
+      ) {
+        await editDiscordMessage(page.channel_id, page.message_id, archiveContent);
+        page.asset_path = archiveSource || page.asset_path || null;
+        page.image_path = archiveSource || page.image_path || null;
+        page.attachment_url = archiveSource || page.attachment_url || null;
         continue;
       }
-      const sourcePath = page?.asset_path || page?.attachment_url || page?.image_path || page?.message_url || null;
+
+      const sourcePath = assetPath;
       if (!sourcePath) continue;
       const mediaRef = await migrateMediaPath({
         sourcePath,
         bucket: chartsBucket,
         kind: 'chart',
-        label: `Chart: ${row.category || row.key} / ${row.title || row.key}`,
+        content: archiveContent,
       });
       const attachmentUrl = typeof mediaRef === 'string' ? mediaRef : mediaRef?.attachment_url ?? null;
       page.asset_path = attachmentUrl;

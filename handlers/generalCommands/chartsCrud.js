@@ -23,7 +23,7 @@ import {
   updateChart,
   upsertChart,
   deleteChart,
-} from '../../utils/chartsStore.js';
+} from '../../utils/Supabase/files.js';
 
 const sessions = new Map(); // messageId -> session
 

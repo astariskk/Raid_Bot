@@ -16,7 +16,7 @@ import {
   listChartCategories,
   listChartTypesInCategory,
   loadChartsCache,
-} from '../../utils/chartsStore.js';
+} from '../../utils/Supabase/files.js';
 
 const browseSessions = new Map(); // sessionId -> { ownerId, step, category, categoryKey, typeKey }
 const showSessions = new Map(); // messageId -> { ownerId, typeKey, variantKey, pageIndex, ts }

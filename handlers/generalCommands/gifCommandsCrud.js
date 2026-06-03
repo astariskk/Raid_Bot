@@ -12,7 +12,7 @@ import {
 } from 'discord.js';
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
-import { deleteGifCommand, getGifCommand, updateGifCommand, updateGifCommandImage, upsertGifCommand } from '../../utils/gifCommandsStore.js';
+import { deleteGifCommand, getGifCommand, updateGifCommand, updateGifCommandImage, upsertGifCommand } from '../../utils/Supabase/files.js';
 import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
 import { uploadAttachmentToArchive } from '../../utils/discordMediaArchive.js';
 

@@ -8,7 +8,7 @@ import { sendLeaderboardCheckResults, sendLeaderboardResults } from '../leaderbo
 import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
 import { getCombinedTasksAndPointsEmbed, getRaidTasksPageComponents } from '../../Embeds/generalCommandsEmbeds.js';
 import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
-import { getGifCommand } from '../../utils/gifCommandsStore.js';
+import { getGifCommand } from '../../utils/Supabase/files.js';
 import { startRaidTaskManagerInteraction } from '../generalCommands/raidTasksCrud.js';
 import { startEditChartFlowInteraction } from '../generalCommands/chartsCrud.js';
 import { postChartToChannel, startChartBrowseInteraction } from '../charts/charts.js';

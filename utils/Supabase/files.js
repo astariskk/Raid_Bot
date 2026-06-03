@@ -3,18 +3,22 @@ import { resolveAssetUrl } from '../assetUrls.js';
 import {
   supabaseDelete,
   supabaseSelect,
-  supabaseSelectOne,
   supabaseUpsert,
 } from './client.js';
 
 const cache = {
   loadedAtMs: 0,
+  rawGifRows: {},
+  rawChartRows: {},
   gifCommands: {},
   textGifCommands: {},
   charts: {},
   byCategoryKey: {},
   triggerToTypeKey: {},
 };
+
+let gifCacheLoadPromise = null;
+let chartCacheLoadPromise = null;
 
 function normalizeTypeKey(key) {
   return String(key ?? '').trim().toLowerCase().replace(/^\//, '').replace(/[^\w-]/g, '').slice(0, 32);
@@ -32,6 +36,34 @@ function normalizeTrigger(trigger) {
 
 function normalizeVariantKey(key) {
   return String(key ?? '').trim().toLowerCase().replace(/^\//, '').replace(/[^\w-]/g, '').slice(0, 32);
+}
+
+function normalizeGifKind(row) {
+  const rawKind = String(row?.kind ?? '').trim().toLowerCase();
+  if (rawKind === 'gif' || rawKind === 'text') return rawKind;
+
+  const hasTextFields =
+    Boolean(String(row?.text_content ?? '').trim())
+    || Boolean(String(row?.text_label ?? '').trim())
+    || Boolean(String(row?.text_description ?? '').trim())
+    || (Array.isArray(row?.ping_user_ids) && row.ping_user_ids.length > 0);
+
+  return hasTextFields ? 'text' : 'gif';
+}
+
+function parsePingUserIds(value) {
+  if (Array.isArray(value)) return value.filter(Boolean).map(String);
+  if (typeof value === 'string') {
+    const raw = value.trim();
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+    } catch {
+      return raw.split(/[,\s]+/).map((part) => part.trim()).filter(Boolean);
+    }
+  }
+  return [];
 }
 
 function normalizeVariantsRow(row) {
@@ -60,13 +92,14 @@ function buildGifCaches(rows) {
   for (const row of rows ?? []) {
     const cmd = String(row.command ?? '').trim().toLowerCase();
     if (!cmd) continue;
+    const kind = normalizeGifKind(row);
 
-    if (row.kind === 'text') {
+    if (kind === 'text') {
       const maybePath = row.attachment_url || row.asset_path || row.image_path;
       const url = resolveAssetUrl(maybePath);
       const linkUrl = row.message_url || row.asset_path || row.attachment_url || maybePath;
 
-      const pingIds = Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [];
+      const pingIds = parsePingUserIds(row.ping_user_ids);
       const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
       const description = String(row.text_description ?? '').trim();
       const label = String(row.text_label ?? '').trim();
@@ -75,13 +108,18 @@ function buildGifCaches(rows) {
         const prefix = mentions ? `${mentions} ` : '';
         const mid = description ? `${description} ` : '';
         textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${linkUrl || url})`.trim();
+      } else if (label || description || mentions || row.text_content) {
+        const prefix = mentions ? `${mentions} ` : '';
+        const mid = description ? `${description} ` : '';
+        const tail = label ? `**${label}**` : '';
+        textGifCommands[cmd] = `${prefix}${mid}${tail}`.trim() || String(row.text_content ?? '').trim();
       } else if (row.text_content) {
         textGifCommands[cmd] = String(row.text_content);
       }
       continue;
     }
 
-    if (row.kind === 'gif') {
+    if (kind === 'gif') {
       let image = null;
       const maybePath = row.attachment_url || row.asset_path || row.image_path;
       if (maybePath) image = resolveAssetUrl(maybePath);
@@ -147,7 +185,7 @@ function cloneRow(row) {
 function normalizeGifCommandRow(row, createdAt = row?.created_at ?? new Date().toISOString()) {
   return {
     command: String(row.command ?? '').trim().toLowerCase(),
-    kind: row.kind ?? 'gif',
+    kind: normalizeGifKind(row),
     title: row.title ?? null,
     footer: row.footer ?? null,
     image_path: row.image_path ?? null,
@@ -197,6 +235,7 @@ async function refreshGifCache() {
   const rows = await loadGifRows();
   const { gifCommands, textGifCommands } = buildGifCaches(rows);
   cache.loadedAtMs = Date.now();
+  cache.rawGifRows = Object.fromEntries(rows.map((row) => [String(row.command ?? '').trim().toLowerCase(), row]).filter(([key]) => key));
   cache.gifCommands = gifCommands;
   cache.textGifCommands = textGifCommands;
   return { gifCommands, textGifCommands };
@@ -206,14 +245,43 @@ async function refreshChartCache() {
   const rows = await loadChartRows();
   const { byTypeKey, byCategoryKey, triggerToTypeKey } = buildChartCaches(rows);
   cache.loadedAtMs = Date.now();
+  cache.rawChartRows = Object.fromEntries(rows.map((row) => [normalizeTypeKey(row.key), row]).filter(([key]) => key));
   cache.charts = byTypeKey;
   cache.byCategoryKey = byCategoryKey;
   cache.triggerToTypeKey = triggerToTypeKey;
   return byTypeKey;
 }
 
+async function ensureGifCacheLoaded() {
+  if (cache.loadedAtMs && (Object.keys(cache.gifCommands || {}).length || Object.keys(cache.textGifCommands || {}).length)) {
+    return { gifCommands: cache.gifCommands, textGifCommands: cache.textGifCommands };
+  }
+  if (!gifCacheLoadPromise) {
+    gifCacheLoadPromise = refreshGifCache().finally(() => {
+      gifCacheLoadPromise = null;
+    });
+  }
+  return gifCacheLoadPromise;
+}
+
+async function ensureChartCacheLoaded() {
+  if (cache.loadedAtMs && Object.keys(cache.charts || {}).length) {
+    return cache.charts;
+  }
+  if (!chartCacheLoadPromise) {
+    chartCacheLoadPromise = refreshChartCache().finally(() => {
+      chartCacheLoadPromise = null;
+    });
+  }
+  return chartCacheLoadPromise;
+}
+
 export async function loadGifCommandsCache() {
-  return refreshGifCache();
+  return ensureGifCacheLoaded();
+}
+
+export async function loadSecretCommandsCache() {
+  return ensureGifCacheLoaded();
 }
 
 export function getGifCommandsCache() {
@@ -224,10 +292,17 @@ export function getGifCommandsCache() {
   };
 }
 
+export function getSecretCommandsCache() {
+  return getGifCommandsCache();
+}
+
 export async function getGifCommand(command) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-  return cloneRow(await supabaseSelectOne('gif_commands', { filters: [{ column: 'command', op: 'eq', value: cmd }] }));
+  await ensureGifCacheLoaded();
+  const row = cache.rawGifRows?.[cmd] || null;
+  if (row) return cloneRow(row);
+  return null;
 }
 
 export async function upsertGifCommand({
@@ -272,21 +347,79 @@ export async function upsertGifCommand({
   });
 
   await supabaseUpsert('gif_commands', row, { onConflict: 'command' });
-  await refreshGifCache();
+  cache.loadedAtMs = Date.now();
+  cache.rawGifRows[row.command] = cloneRow(row);
+  if (row.kind === 'text') {
+    cache.textGifCommands[row.command] = row.text_content ?? '';
+    delete cache.gifCommands[row.command];
+  } else {
+    cache.gifCommands[row.command] = {
+      title: row.title ?? row.command,
+      image: resolveAssetUrl(row.attachment_url || row.asset_path || row.image_path),
+      footer: row.footer ?? '',
+      color: row.color ?? EMBED_COLOR,
+    };
+    delete cache.textGifCommands[row.command];
+  }
 }
 
 export async function updateGifCommand(command, patch = {}) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-  await supabaseUpsert('gif_commands', { command: cmd, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'command' });
-  await refreshGifCache();
+  await ensureGifCacheLoaded();
+  const existing = await getGifCommand(cmd);
+  const next = normalizeGifCommandRow({
+    ...(existing || { command: cmd, kind: 'gif', ping_user_ids: [], text_description: '', enabled: true }),
+    ...patch,
+    command: cmd,
+    updated_at: new Date().toISOString(),
+  }, existing?.created_at ?? new Date().toISOString());
+  await supabaseUpsert('gif_commands', next, { onConflict: 'command' });
+
+  cache.loadedAtMs = Date.now();
+  cache.rawGifRows[cmd] = cloneRow(next);
+  if (next.kind === 'text') {
+    const maybePath = next.attachment_url || next.asset_path || next.image_path;
+    const url = resolveAssetUrl(maybePath);
+    const linkUrl = next.message_url || next.asset_path || next.attachment_url || maybePath;
+    const pingIds = parsePingUserIds(next.ping_user_ids);
+    const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
+    const description = String(next.text_description ?? '').trim();
+    const label = String(next.text_label ?? '').trim();
+
+    if (url && label) {
+      const prefix = mentions ? `${mentions} ` : '';
+      const mid = description ? `${description} ` : '';
+      cache.textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${linkUrl || url})`.trim();
+    } else if (label || description || mentions || next.text_content) {
+      const prefix = mentions ? `${mentions} ` : '';
+      const mid = description ? `${description} ` : '';
+      const tail = label ? `**${label}**` : '';
+      cache.textGifCommands[cmd] = `${prefix}${mid}${tail}`.trim() || String(next.text_content ?? '').trim();
+    } else if (next.text_content) {
+      cache.textGifCommands[cmd] = String(next.text_content);
+    } else {
+      delete cache.textGifCommands[cmd];
+    }
+    delete cache.gifCommands[cmd];
+  } else {
+    cache.gifCommands[cmd] = {
+      title: next.title ?? cmd,
+      image: resolveAssetUrl(next.attachment_url || next.asset_path || next.image_path),
+      footer: next.footer ?? '',
+      color: next.color ?? EMBED_COLOR,
+    };
+    delete cache.textGifCommands[cmd];
+  }
 }
 
 export async function deleteGifCommand(command) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
   await supabaseDelete('gif_commands', [{ column: 'command', op: 'eq', value: cmd }]);
-  await refreshGifCache();
+  delete cache.rawGifRows[cmd];
+  delete cache.gifCommands[cmd];
+  delete cache.textGifCommands[cmd];
 }
 
 export async function updateGifCommandImage(command, media = {}) {
@@ -307,11 +440,15 @@ export async function updateGifCommandImage(command, media = {}) {
 }
 
 export async function loadChartsCache() {
-  return refreshChartCache();
+  return ensureChartCacheLoaded();
 }
 
 export function getChartsCache() {
   return { loadedAtMs: cache.loadedAtMs, charts: cache.charts || {} };
+}
+
+export function getChartCommandsCache() {
+  return getChartsCache();
 }
 
 export async function listChartsKeys() {
@@ -344,7 +481,8 @@ export async function listChartTypesInCategory(category) {
 export async function getChart(key) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
-  const row = await supabaseSelectOne('charts', { filters: [{ column: 'key', op: 'eq', value: k }] });
+  await ensureChartCacheLoaded();
+  const row = cache.rawChartRows?.[k];
   if (!row) return null;
   return {
     key: k,
@@ -371,7 +509,16 @@ export async function upsertChart({ key, category = 'general', title, triggers =
     created_at: existing?.created_at ?? new Date().toISOString(),
   });
   await supabaseUpsert('charts', row, { onConflict: 'key' });
-  await refreshChartCache();
+  cache.loadedAtMs = Date.now();
+  cache.rawChartRows[k] = cloneRow(row);
+  cache.charts[k] = row;
+  const categoryKey = normalizeCategoryKey(row.category);
+  if (!cache.byCategoryKey[categoryKey]) cache.byCategoryKey[categoryKey] = { category: row.category, keys: [] };
+  if (!cache.byCategoryKey[categoryKey].keys.includes(k)) cache.byCategoryKey[categoryKey].keys.push(k);
+  cache.byCategoryKey[categoryKey].keys.sort((a, b) => a.localeCompare(b));
+  for (const trig of row.triggers || []) {
+    cache.triggerToTypeKey[trig] = k;
+  }
 }
 
 export async function updateChart(key, patch = {}) {
@@ -400,14 +547,53 @@ export async function updateChart(key, patch = {}) {
     ...nextPatch,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'key' });
-  await refreshChartCache();
+  cache.loadedAtMs = Date.now();
+  const rawNext = {
+    key: k,
+    ...existing,
+    ...nextPatch,
+    updated_at: new Date().toISOString(),
+  };
+  cache.rawChartRows[k] = cloneRow(rawNext);
+  cache.charts[k] = {
+    key: k,
+    category: String(rawNext.category ?? 'general').trim() || 'general',
+    categoryKey: normalizeCategoryKey(rawNext.category ?? 'general'),
+    title: String(rawNext.title ?? k),
+    triggers: Array.isArray(rawNext.triggers) ? rawNext.triggers.map(normalizeTrigger).filter(Boolean) : [],
+    variants: normalizeVariantsRow(rawNext),
+    enabled: Boolean(rawNext.enabled),
+  };
+  cache.byCategoryKey = {};
+  cache.triggerToTypeKey = {};
+  for (const [typeKey, rawRow] of Object.entries(cache.rawChartRows || {})) {
+    const category = String(rawRow.category ?? 'general').trim() || 'general';
+    const categoryKey = normalizeCategoryKey(category) || 'general';
+    const triggers = Array.isArray(rawRow.triggers) ? rawRow.triggers : [];
+    if (!cache.byCategoryKey[categoryKey]) cache.byCategoryKey[categoryKey] = { category, keys: [] };
+    if (!cache.byCategoryKey[categoryKey].keys.includes(typeKey)) cache.byCategoryKey[categoryKey].keys.push(typeKey);
+    for (const trig of triggers) {
+      const normalizedTrig = normalizeTrigger(trig);
+      if (normalizedTrig && !cache.triggerToTypeKey[normalizedTrig]) cache.triggerToTypeKey[normalizedTrig] = typeKey;
+    }
+  }
+  for (const category of Object.values(cache.byCategoryKey)) {
+    category.keys.sort((a, b) => a.localeCompare(b));
+  }
 }
 
 export async function deleteChart(key) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
   await supabaseDelete('charts', [{ column: 'key', op: 'eq', value: k }]);
-  await refreshChartCache();
+  delete cache.rawChartRows[k];
+  delete cache.charts[k];
+  for (const category of Object.values(cache.byCategoryKey || {})) {
+    category.keys = (category.keys || []).filter((item) => item !== k);
+  }
+  for (const [trig, typeKey] of Object.entries(cache.triggerToTypeKey || {})) {
+    if (typeKey === k) delete cache.triggerToTypeKey[trig];
+  }
 }
 
 export async function findChartKeyByTrigger(trigger) {

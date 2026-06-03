@@ -7,6 +7,7 @@ import { registerSlashCommands, setupSlashCommandsHandler } from '../handlers/sl
 
 import { connectDB } from '../utils/dbOps.js';
 import { getRaidTasksCacheState, loadRaidTasksCache } from '../config/constants/tasks.js';
+import { getGifCommandsCache, getChartsCache, loadChartsCache, loadGifCommandsCache } from '../utils/Supabase/files.js';
 
 export function registerBotReadyHandler(client) {
   let didSetup = false;
@@ -28,6 +29,15 @@ export function registerBotReadyHandler(client) {
       await loadRaidTasksCache();
       const taskCache = getRaidTasksCacheState();
       console.log(`[startup] Loaded ${taskCache.taskCount} raid task(s) from ${taskCache.loadedFrom}.`);
+
+      console.log('[startup] Loading gif/text command cache...');
+      await loadGifCommandsCache();
+      const gifCache = getGifCommandsCache();
+      console.log(`[startup] Loaded ${Object.keys(gifCache.gifCommands || {}).length} gif command(s) and ${Object.keys(gifCache.textGifCommands || {}).length} text command(s).`);
+      console.log('[startup] Loading chart cache...');
+      await loadChartsCache();
+      const chartCache = getChartsCache();
+      console.log(`[startup] Loaded ${Object.keys(chartCache.charts || {}).length} chart command(s).`);
 
       await registerSlashCommands(client);
       setupSlashCommandsHandler(client);
