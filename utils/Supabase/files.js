@@ -97,7 +97,7 @@ function buildGifCaches(rows) {
     if (kind === 'text') {
       const maybePath = row.attachment_url || row.asset_path || row.image_path;
       const url = resolveAssetUrl(maybePath);
-      const linkUrl = row.message_url || row.asset_path || row.attachment_url || maybePath;
+      const linkUrl = url || resolveAssetUrl(row.message_url) || row.message_url || maybePath;
 
       const pingIds = parsePingUserIds(row.ping_user_ids);
       const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
@@ -111,8 +111,9 @@ function buildGifCaches(rows) {
       } else if (label || description || mentions || row.text_content) {
         const prefix = mentions ? `${mentions} ` : '';
         const mid = description ? `${description} ` : '';
-        const tail = label ? `**${label}**` : '';
-        textGifCommands[cmd] = `${prefix}${mid}${tail}`.trim() || String(row.text_content ?? '').trim();
+        const content = String(row.text_content ?? '').trim();
+        const tail = label ? `**${label}**` : content;
+        textGifCommands[cmd] = `${prefix}${mid}${tail}`.trim() || content;
       } else if (row.text_content) {
         textGifCommands[cmd] = String(row.text_content);
       }
@@ -381,7 +382,7 @@ export async function updateGifCommand(command, patch = {}) {
   if (next.kind === 'text') {
     const maybePath = next.attachment_url || next.asset_path || next.image_path;
     const url = resolveAssetUrl(maybePath);
-    const linkUrl = next.message_url || next.asset_path || next.attachment_url || maybePath;
+    const linkUrl = url || resolveAssetUrl(next.message_url) || next.message_url || maybePath;
     const pingIds = parsePingUserIds(next.ping_user_ids);
     const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
     const description = String(next.text_description ?? '').trim();
@@ -394,8 +395,9 @@ export async function updateGifCommand(command, patch = {}) {
     } else if (label || description || mentions || next.text_content) {
       const prefix = mentions ? `${mentions} ` : '';
       const mid = description ? `${description} ` : '';
-      const tail = label ? `**${label}**` : '';
-      cache.textGifCommands[cmd] = `${prefix}${mid}${tail}`.trim() || String(next.text_content ?? '').trim();
+      const content = String(next.text_content ?? '').trim();
+      const tail = label ? `**${label}**` : content;
+      cache.textGifCommands[cmd] = `${prefix}${mid}${tail}`.trim() || content;
     } else if (next.text_content) {
       cache.textGifCommands[cmd] = String(next.text_content);
     } else {

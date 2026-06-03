@@ -88,7 +88,7 @@ export async function supabaseSelectOne(table, options = {}) {
 }
 
 export async function supabaseUpsert(table, rows, { onConflict } = {}) {
-  const payload = Array.isArray(rows) ? rows : [rows];
+  let payload = Array.isArray(rows) ? rows : [rows];
   const response = await supabaseRequest(`/rest/v1/${encodeURIComponent(table)}${onConflict ? `?on_conflict=${encodeURIComponent(onConflict)}` : ''}`, {
     method: 'POST',
     headers: {
@@ -99,6 +99,16 @@ export async function supabaseUpsert(table, rows, { onConflict } = {}) {
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => '');
+    const missingColumn = detail.match(/Could not find the '([^']+)' column/i)?.[1];
+    if (missingColumn && payload.some((row) => Object.prototype.hasOwnProperty.call(row ?? {}, missingColumn))) {
+      console.warn(`Supabase schema cache does not include ${table}.${missingColumn}; retrying upsert without that column.`);
+      payload = payload.map((row) => {
+        if (!row || typeof row !== 'object') return row;
+        const { [missingColumn]: _omitted, ...rest } = row;
+        return rest;
+      });
+      return supabaseUpsert(table, payload, { onConflict });
+    }
     throw new Error(`Supabase upsert failed for ${table}: ${response.status} ${detail.slice(0, 300)}`);
   }
   const text = await response.text();

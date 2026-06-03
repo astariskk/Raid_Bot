@@ -8,7 +8,8 @@ import {
 } from 'discord.js';
 
 import { EMBED_COLOR } from '../../config/constants.js';
-import { resolveAssetUrl } from '../../utils/assetUrls.js';
+import { getSupabase } from '../../utils/supabaseClient.js';
+import { resolveStoredAssetUrl } from '../../utils/assetUrls.js';
 import {
   findChartKeyByTrigger,
   getChart,
@@ -16,7 +17,7 @@ import {
   listChartCategories,
   listChartTypesInCategory,
   loadChartsCache,
-} from '../../utils/Supabase/files.js';
+} from '../../utils/chartsStore.js';
 
 const browseSessions = new Map(); // sessionId -> { ownerId, step, category, categoryKey, typeKey }
 const showSessions = new Map(); // messageId -> { ownerId, typeKey, variantKey, pageIndex, ts }
@@ -27,6 +28,10 @@ function newSessionId() {
 
 function normalizeCategoryKey(category) {
   return String(category ?? '').trim().toLowerCase().replace(/\s+/g, ' ').slice(0, 64);
+}
+
+function getChartsBucket() {
+  return process.env.SUPABASE_CHARTS_BUCKET || process.env.SUPABASE_GIF_BUCKET || 'gif-commands';
 }
 
 function buildChartsListEmbed({ categories }) {
@@ -149,9 +154,9 @@ function buildChartEmbed(chart, variantKey, pageIndex) {
     .setDescription(triggers.length ? `Triggers: ${triggers.map((t) => `\`${t}\``).join(', ')}`.slice(0, 4096) : null)
     .setFooter({ text: total ? `Page ${idx + 1}/${total}` : 'Page 0/0' });
 
-  const pageImage = page?.attachment_url || page?.asset_path || page?.image_path || page?.image || page?.url;
-  if (pageImage) {
-    const url = resolveAssetUrl(pageImage);
+  if (page?.asset_path) {
+    const supabase = getSupabase();
+    const url = resolveStoredAssetUrl({ supabase, bucket: getChartsBucket(), value: page.asset_path });
     if (url) embed.setImage(url);
   }
 
