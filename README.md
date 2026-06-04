@@ -59,6 +59,7 @@ Supabase setup:
 2. Open the project settings and copy the `Project URL` and `service_role` key.
 3. Create the storage bucket that contains your source media.
 4. Put the values in `.env` and keep the service role key private.
+5. Apply the database schema/migrations before running the bot or media migration.
 
 Example `.env` section:
 
@@ -69,6 +70,22 @@ SUPABASE_GIF_BUCKET=images-storage
 ```
 
 GIF/chart command definitions live in Supabase tables, while the uploaded images are stored as Discord attachment URLs. When adding or editing them, upload the image through the bot flow.
+
+## Restoring the Supabase database schema
+
+Install PostgreSQL command-line tools so `psql` is available, then set a direct Postgres connection string in `.env`:
+
+```env
+SUPABASE_DB_URL=postgresql://postgres:<password>@db.<project-ref>.supabase.co:5432/postgres
+```
+
+Run:
+
+```bash
+npm run restore
+```
+
+This applies `database/schema.sql`, every SQL file in `database/migrations/`, and root-level helper SQL files in `database/`. Run this before `npm run migrate:supabase-media` so columns like `gif_commands.attachment_url`, `gif_commands.message_url`, `gif_commands.message_id`, and `gif_commands.channel_id` exist in Supabase.
 
 ## Migrating media references
 

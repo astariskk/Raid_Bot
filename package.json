@@ -5,6 +5,8 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "restore": "node scripts/restoreSupabaseDatabase.js",
+    "db:restore": "node scripts/restoreSupabaseDatabase.js",
     "migrate:supabase-media": "node scripts/migrateSupabaseMediaToDiscord.js",
     "migrate:supabase-media:dry": "node scripts/migrateSupabaseMediaToDiscord.js --dry-run"
   },
