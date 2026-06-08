@@ -500,22 +500,16 @@ async function main() {
   const mainGuildId = env('GUILD_ID');
   const backupGuildId = env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID);
   const gifChannelId = env('GIF_ARCHIVE_CHANNEL_ID', env('MIGRATE_GIF_CHANNEL_ID', DEFAULT_GIF_CHANNEL_ID));
-  const chartChannelId = env('CHART_ARCHIVE_CHANNEL_ID', env('MIGRATE_CHART_CHANNEL_ID', DEFAULT_CHART_CHANNEL_ID));
 
   console.log(`Main guild: ${mainGuildId || '(not set)'}`);
   console.log(`Archive guild: ${backupGuildId || '(not checked)'}`);
   console.log(`GIF archive channel: ${gifChannelId}`);
-  console.log(`Chart archive channel: ${chartChannelId}`);
   if (DRY_RUN) console.log('Dry run enabled: no Discord uploads or Supabase writes.');
   if (SKIP_MEDIA) console.log('Media migration skipped: asset paths will be preserved.');
 
   await validateDiscordChannel(gifChannelId, backupGuildId, 'GIF archive');
-  await validateDiscordChannel(chartChannelId, backupGuildId, 'Chart archive');
 
-  const [gifRows, chartRows] = await Promise.all([
-    supabaseSelect('gif_commands', { select: '*' }),
-    supabaseSelect('charts', { select: '*' }),
-  ]);
+  const gifRows = await supabaseSelect('gif_commands', { select: '*' });
 
   let gifUpdated = 0;
   for (const row of gifRows ?? []) {
@@ -523,14 +517,10 @@ async function main() {
     gifUpdated += 1;
   }
 
-  let chartUpdated = 0;
-  for (const row of chartRows ?? []) {
-    await migrateChartRow(row, chartChannelId);
-    chartUpdated += 1;
-  }
-
-  console.log(`Migration complete. Processed ${gifUpdated} gif/text rows and ${chartUpdated} chart rows.`);
+  console.log(`Migration complete. Processed ${gifUpdated} gif/text rows.`);
 }
+
+
 
 main()
   .catch((error) => {

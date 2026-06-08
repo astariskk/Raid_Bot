@@ -29,22 +29,9 @@ try {
   // ignore
 }
 
-let getRaidHelperCapacity = () => 0;
-let getRaidStatusForHelpers = () => null;
-let isSpammingRaid = () => false;
-let refreshRaidRequestMessage = async () => {};
-let sendHelperLeftNotification = async () => {};
-try {
-  ({
-    getRaidHelperCapacity,
-    getRaidStatusForHelpers,
-    isSpammingRaid,
-    refreshRaidRequestMessage,
-    sendHelperLeftNotification,
-  } = await import('../raidTickets/raidTicketPresentation.js'));
-} catch {
-  // ignore missing raid modules in trimmed repo
-}
+
+
+
 
 
 function getMentionedUserIds(usersString = '') {
