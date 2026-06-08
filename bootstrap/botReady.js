@@ -1,12 +1,30 @@
 // bootstrap/botReady.js
-import { setupRaidHandlers } from '../handlers/raidTickets/index.js';
-import { setupLeaderboardHandlers } from '../handlers/leaderboard/index.js';
+let setupLeaderboardHandlers = null;
+try {
+  ({ setupLeaderboardHandlers } = await import('../handlers/leaderboard/index.js'));
+} catch {
+  setupLeaderboardHandlers = null;
+}
+
+
+// NOTE: raidTickets + leaderboard handlers may be removed during cleanup.
+// Avoid hard failing startup when those modules are missing.
+let setupRaidHandlers = null;
+try {
+  // eslint-disable-next-line import/no-unresolved
+  // @ts-ignore
+  ({ setupRaidHandlers } = await import('../handlers/raidTickets/index.js'));
+} catch {
+  setupRaidHandlers = null;
+}
+
 import { setupGeneralCommandsHandler } from '../handlers/generalCommands/index.js';
 import { setupBackupHandlers } from '../handlers/backup/index.js';
 import { registerSlashCommands, setupSlashCommandsHandler } from '../handlers/slashCommands/index.js';
 
 import { connectDB } from '../utils/dbOps.js';
-import { getRaidTasksCacheState, loadRaidTasksCache } from '../config/constants/tasks.js';
+// raid task config removed; keep bot working with gif/charts/general commands.
+
 import { getGifCommandsCache, getChartsCache, loadChartsCache, loadGifCommandsCache } from '../utils/Supabase/files.js';
 
 export function registerBotReadyHandler(client) {
@@ -25,10 +43,9 @@ export function registerBotReadyHandler(client) {
       await connectDB();
       console.log('[startup] DB init complete.');
 
-      console.log('[startup] Loading raid task config...');
-      await loadRaidTasksCache();
-      const taskCache = getRaidTasksCacheState();
-      console.log(`[startup] Loaded ${taskCache.taskCount} raid task(s) from ${taskCache.loadedFrom}.`);
+      // Raid task cache not available in the cleaned-up repo.
+      // (kept disabled so gif/chart/general commands still start)
+
 
       console.log('[startup] Loading gif/text command cache...');
       await loadGifCommandsCache();
@@ -42,10 +59,21 @@ export function registerBotReadyHandler(client) {
       await registerSlashCommands(client);
       setupSlashCommandsHandler(client);
 
-      setupRaidHandlers(client);
-      setupLeaderboardHandlers(client);
+      if (typeof setupRaidHandlers === 'function') {
+        setupRaidHandlers(client);
+      } else {
+        console.warn('[startup] raidTickets handlers not found; skipping raid handlers.');
+      }
+
+      if (typeof setupLeaderboardHandlers === 'function') {
+        setupLeaderboardHandlers(client);
+      } else {
+        console.warn('[startup] leaderboard handlers missing; skipping leaderboard handlers.');
+      }
+
       setupGeneralCommandsHandler(client);
       setupBackupHandlers(client);
+
 
       console.log('All handlers done, Bot is fully ready');
     } catch (error) {

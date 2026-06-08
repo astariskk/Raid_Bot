@@ -21,28 +21,15 @@ import {
     raidRequiresModalMapName,
 } from '../../config/constants.js';
 
-import {
-    getRaidWizardDetailsModal,
-    getRaidWizardTaskOptionsCount,
-    getWizardCategoryV2,
-    getWizardTasksV2,
-} from '../raidTickets/embeds/raidWizardUi.js';
-import { WIZARD_MODE } from '../raidTickets/wizard/constants.js';
-import { handleRaidWizardNavButtons, handleRaidWizardTaskSelect } from '../raidTickets/wizard/raidWizardFlow.js';
 
-import { calculateTaskPointsWithMultiplier } from '../../utils/taskCalculations.js';
-import { isSpammingRaid } from '../raidTickets/raidTicketPresentation.js';
-import {
-    consumeRaidWizardSession,
-    createRaidWizardSession,
-    getRaidWizardSession,
-    updateRaidWizardSession,
-} from '../raidTickets/raidWizardSession.js';
+
+
+
 
 import { maybeHandleGifTextCommands } from './gifTextCommandsHandler.js';
 import { handleGifCommandCrudInteraction, maybeHandleGifCommandCrudMessage } from './gifCommandsCrud.js';
 import { handleChartsCrudInteraction, maybeHandleEditChartMessage } from './chartsCrud.js';
-import { handleRaidTaskCrudInteraction, maybeHandleRaidTaskCrudMessage } from './raidTasksCrud.js';
+
 import {
     handleChartShowInteraction,
     handleChartsBrowseInteraction,
