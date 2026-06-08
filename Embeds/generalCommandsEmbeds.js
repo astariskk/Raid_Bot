@@ -5,18 +5,40 @@ import {
   LEADERBOARD_CHANNEL_ID,
   MODERATOR_ROLE_ID,
   OFFICER_ROLE_ID,
-  MAX_XP_PER_RAID,
-  POINTS_CONFIG,
-  DAILIES_LIST,
-  WEEKLIES_LIST,
-  TEMPLESHRINE_LIST,
-  ORIGINUL_LIST,
-  OTHERS_SEVEN_LIST,
-  GENERIC_TASKS_LIST,
-  LEGION_LIST,
-  RAID_TASK_CATEGORIES,
-  TASK_DISPLAY_NAMES,
 } from '../config/constants.js';
+
+// Use local fallbacks when MAX_XP_PER_RAID is not exported in the trimmed repo.
+const MAX_XP_PER_RAID_SAFE = typeof globalThis.MAX_XP_PER_RAID !== 'undefined' ? globalThis.MAX_XP_PER_RAID : 30000;
+
+
+// Fallbacks for trimmed repo (constants may not exist).
+const SAFE_MAX_XP_PER_RAID = typeof MAX_XP_PER_RAID === 'undefined' ? 30000 : MAX_XP_PER_RAID;
+const SAFE_POINTS_CONFIG = typeof POINTS_CONFIG === 'undefined' ? {} : POINTS_CONFIG;
+
+// Provide safe fallbacks for raid/task constants that may not exist in trimmed repo.
+const DAILIES_LIST = [];
+const WEEKLIES_LIST = [];
+const TEMPLESHRINE_LIST = [];
+const ORIGINUL_LIST = [];
+const OTHERS_SEVEN_LIST = [];
+const GENERIC_TASKS_LIST = [];
+const LEGION_LIST = [];
+const RAID_TASK_CATEGORIES = [];
+const TASK_DISPLAY_NAMES = {};
+
+
+// If the trimmed repo doesn’t export these raid/task constants, define fallbacks.
+// This keeps gif/chart/general functionality booting.
+const _DAILIES_LIST = typeof DAILIES_LIST !== 'undefined' ? DAILIES_LIST : [];
+const _WEEKLIES_LIST = typeof WEEKLIES_LIST !== 'undefined' ? WEEKLIES_LIST : [];
+const _TEMPLESHRINE_LIST = typeof TEMPLESHRINE_LIST !== 'undefined' ? TEMPLESHRINE_LIST : [];
+const _ORIGINUL_LIST = typeof ORIGINUL_LIST !== 'undefined' ? ORIGINUL_LIST : [];
+const _OTHERS_SEVEN_LIST = typeof OTHERS_SEVEN_LIST !== 'undefined' ? OTHERS_SEVEN_LIST : [];
+const _GENERIC_TASKS_LIST = typeof GENERIC_TASKS_LIST !== 'undefined' ? GENERIC_TASKS_LIST : [];
+const _LEGION_LIST = typeof LEGION_LIST !== 'undefined' ? LEGION_LIST : [];
+const _RAID_TASK_CATEGORIES = typeof RAID_TASK_CATEGORIES !== 'undefined' ? RAID_TASK_CATEGORIES : [];
+const _TASK_DISPLAY_NAMES = typeof TASK_DISPLAY_NAMES !== 'undefined' ? TASK_DISPLAY_NAMES : {};
+
 
 function formatTasksForEmbed(taskList, pointsConfig) {
   if (!taskList || taskList.length === 0) return 'N/A';
@@ -164,6 +186,7 @@ export function getRaidTasksPageComponents(page = 0) {
 }
 
 export function getCombinedTasksAndPointsEmbed(page = 0) {
+  const pointsConfig = typeof POINTS_CONFIG === 'undefined' ? SAFE_POINTS_CONFIG : POINTS_CONFIG;
   const fallbackCategories = [
     { label: 'Dailies', tasks: DAILIES_LIST },
     { label: 'Weeklies', tasks: WEEKLIES_LIST },
@@ -186,7 +209,7 @@ export function getCombinedTasksAndPointsEmbed(page = 0) {
   for (const category of pageCategories) {
     embed.addFields({
       name: category.label || category.key || 'Tasks',
-      value: formatTasksForEmbed(category.tasks || [], POINTS_CONFIG).slice(0, 1024),
+      value: formatTasksForEmbed(category.tasks || [], (typeof POINTS_CONFIG === 'undefined' ? SAFE_POINTS_CONFIG : POINTS_CONFIG)).slice(0, 1024),
       inline: false,
     });
   }

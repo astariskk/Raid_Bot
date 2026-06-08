@@ -10,16 +10,15 @@ import {
 import {
     EMBED_COLOR,
     LEADERBOARD_CHANNEL_ID,
-    MAX_XP_PER_RAID,
     MODERATOR_ROLE_ID,
     OFFICER_ROLE_ID,
     RAID_CHANNEL_ID,
     RAID_HELPER_ROLE_ID,
     RAID_MANAGER_ROLE_ID,
     RAID_MANAGEMENT_CHANNEL_ID,
-    raidNeedsModalMapName,
-    raidRequiresModalMapName,
 } from '../../config/constants.js';
+
+
 
 
 
@@ -39,6 +38,7 @@ import {
 
 import {
     getCombinedTasksAndPointsEmbed,
+
     getCommandsEmbed,
     getHowToUseEmbed,
     getInitialButtonsRow,
@@ -49,7 +49,7 @@ import {
     getRaidRulesEmbed,
 } from '../../Embeds/generalCommandsEmbeds.js';
 
-import { invalidateLeaderboardCache } from '../leaderboard/core.js';
+
 import { getLeaderboardData, setLeaderboardData } from '../../utils/dbOps.js';
 
 function isStaffMember(member) {
@@ -129,7 +129,7 @@ export function setupGeneralCommandsHandler(client) {
 
         if (await maybeHandleGifCommandCrudMessage(message)) return;
 
-        if (await maybeHandleRaidTaskCrudMessage(message)) return;
+
 
         if (await maybeHandleGifTextCommands(message)) return;
 

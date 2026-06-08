@@ -1,5 +1,11 @@
 import { getGifCommandsCache, loadGifCommandsCache } from '../../utils/Supabase/files.js';
-import { listRaidTasks } from '../../utils/raidTasksStore.js';
+let listRaidTasks = async () => [];
+try {
+  ({ listRaidTasks } = await import('../../utils/raidTasksStore.js'));
+} catch {
+  // raid tasks modules may be missing in trimmed repo
+}
+
 
 function normalizeQuery(value) {
   return String(value ?? '').trim().replace(/^\//, '').toLowerCase();

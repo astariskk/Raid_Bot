@@ -1,6 +1,12 @@
 import { AttachmentBuilder } from 'discord.js';
 import { LB_BACKUP_CHANNEL_ID } from '../../config/constants.js';
-import { getCachedLeaderboard } from '../leaderboard/core.js';
+let getCachedLeaderboard = async () => ({});
+try {
+  ({ getCachedLeaderboard } = await import('../leaderboard/core.js'));
+} catch {
+  // leaderboard handler modules may be missing in trimmed repo
+}
+
 import { getLastBackupMessageId, setLastBackupMessageId } from '../../utils/dbOps.js';
 
 function getLeaderboardBackupChannelId() {

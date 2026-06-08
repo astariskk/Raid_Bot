@@ -61,15 +61,12 @@ export function registerBotReadyHandler(client) {
 
       if (typeof setupRaidHandlers === 'function') {
         setupRaidHandlers(client);
-      } else {
-        console.warn('[startup] raidTickets handlers not found; skipping raid handlers.');
       }
 
       if (typeof setupLeaderboardHandlers === 'function') {
         setupLeaderboardHandlers(client);
-      } else {
-        console.warn('[startup] leaderboard handlers missing; skipping leaderboard handlers.');
       }
+
 
       setupGeneralCommandsHandler(client);
       setupBackupHandlers(client);
