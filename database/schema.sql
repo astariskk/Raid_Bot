@@ -116,9 +116,10 @@ end;
 $$;
 
 -- --------------------
--- Custom GIF/Text commands (public bucket recommended)
+-- Custom GIF/Text commands (legacy bucket-based)
 -- --------------------
 create table if not exists public.gif_commands (
+
   command text primary key,
   kind text not null check (kind in ('gif','text')),
   title text null,
@@ -152,9 +153,10 @@ for each row
 execute function public.set_updated_at();
 
 -- --------------------
--- Custom Charts (multi-page image sets)
+-- Custom Charts (legacy bucket-based)
 -- --------------------
 create table if not exists public.charts (
+
   key text primary key,
   category text not null default 'general',
   title text not null,

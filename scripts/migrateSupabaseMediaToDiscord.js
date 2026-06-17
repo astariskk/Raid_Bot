@@ -106,17 +106,20 @@ function buildGifArchiveContent(row, downloadedFileName = '') {
   const textLine = compactText(
     mentionLine,
     stripMarkdownMediaLinks(row.text_content),
+    row.text_label ? String(row.text_label ?? '').trim() : null,
   );
 
   const mediaFileLine = downloadedFileName
     ? `downloaded Media file: ${downloadedFileName}`
     : 'downloaded Media file: (unknown)';
 
-  return [
+  const lines = [
     triggerword || '(missing triggerword)',
     textLine || '(no message)',
     mediaFileLine,
-  ].join('\n');
+  ].filter(Boolean);
+
+  return lines.join('\n');
 }
 
 // Per your requirement for chart backup messages:
@@ -279,7 +282,7 @@ async function createThreadFromMessage(channelId, messageId, name) {
 async function uploadDownloadedAssetToDiscord({ channelId, guildId, asset, fileName, message }) {
   if (DRY_RUN || SKIP_MEDIA) {
     console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] upload ${fileName} -> ${channelId}`);
-    return { channelId, guildId, messageId: null, messageUrl: null, attachmentUrl: null };
+    return { guildId, messageId: null, messageUrl: null, attachmentUrl: null };
   }
 
   const form = new FormData();
@@ -354,7 +357,7 @@ async function migrateMediaPath({ sourcePath, bucket, kind, content, channelId, 
 
   if (DRY_RUN || SKIP_MEDIA) {
     console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] ${cacheKey}`);
-    return { asset_path: sourcePath, image_path: sourcePath, attachment_url: sourcePath, message_url: null, message_id: null, channel_id: null };
+    return { asset_path: sourcePath, image_path: sourcePath, attachment_url: sourcePath, message_url: null, message_id: null };
   }
 
   const asset = await downloadSourceAsset(sourcePath, bucket);
@@ -368,13 +371,6 @@ async function migrateMediaPath({ sourcePath, bucket, kind, content, channelId, 
       message: content,
     });
   } catch (error) {
-    const message = String(error?.message ?? '');
-    if (message.includes(' 413 ') || message.includes('"code":40005')) {
-      console.warn(`[media:skip-too-large] ${cacheKey} too large; preserving existing source path.`);
-      const preserved = { asset_path: sourcePath, image_path: sourcePath, attachment_url: sourcePath, message_url: null, message_id: null, channel_id: null };
-      mediaCache.set(cacheKey, preserved);
-      return preserved;
-    }
     throw error;
   }
 
@@ -384,7 +380,6 @@ async function migrateMediaPath({ sourcePath, bucket, kind, content, channelId, 
     attachment_url: upload.attachmentUrl,
     message_url: upload.messageUrl,
     message_id: upload.messageId,
-    channel_id: upload.channelId,
   };
 
   mediaCache.set(cacheKey, mediaRef);
@@ -415,7 +410,7 @@ async function migrateGifRow(row, channelId) {
     return;
   }
 
-  await migrateMediaPath({
+  const result = await migrateMediaPath({
     sourcePath: assetPath,
     bucket: getSupabaseBucketNames().gifBucket,
     kind: 'gif',
@@ -423,6 +418,30 @@ async function migrateGifRow(row, channelId) {
     channelId,
     guildId: env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID),
   });
+  
+  if (result && row.command && !DRY_RUN && !SKIP_MEDIA) {
+    await supabaseUpsert('gif_table', {
+      command: String(row.command ?? '').trim().toLowerCase(),
+      kind: row.kind ?? 'gif',
+      title: row.title ?? null,
+      footer: row.footer ?? null,
+
+      attachment_url: result.attachment_url,
+      image_path: result.attachment_url,
+
+      ping_user_ids: row.ping_user_ids ?? null,
+      text_label: row.text_label ?? null,
+      text_description: row.text_description ?? null,
+      text_content: row.text_content ?? null,
+
+      color: row.color ?? null,
+      enabled: row.enabled ?? true,
+
+      archived_message_url: result.messageUrl,
+      archived_message_id: result.messageId,
+      archived_channel_id: channelId,
+    }, { onConflict: 'command' });
+  }
 }
 
 async function migrateChartRow(row, channelId) {
@@ -495,6 +514,10 @@ async function migrateChartRow(row, channelId) {
 }
 
 async function main() {
+  // This script migrates legacy `gif_commands` / `charts` entries into:
+  // - public.gif_table
+  // - public.charts_table
+
   requireMediaEnv();
 
   const mainGuildId = env('GUILD_ID');
@@ -510,6 +533,7 @@ async function main() {
   await validateDiscordChannel(gifChannelId, backupGuildId, 'GIF archive');
 
   const gifRows = await supabaseSelect('gif_commands', { select: '*' });
+
 
   let gifUpdated = 0;
   for (const row of gifRows ?? []) {
