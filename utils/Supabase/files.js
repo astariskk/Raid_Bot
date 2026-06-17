@@ -95,9 +95,9 @@ function buildGifCaches(rows) {
     const kind = normalizeGifKind(row);
 
     if (kind === 'text') {
-      const maybePath = row.attachment_url || row.asset_path || row.image_path;
+      const maybePath = row.attachment_url;
       const url = resolveAssetUrl(maybePath);
-      const linkUrl = url || resolveAssetUrl(row.message_url) || row.message_url || maybePath;
+      const linkUrl = url || maybePath || row.archived_message_url;
 
       const pingIds = parsePingUserIds(row.ping_user_ids);
       const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
@@ -122,7 +122,7 @@ function buildGifCaches(rows) {
 
     if (kind === 'gif') {
       let image = null;
-      const maybePath = row.attachment_url || row.asset_path || row.image_path;
+      const maybePath = row.attachment_url;
       if (maybePath) image = resolveAssetUrl(maybePath);
 
       gifCommands[cmd] = {
@@ -189,12 +189,10 @@ function normalizeGifCommandRow(row, createdAt = row?.created_at ?? new Date().t
     kind: normalizeGifKind(row),
     title: row.title ?? null,
     footer: row.footer ?? null,
-    image_path: row.image_path ?? null,
-    asset_path: row.asset_path ?? null,
     attachment_url: row.attachment_url ?? null,
-    message_url: row.message_url ?? null,
-    channel_id: row.channel_id ?? null,
-    message_id: row.message_id ?? null,
+    archived_message_url: row.archived_message_url ?? row.message_url ?? null,
+    archived_channel_id: row.archived_channel_id ?? row.channel_id ?? null,
+    archived_message_id: row.archived_message_id ?? row.message_id ?? null,
     ping_user_ids: Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [],
     text_label: row.text_label ?? null,
     text_description: row.text_description ?? '',
@@ -213,7 +211,6 @@ function normalizeChartRow(row, createdAt = row?.created_at ?? new Date().toISOS
     title: String(row.title ?? row.key),
     triggers: Array.isArray(row.triggers) ? row.triggers.map(normalizeTrigger).filter(Boolean) : [],
     variants: Array.isArray(row.variants) ? row.variants : [],
-    pages: Array.isArray(row.pages) ? row.pages : [],
     enabled: row.enabled !== false,
     created_at: createdAt,
     updated_at: new Date().toISOString(),
@@ -221,13 +218,13 @@ function normalizeChartRow(row, createdAt = row?.created_at ?? new Date().toISOS
 }
 
 async function loadGifRows() {
-  return supabaseSelect('gif_commands', {
+  return supabaseSelect('gif_table', {
     order: [{ column: 'command', direction: 'asc' }],
   });
 }
 
 async function loadChartRows() {
-  return supabaseSelect('charts', {
+  return supabaseSelect('charts_table', {
     order: [{ column: 'key', direction: 'asc' }],
   });
 }
@@ -333,12 +330,10 @@ export async function upsertGifCommand({
     title: title ?? existing?.title ?? null,
     footer: footer ?? existing?.footer ?? null,
     text_content: textContent ?? existing?.text_content ?? null,
-    image_path: imagePath ?? existing?.image_path ?? null,
-    asset_path: assetPath ?? existing?.asset_path ?? null,
-    attachment_url: attachmentUrl ?? existing?.attachment_url ?? null,
-    message_url: messageUrl ?? existing?.message_url ?? null,
-    channel_id: channelId ?? existing?.channel_id ?? null,
-    message_id: messageId ?? existing?.message_id ?? null,
+    attachment_url: attachmentUrl ?? assetPath ?? imagePath ?? existing?.attachment_url ?? null,
+    archived_message_url: messageUrl ?? existing?.archived_message_url ?? null,
+    archived_channel_id: channelId ?? existing?.archived_channel_id ?? null,
+    archived_message_id: messageId ?? existing?.archived_message_id ?? null,
     ping_user_ids: pingUserIds ?? existing?.ping_user_ids ?? [],
     text_label: textLabel ?? existing?.text_label ?? null,
     text_description: textDescription ?? existing?.text_description ?? '',
@@ -347,7 +342,7 @@ export async function upsertGifCommand({
     created_at: existing?.created_at ?? new Date().toISOString(),
   });
 
-  await supabaseUpsert('gif_commands', row, { onConflict: 'command' });
+  await supabaseUpsert('gif_table', row, { onConflict: 'command' });
   cache.loadedAtMs = Date.now();
   cache.rawGifRows[row.command] = cloneRow(row);
   if (row.kind === 'text') {
@@ -356,7 +351,7 @@ export async function upsertGifCommand({
   } else {
     cache.gifCommands[row.command] = {
       title: row.title ?? row.command,
-      image: resolveAssetUrl(row.attachment_url || row.asset_path || row.image_path),
+      image: resolveAssetUrl(row.attachment_url),
       footer: row.footer ?? '',
       color: row.color ?? EMBED_COLOR,
     };
@@ -375,14 +370,14 @@ export async function updateGifCommand(command, patch = {}) {
     command: cmd,
     updated_at: new Date().toISOString(),
   }, existing?.created_at ?? new Date().toISOString());
-  await supabaseUpsert('gif_commands', next, { onConflict: 'command' });
+  await supabaseUpsert('gif_table', next, { onConflict: 'command' });
 
   cache.loadedAtMs = Date.now();
   cache.rawGifRows[cmd] = cloneRow(next);
   if (next.kind === 'text') {
-    const maybePath = next.attachment_url || next.asset_path || next.image_path;
+    const maybePath = next.attachment_url;
     const url = resolveAssetUrl(maybePath);
-    const linkUrl = url || resolveAssetUrl(next.message_url) || next.message_url || maybePath;
+    const linkUrl = url || maybePath || next.archived_message_url;
     const pingIds = parsePingUserIds(next.ping_user_ids);
     const mentions = pingIds.length ? pingIds.map((id) => `<@${id}>`).join(' ') : '';
     const description = String(next.text_description ?? '').trim();
@@ -407,7 +402,7 @@ export async function updateGifCommand(command, patch = {}) {
   } else {
     cache.gifCommands[cmd] = {
       title: next.title ?? cmd,
-      image: resolveAssetUrl(next.attachment_url || next.asset_path || next.image_path),
+      image: resolveAssetUrl(next.attachment_url),
       footer: next.footer ?? '',
       color: next.color ?? EMBED_COLOR,
     };
@@ -418,7 +413,7 @@ export async function updateGifCommand(command, patch = {}) {
 export async function deleteGifCommand(command) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
-  await supabaseDelete('gif_commands', [{ column: 'command', op: 'eq', value: cmd }]);
+  await supabaseDelete('gif_table', [{ column: 'command', op: 'eq', value: cmd }]);
   delete cache.rawGifRows[cmd];
   delete cache.gifCommands[cmd];
   delete cache.textGifCommands[cmd];
@@ -428,14 +423,12 @@ export async function updateGifCommandImage(command, media = {}) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
   const next = typeof media === 'string'
-    ? { asset_path: media, image_path: media, attachment_url: media }
+    ? { attachment_url: media }
     : {
-        asset_path: media.asset_path ?? media.attachment_url ?? null,
-        image_path: media.image_path ?? media.attachment_url ?? media.asset_path ?? null,
         attachment_url: media.attachment_url ?? media.asset_path ?? null,
-        message_url: media.message_url ?? null,
-        channel_id: media.channel_id ?? null,
-        message_id: media.message_id ?? null,
+        archived_message_url: media.archived_message_url ?? media.message_url ?? null,
+        archived_channel_id: media.archived_channel_id ?? media.channel_id ?? null,
+        archived_message_id: media.archived_message_id ?? media.message_id ?? null,
       };
 
   await updateGifCommand(cmd, next);
@@ -510,7 +503,7 @@ export async function upsertChart({ key, category = 'general', title, triggers =
     enabled,
     created_at: existing?.created_at ?? new Date().toISOString(),
   });
-  await supabaseUpsert('charts', row, { onConflict: 'key' });
+  await supabaseUpsert('charts_table', row, { onConflict: 'key' });
   cache.loadedAtMs = Date.now();
   cache.rawChartRows[k] = cloneRow(row);
   cache.charts[k] = row;
@@ -539,11 +532,9 @@ export async function updateChart(key, patch = {}) {
   if (Object.prototype.hasOwnProperty.call(nextPatch, 'variants')) {
     nextPatch.variants = Array.isArray(nextPatch.variants) ? nextPatch.variants : [];
   }
-  if (Object.prototype.hasOwnProperty.call(nextPatch, 'pages')) {
-    nextPatch.pages = Array.isArray(nextPatch.pages) ? nextPatch.pages : [];
-  }
+  delete nextPatch.pages;
 
-  await supabaseUpsert('charts', {
+  await supabaseUpsert('charts_table', {
     key: k,
     ...existing,
     ...nextPatch,
@@ -587,7 +578,7 @@ export async function updateChart(key, patch = {}) {
 export async function deleteChart(key) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
-  await supabaseDelete('charts', [{ column: 'key', op: 'eq', value: k }]);
+  await supabaseDelete('charts_table', [{ column: 'key', op: 'eq', value: k }]);
   delete cache.rawChartRows[k];
   delete cache.charts[k];
   for (const category of Object.values(cache.byCategoryKey || {})) {

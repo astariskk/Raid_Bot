@@ -282,7 +282,7 @@ async function createThreadFromMessage(channelId, messageId, name) {
 async function uploadDownloadedAssetToDiscord({ channelId, guildId, asset, fileName, message }) {
   if (DRY_RUN || SKIP_MEDIA) {
     console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] upload ${fileName} -> ${channelId}`);
-    return { guildId, messageId: null, messageUrl: null, attachmentUrl: null };
+    return { channelId, guildId, messageId: null, messageUrl: null, attachmentUrl: null };
   }
 
   const form = new FormData();
@@ -297,6 +297,20 @@ async function uploadDownloadedAssetToDiscord({ channelId, guildId, asset, fileN
 
   const body = await response.json().catch(() => ({}));
   if (!response.ok) {
+    if (response.status === 413 || Number(body?.code) === 40005) {
+      console.warn(`[media] ${fileName} is too large for Discord upload; posting archive message without the file.`);
+      const messageOnly = await createDiscordMessage(channelId, [
+        message,
+        `Media file too large to upload: ${fileName}`,
+      ].filter(Boolean).join('\n'));
+      return {
+        channelId: messageOnly.channelId,
+        guildId: guildId || env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID),
+        messageId: messageOnly.messageId,
+        messageUrl: messageOnly.messageUrl,
+        attachmentUrl: null,
+      };
+    }
     throw new Error(`Discord upload failed for ${fileName}: ${response.status} ${JSON.stringify(body).slice(0, 300)}`);
   }
 
@@ -357,7 +371,7 @@ async function migrateMediaPath({ sourcePath, bucket, kind, content, channelId, 
 
   if (DRY_RUN || SKIP_MEDIA) {
     console.log(`[media:${DRY_RUN ? 'dry' : 'skip'}] ${cacheKey}`);
-    return { asset_path: sourcePath, image_path: sourcePath, attachment_url: sourcePath, message_url: null, message_id: null };
+    return { attachment_url: sourcePath, message_url: null, message_id: null, channel_id: targetChannelId };
   }
 
   const asset = await downloadSourceAsset(sourcePath, bucket);
@@ -375,11 +389,10 @@ async function migrateMediaPath({ sourcePath, bucket, kind, content, channelId, 
   }
 
   const mediaRef = {
-    asset_path: upload.attachmentUrl,
-    image_path: upload.attachmentUrl,
     attachment_url: upload.attachmentUrl,
     message_url: upload.messageUrl,
     message_id: upload.messageId,
+    channel_id: targetChannelId,
   };
 
   mediaCache.set(cacheKey, mediaRef);
@@ -396,28 +409,22 @@ function walkChartPages(row) {
 
 async function migrateGifRow(row, channelId) {
   const assetPath = row.asset_path || row.image_path || row.attachment_url || row.message_url || extractFirstUrl(row.text_content) || null;
-  const archiveSource = row.attachment_url || row.asset_path || row.image_path || null;
   const downloadedFileName = assetPath ? fileNameFromPath(assetPath) : '';
   const archiveContent = buildGifArchiveContent(row, downloadedFileName);
 
-  if (
-    String(row.channel_id ?? '') === String(channelId)
-    && row.message_id
-    && row.message_url
-    && sameMediaSource(assetPath, archiveSource)
-  ) {
-    await editDiscordMessage(row.channel_id, row.message_id, archiveContent);
-    return;
-  }
-
-  const result = await migrateMediaPath({
-    sourcePath: assetPath,
-    bucket: getSupabaseBucketNames().gifBucket,
-    kind: 'gif',
-    content: archiveContent,
-    channelId,
-    guildId: env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID),
-  });
+  // Per requirement: always send a new message for GIFs/text.
+  // We intentionally do NOT edit existing archive messages.
+  const guildId = env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID);
+  const result = assetPath
+    ? await migrateMediaPath({
+        sourcePath: assetPath,
+        bucket: getSupabaseBucketNames().gifBucket,
+        kind: 'gif',
+        content: archiveContent,
+        channelId,
+        guildId,
+      })
+    : await createDiscordMessage(channelId, archiveContent);
   
   if (result && row.command && !DRY_RUN && !SKIP_MEDIA) {
     await supabaseUpsert('gif_table', {
@@ -425,21 +432,16 @@ async function migrateGifRow(row, channelId) {
       kind: row.kind ?? 'gif',
       title: row.title ?? null,
       footer: row.footer ?? null,
-
-      attachment_url: result.attachment_url,
-      image_path: result.attachment_url,
-
-      ping_user_ids: row.ping_user_ids ?? null,
+      attachment_url: result.attachment_url ?? null,
+      archived_message_url: result.message_url ?? result.messageUrl ?? null,
+      archived_message_id: result.message_id ?? result.messageId ?? null,
+      archived_channel_id: result.channel_id ?? channelId,
+      ping_user_ids: Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [],
       text_label: row.text_label ?? null,
-      text_description: row.text_description ?? null,
+      text_description: row.text_description ?? '',
       text_content: row.text_content ?? null,
-
       color: row.color ?? null,
-      enabled: row.enabled ?? true,
-
-      archived_message_url: result.messageUrl,
-      archived_message_id: result.messageId,
-      archived_channel_id: channelId,
+      enabled: row.enabled !== false,
     }, { onConflict: 'command' });
   }
 }
@@ -451,6 +453,7 @@ async function migrateChartRow(row, channelId) {
 
   const guildId = env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID);
   let thread = null;
+  let headerMessage = null;
 
   for (const variant of next.variants) {
     const pages = Array.isArray(variant.pages) ? variant.pages : [];
@@ -466,25 +469,16 @@ async function migrateChartRow(row, channelId) {
         || extractFirstUrl(page?.description)
         || null;
 
-      const archiveSource = page?.attachment_url || page?.asset_path || page?.image_path || null;
       const downloadedFileName = assetPath ? fileNameFromPath(assetPath) : '';
       const archiveContent = buildChartThreadArchiveContent(row, variant, page, downloadedFileName);
 
-      if (
-        page.channel_id
-        && page.message_id
-        && page.message_url
-        && sameMediaSource(assetPath, archiveSource)
-      ) {
-        await editDiscordMessage(page.channel_id, page.message_id, archiveContent);
-        continue;
-      }
-
+      // Per requirement: always send a new message/image for chart category + variants.
+      // We intentionally do NOT edit existing archive pages.
       const sourcePath = assetPath;
       if (!sourcePath) continue;
 
       if (!thread) {
-        const headerMessage = await createDiscordMessage(channelId, [
+        headerMessage = await createDiscordMessage(channelId, [
           `Charts`,
           `Category: ${String(row.category ?? 'general').trim() || 'general'}`,
           `Create Thread: ${String(row.title ?? row.key ?? 'Chart').trim() || 'Chart'}`,
@@ -498,7 +492,7 @@ async function migrateChartRow(row, channelId) {
         );
       }
 
-      await migrateMediaPath({
+      const result = await migrateMediaPath({
         sourcePath,
         bucket: chartsBucket,
         kind: 'chart',
@@ -506,10 +500,35 @@ async function migrateChartRow(row, channelId) {
         channelId: thread.id,
         guildId,
       });
+
+      if (result?.attachment_url) {
+        page.attachment_url = result.attachment_url;
+        delete page.asset_path;
+        delete page.image_path;
+        delete page.image;
+        delete page.url;
+      }
+      if (result?.message_url) page.archived_message_url = result.message_url;
+      if (result?.message_id) page.archived_message_id = result.message_id;
+      if (result?.channel_id) page.archived_channel_id = result.channel_id;
     }
   }
 
-  // No DB overwrite/update in archive migration mode.
+  // Store the recreate-ready chart command in charts_table.
+  if (!DRY_RUN && !SKIP_MEDIA && row?.key) {
+    await supabaseUpsert('charts_table', {
+      key: String(row.key ?? '').trim(),
+      category: String(row.category ?? 'general').trim() || 'general',
+      title: String(row.title ?? row.key ?? 'Chart').trim() || 'Chart',
+      triggers: Array.isArray(row.triggers) ? row.triggers.filter(Boolean).map(String) : [],
+      variants: next.variants,
+      enabled: row.enabled !== false,
+      archived_message_url: headerMessage?.messageUrl ?? null,
+      archived_message_id: headerMessage?.messageId ?? null,
+      archived_channel_id: channelId,
+    }, { onConflict: 'key' });
+  }
+
   return next;
 }
 
@@ -523,16 +542,20 @@ async function main() {
   const mainGuildId = env('GUILD_ID');
   const backupGuildId = env('MIGRATE_BACKUP_GUILD_ID', DEFAULT_BACKUP_GUILD_ID);
   const gifChannelId = env('GIF_ARCHIVE_CHANNEL_ID', env('MIGRATE_GIF_CHANNEL_ID', DEFAULT_GIF_CHANNEL_ID));
+  const chartChannelId = env('CHART_ARCHIVE_CHANNEL_ID', env('MIGRATE_CHART_CHANNEL_ID', DEFAULT_CHART_CHANNEL_ID));
 
   console.log(`Main guild: ${mainGuildId || '(not set)'}`);
   console.log(`Archive guild: ${backupGuildId || '(not checked)'}`);
   console.log(`GIF archive channel: ${gifChannelId}`);
+  console.log(`Chart archive channel: ${chartChannelId}`);
   if (DRY_RUN) console.log('Dry run enabled: no Discord uploads or Supabase writes.');
   if (SKIP_MEDIA) console.log('Media migration skipped: asset paths will be preserved.');
 
   await validateDiscordChannel(gifChannelId, backupGuildId, 'GIF archive');
+  await validateDiscordChannel(chartChannelId, backupGuildId, 'Chart archive');
 
   const gifRows = await supabaseSelect('gif_commands', { select: '*' });
+  const chartRows = await supabaseSelect('charts', { select: '*' });
 
 
   let gifUpdated = 0;
@@ -541,7 +564,13 @@ async function main() {
     gifUpdated += 1;
   }
 
-  console.log(`Migration complete. Processed ${gifUpdated} gif/text rows.`);
+  let chartUpdated = 0;
+  for (const row of chartRows ?? []) {
+    await migrateChartRow(row, chartChannelId);
+    chartUpdated += 1;
+  }
+
+  console.log(`Migration complete. Processed ${gifUpdated} gif/text rows and ${chartUpdated} chart rows.`);
 }
 
 

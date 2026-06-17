@@ -80,12 +80,10 @@ async function uploadAssetFromAttachment({ command, attachment, kind }) {
   });
 
   await updateGifCommandImage(safeCmd, {
-    asset_path: uploaded.attachmentUrl,
-    image_path: uploaded.attachmentUrl,
     attachment_url: uploaded.attachmentUrl,
-    message_url: uploaded.messageUrl,
-    message_id: uploaded.messageId,
-    channel_id: uploaded.channelId,
+    archived_message_url: uploaded.messageUrl,
+    archived_message_id: uploaded.messageId,
+    archived_channel_id: uploaded.channelId,
   });
   return uploaded.attachmentUrl;
 }
@@ -132,9 +130,9 @@ function buildPreviewEmbed({ command, kind, row }) {
     const description = String(row?.text_description ?? '').trim();
     const label = String(row?.text_label ?? '').trim();
 
-    const maybePath = row?.attachment_url || row?.asset_path || row?.image_path;
+    const maybePath = row?.attachment_url;
     const url = resolveAssetUrl(maybePath) || '';
-    const linkUrl = row?.message_url || url;
+    const linkUrl = url || row?.archived_message_url;
 
     const prefix = mentions ? `${mentions} ` : '';
     const mid = description ? `${description} ` : '';
@@ -149,8 +147,8 @@ function buildPreviewEmbed({ command, kind, row }) {
   embed.setTitle(row?.title ? String(row.title) : `${command}`);
   if (row?.footer) embed.setFooter({ text: String(row.footer) });
 
-  if (row?.attachment_url || row?.asset_path || row?.image_path) {
-    const url = resolveAssetUrl(row.attachment_url || row.asset_path || row.image_path);
+  if (row?.attachment_url) {
+    const url = resolveAssetUrl(row.attachment_url);
     if (url) embed.setImage(url);
   } else {
     embed.setDescription('*No image set yet. Use `Change Image`.*');
@@ -909,15 +907,17 @@ export async function handleGifCommandCrudInteraction(interaction) {
       return true;
     }
 
-    const oldPath = oldRow.asset_path || oldRow.image_path;
+    const oldPath = oldRow.attachment_url;
 
     await upsertGifCommand({
       command: newCommand,
       kind: oldRow.kind,
       title: oldRow.title ?? null,
       footer: oldRow.footer ?? null,
-      assetPath: oldPath ?? undefined,
-      imagePath: oldPath ?? undefined,
+      attachmentUrl: oldPath ?? undefined,
+      messageUrl: oldRow.archived_message_url ?? undefined,
+      channelId: oldRow.archived_channel_id ?? undefined,
+      messageId: oldRow.archived_message_id ?? undefined,
       pingUserIds: oldRow.ping_user_ids ?? undefined,
       textLabel: oldRow.text_label ?? undefined,
       textDescription: oldRow.text_description ?? undefined,
@@ -976,7 +976,7 @@ export async function handleGifCommandCrudInteraction(interaction) {
 
     await editPreviewMessage(interaction.channel, modalMessageId, { embeds: [embed] });
 
-    const hasAsset = Boolean(row?.asset_path || row?.image_path);
+    const hasAsset = Boolean(row?.attachment_url);
     if (hasAsset || !interaction.channel) {
       await interaction.reply({ content: 'Updated.', flags: MessageFlags.Ephemeral });
       return true;

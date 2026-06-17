@@ -149,7 +149,7 @@ function buildChartEmbed(chart, variantKey, pageIndex) {
     .setDescription(triggers.length ? `Triggers: ${triggers.map((t) => `\`${t}\``).join(', ')}`.slice(0, 4096) : null)
     .setFooter({ text: total ? `Page ${idx + 1}/${total}` : 'Page 0/0' });
 
-  const pageImage = page?.attachment_url || page?.asset_path || page?.image_path || page?.image || page?.url;
+  const pageImage = page?.attachment_url;
   if (pageImage) {
     const url = resolveAssetUrl(pageImage);
     if (url) embed.setImage(url);
