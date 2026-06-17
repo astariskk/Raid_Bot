@@ -4,6 +4,7 @@ import { EMBED_COLOR } from '../../config/constants.js';
 import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
 import { getCombinedTasksAndPointsEmbed, getRaidTasksPageComponents } from '../../Embeds/generalCommandsEmbeds.js';
 import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
+
 import { getGifCommand } from '../../utils/gifCommandsStore.js';
 let startRaidTaskManagerInteraction = async () => {};
 try {
@@ -236,8 +237,32 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
+    case 'addgif': {
+      if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
+      const raw = interaction.options.getString('command', true);
+      const normalized = String(raw ?? '')
+        .trim()
+        .replace(/^\//, '')
+        .toLowerCase();
+
+      try {
+        // startAddGifWizardInteraction() calls interaction.reply() internally,
+        // so do NOT deferReply() here.
+        await startAddGifWizardInteraction(interaction, { command: normalized });
+      } catch (error) {
+        console.error('Error handling /addgif:', error);
+        await interaction.editReply({
+          content: error?.message || 'Failed to start GIF/text command wizard.',
+          flags: MessageFlags.Ephemeral,
+        }).catch(() => {});
+      }
+      return;
+    }
+
     case 'editgif': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
+
 
       const raw = interaction.options.getString('command', true);
       const normalized = String(raw ?? '').trim().replace(/^\//, '').toLowerCase();
