@@ -8,10 +8,12 @@ const cache = {
   textGifCommands: {}, // command -> string
 };
 
+const COLLECTION = 'gif_table';
+
 export async function loadGifCommandsCache() {
   await connectMongo();
   const db = getMongoDb();
-  const data = await db.collection('gif_commands').find({ enabled: true }).toArray();
+  const data = await db.collection(COLLECTION).find({ enabled: true }).toArray();
 
   const gifCommands = {};
   const textGifCommands = {};
@@ -21,7 +23,7 @@ export async function loadGifCommandsCache() {
     if (!cmd) continue;
 
     if (row.kind === 'text') {
-      const maybePath = row.asset_path || row.image_path;
+      const maybePath = row.attachment_url;
       const url = resolveAssetUrl(maybePath);
 
       const pingIds = Array.isArray(row.ping_user_ids) ? row.ping_user_ids.filter(Boolean).map(String) : [];
@@ -32,7 +34,7 @@ export async function loadGifCommandsCache() {
       if (url && label) {
         const prefix = mentions ? `${mentions} ` : '';
         const mid = description ? `${description} ` : '';
-        textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${url})`.trim();
+        textGifCommands[cmd] = `${prefix}${mid}[**${label}**](${url || maybePath})`.trim();
       } else if (row.text_content) {
         textGifCommands[cmd] = String(row.text_content);
       }
@@ -41,7 +43,7 @@ export async function loadGifCommandsCache() {
 
     if (row.kind === 'gif') {
       let image = null;
-      const maybePath = row.asset_path || row.image_path;
+      const maybePath = row.attachment_url;
       if (maybePath) image = resolveAssetUrl(maybePath);
 
       const info = {
@@ -76,7 +78,7 @@ export async function getGifCommand(command) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  const data = await db.collection('gif_commands').findOne({ command: cmd }, { projection: { _id: 0 } });
+  const data = await db.collection(COLLECTION).findOne({ command: cmd }, { projection: { _id: 0 } });
   return data ?? null;
 }
 
@@ -88,6 +90,10 @@ export async function upsertGifCommand({
   textContent,
   imagePath,
   assetPath,
+  attachmentUrl,
+  messageUrl,
+  channelId,
+  messageId,
   pingUserIds,
   textLabel,
   textDescription,
@@ -104,15 +110,19 @@ export async function upsertGifCommand({
   if (title !== undefined) row.title = title;
   if (footer !== undefined) row.footer = footer;
   if (textContent !== undefined) row.text_content = textContent;
-  if (imagePath !== undefined) row.image_path = imagePath;
-  if (assetPath !== undefined) row.asset_path = assetPath;
+  if (attachmentUrl !== undefined) row.attachment_url = attachmentUrl;
+  else if (assetPath !== undefined) row.attachment_url = assetPath;
+  else if (imagePath !== undefined) row.attachment_url = imagePath;
+  if (messageUrl !== undefined) row.archived_message_url = messageUrl;
+  if (channelId !== undefined) row.archived_channel_id = channelId;
+  if (messageId !== undefined) row.archived_message_id = messageId;
   if (pingUserIds !== undefined) row.ping_user_ids = pingUserIds;
   if (textLabel !== undefined) row.text_label = textLabel;
   if (textDescription !== undefined) row.text_description = textDescription;
   if (color !== undefined) row.color = color;
   row.updated_at = new Date();
 
-  await db.collection('gif_commands').updateOne(
+  await db.collection(COLLECTION).updateOne(
     { command: cmd },
     { $set: row, $setOnInsert: { created_at: new Date() } },
     { upsert: true },
@@ -127,7 +137,16 @@ export async function updateGifCommand(command, patch = {}) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  await db.collection('gif_commands').updateOne({ command: cmd }, { $set: { ...patch, updated_at: new Date() } });
+  const normalizedPatch = { ...patch };
+  if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'asset_path') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'attachment_url')) {
+    normalizedPatch.attachment_url = normalizedPatch.asset_path;
+  }
+  if (Object.prototype.hasOwnProperty.call(normalizedPatch, 'image_path') && !Object.prototype.hasOwnProperty.call(normalizedPatch, 'attachment_url')) {
+    normalizedPatch.attachment_url = normalizedPatch.image_path;
+  }
+  delete normalizedPatch.asset_path;
+  delete normalizedPatch.image_path;
+  await db.collection(COLLECTION).updateOne({ command: cmd }, { $set: { ...normalizedPatch, updated_at: new Date() } });
 
   await loadGifCommandsCache();
 }
@@ -138,20 +157,29 @@ export async function deleteGifCommand(command) {
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  await db.collection('gif_commands').deleteOne({ command: cmd });
+  await db.collection(COLLECTION).deleteOne({ command: cmd });
 
   await loadGifCommandsCache();
 }
 
-export async function updateGifCommandImage(command, imagePath) {
+export async function updateGifCommandImage(command, media) {
   await connectMongo();
   const db = getMongoDb();
   const cmd = String(command ?? '').trim().toLowerCase();
   if (!cmd) throw new Error('command is required');
 
-  await db.collection('gif_commands').updateOne(
+  const patch = typeof media === 'string'
+    ? { attachment_url: media }
+    : {
+        attachment_url: media?.attachment_url ?? media?.asset_path ?? media?.image_path ?? null,
+        archived_message_url: media?.archived_message_url ?? media?.message_url ?? null,
+        archived_message_id: media?.archived_message_id ?? media?.message_id ?? null,
+        archived_channel_id: media?.archived_channel_id ?? media?.channel_id ?? null,
+      };
+
+  await db.collection(COLLECTION).updateOne(
     { command: cmd },
-    { $set: { asset_path: imagePath, image_path: imagePath, updated_at: new Date() } },
+    { $set: { ...patch, updated_at: new Date() } },
   );
 
   await loadGifCommandsCache();

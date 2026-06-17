@@ -25,7 +25,8 @@ import { registerSlashCommands, setupSlashCommandsHandler } from '../handlers/sl
 import { connectDB } from '../utils/dbOps.js';
 // raid task config removed; keep bot working with gif/charts/general commands.
 
-import { getGifCommandsCache, getChartsCache, loadChartsCache, loadGifCommandsCache } from '../utils/Supabase/files.js';
+import { getGifCommandsCache, loadGifCommandsCache } from '../utils/gifCommandsStore.js';
+import { getChartsCache, loadChartsCache } from '../utils/chartsStore.js';
 
 export function registerBotReadyHandler(client) {
   let didSetup = false;

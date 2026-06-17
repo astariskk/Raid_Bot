@@ -98,7 +98,7 @@ async function ensureIndexes(database) {
         database.collection('raid_tasks').createIndex({ key: 1 }, { unique: true }),
         database.collection('raid_tasks').createIndex({ category: 1, sort_order: 1, display_name: 1 }),
         database.collection('raid_task_categories').createIndex({ key: 1 }, { unique: true }),
-        database.collection('gif_commands').createIndex({ command: 1 }, { unique: true }),
-        database.collection('charts').createIndex({ key: 1 }, { unique: true }),
+        database.collection('gif_table').createIndex({ command: 1 }, { unique: true }),
+        database.collection('charts_table').createIndex({ key: 1 }, { unique: true }),
     ]);
 }

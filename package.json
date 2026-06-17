@@ -8,7 +8,9 @@
     "restore": "node scripts/restoreSupabaseDatabase.js",
     "db:restore": "node scripts/restoreSupabaseDatabase.js",
     "migrate:supabase-media": "node scripts/migrateSupabaseMediaToDiscord.js",
-    "migrate:supabase-media:dry": "node scripts/migrateSupabaseMediaToDiscord.js --dry-run"
+    "migrate:supabase-media:dry": "node scripts/migrateSupabaseMediaToDiscord.js --dry-run",
+    "mongo:import-command-backup": "node scripts/importCommandBackupToMongo.js",
+    "mongo:import-command-backup:replace": "node scripts/importCommandBackupToMongo.js --replace"
   },
   "repository": {
     "type": "git",
@@ -26,6 +28,6 @@
     "discord.js": "^14.26.4",
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
-    "mongodb": "^6.16.0"
+    "mongodb": "^6.21.0"
   }
 }

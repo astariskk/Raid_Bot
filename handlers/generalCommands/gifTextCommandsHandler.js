@@ -1,5 +1,5 @@
 import { getSecretCommandsEmbed, createCustomGifEmbed } from '../../Embeds/generalCommandsEmbeds.js';
-import { getGifCommandsCache } from '../../utils/Supabase/files.js';
+import { getGifCommandsCache } from '../../utils/gifCommandsStore.js';
 import { AQW_CHANNEL_ID, GENERAL_CHANNEL_ID } from '../../config/constants.js';
 
 const GIF_COOLDOWN_DURATION = 10 * 1000;

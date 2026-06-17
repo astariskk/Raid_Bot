@@ -1,4 +1,4 @@
-import { getGifCommandsCache, loadGifCommandsCache } from '../../utils/Supabase/files.js';
+import { getGifCommandsCache, loadGifCommandsCache } from '../../utils/gifCommandsStore.js';
 let listRaidTasks = async () => [];
 try {
   ({ listRaidTasks } = await import('../../utils/raidTasksStore.js'));

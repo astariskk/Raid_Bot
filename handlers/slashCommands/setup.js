@@ -4,7 +4,7 @@ import { EMBED_COLOR } from '../../config/constants.js';
 import { createXpEmbed, isAdmin, replyNoPermission } from './utils.js';
 import { getCombinedTasksAndPointsEmbed, getRaidTasksPageComponents } from '../../Embeds/generalCommandsEmbeds.js';
 import { startAddGifWizardInteraction, startGifCommandCrudSession } from '../generalCommands/gifCommandsCrud.js';
-import { getGifCommand } from '../../utils/Supabase/files.js';
+import { getGifCommand } from '../../utils/gifCommandsStore.js';
 let startRaidTaskManagerInteraction = async () => {};
 try {
   ({ startRaidTaskManagerInteraction } = await import('../generalCommands/raidTasksCrud.js'));

@@ -1,1 +1,1 @@
-export * from './Supabase/files.js';
+export * from './MongoDB/gifCommandsStore.js';

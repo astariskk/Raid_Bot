@@ -2,6 +2,7 @@ import { connectMongo, getMongoDb } from './mongoClient.js';
 
 let chartsCache = null; // { byTypeKey, byCategoryKey, triggerToTypeKey }
 let chartsLoadedAtMs = 0;
+const COLLECTION = 'charts_table';
 
 function normalizeTypeKey(key) {
   return String(key ?? '').trim().toLowerCase().replace(/^\//, '').replace(/[^\w-]/g, '').slice(0, 32);
@@ -48,7 +49,7 @@ function normalizeVariantsRow(row) {
 export async function loadChartsCache() {
   await connectMongo();
   const db = getMongoDb();
-  const data = await db.collection('charts').find({ enabled: true }).toArray();
+  const data = await db.collection(COLLECTION).find({ enabled: true }).toArray();
 
   const byTypeKey = {};
   const byCategoryKey = {};
@@ -99,7 +100,7 @@ export function getChartsCache() {
 export async function listChartsKeys() {
   await connectMongo();
   const db = getMongoDb();
-  const data = await db.collection('charts').find({}, { projection: { _id: 0, key: 1 } }).sort({ key: 1 }).toArray();
+  const data = await db.collection(COLLECTION).find({}, { projection: { _id: 0, key: 1 } }).sort({ key: 1 }).toArray();
   return (data ?? []).map((r) => normalizeTypeKey(r.key)).filter(Boolean);
 }
 
@@ -133,7 +134,7 @@ export async function getChart(key) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
 
-  const data = await db.collection('charts').findOne({ key: k });
+  const data = await db.collection(COLLECTION).findOne({ key: k });
   if (!data) return null;
 
   return {
@@ -162,7 +163,7 @@ export async function upsertChart({ key, category = 'general', title, triggers =
     updated_at: new Date(),
   };
 
-  await db.collection('charts').updateOne(
+  await db.collection(COLLECTION).updateOne(
     { key: k },
     { $set: row, $setOnInsert: { created_at: new Date() } },
     { upsert: true },
@@ -191,7 +192,7 @@ export async function updateChart(key, patch = {}) {
   }
 
   normalizedPatch.updated_at = new Date();
-  await db.collection('charts').updateOne({ key: k }, { $set: normalizedPatch });
+  await db.collection(COLLECTION).updateOne({ key: k }, { $set: normalizedPatch });
 
   await loadChartsCache();
 }
@@ -202,7 +203,7 @@ export async function deleteChart(key) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
 
-  await db.collection('charts').deleteOne({ key: k });
+  await db.collection(COLLECTION).deleteOne({ key: k });
 
   await loadChartsCache();
 }
