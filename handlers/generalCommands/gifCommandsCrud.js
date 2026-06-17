@@ -12,9 +12,9 @@ import {
 } from 'discord.js';
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
-import { deleteGifCommand, getGifCommand, updateGifCommand, updateGifCommandImage, upsertGifCommand } from '../../utils/Supabase/files.js';
+import { deleteGifCommand, getGifCommand, reloadGifCommandsCache, updateGifCommand, updateGifCommandImage, upsertGifCommand } from '../../utils/Supabase/files.js';
 import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
-import { uploadAttachmentToArchive } from '../../utils/discordMediaArchive.js';
+import { uploadGifToArchive } from '../../utils/discordMediaArchive.js';
 
 const sessions = new Map(); // messageId -> { command, kind, ownerId }
 const createWizards = new Map(); // wizardSessionId -> { ownerId, command, kind|null, step, pingUserIds }
@@ -72,11 +72,11 @@ async function uploadAssetFromAttachment({ command, attachment, kind }) {
   const assetUrl = getStoredAssetValueFromAttachment(attachment);
   if (!assetUrl) throw new Error('Attachment URL is missing.');
 
-  const uploaded = await uploadAttachmentToArchive({
-    kind: 'gif',
+  const row = await getGifCommand(safeCmd);
+  const uploaded = await uploadGifToArchive({
+    row: { ...(row || {}), command: safeCmd, kind },
     attachment,
     fileName: attachment?.name || `${safeCmd}.${String(attachment?.contentType || '').includes('gif') ? 'gif' : 'png'}`,
-    message: `GIF/text command: ${safeCmd}\nSource: ${assetUrl}`,
   });
 
   await updateGifCommandImage(safeCmd, {
@@ -721,6 +721,8 @@ export async function handleGifCommandCrudInteraction(interaction) {
 
       createWizards.delete(sessionId);
       await interaction.update(payload);
+
+
     } catch (error) {
       console.error('Error starting GIF command CRUD from wizard:', error);
       await interaction.reply({ content: 'Failed to start the editor. Please try again.', flags: MessageFlags.Ephemeral }).catch(() => {});
@@ -784,6 +786,9 @@ export async function handleGifCommandCrudInteraction(interaction) {
       await interaction.deferUpdate().catch(() => {});
       await interaction.message.delete().catch(async () => {
         await interaction.message.edit({ content: '', embeds: [], components: [] }).catch(() => {});
+      });
+      await reloadGifCommandsCache().catch((err) => {
+        console.error('Failed to reload GIF commands cache:', err);
       });
       await interaction.followUp({ content: `\`${command}\` command has been saved`, flags: MessageFlags.Ephemeral }).catch(() => {});
       return true;

@@ -212,6 +212,9 @@ function normalizeChartRow(row, createdAt = row?.created_at ?? new Date().toISOS
     triggers: Array.isArray(row.triggers) ? row.triggers.map(normalizeTrigger).filter(Boolean) : [],
     variants: Array.isArray(row.variants) ? row.variants : [],
     enabled: row.enabled !== false,
+    archived_message_url: row.archived_message_url ?? null,
+    archived_message_id: row.archived_message_id ?? null,
+    archived_channel_id: row.archived_channel_id ?? null,
     created_at: createdAt,
     updated_at: new Date().toISOString(),
   };
@@ -276,6 +279,10 @@ async function ensureChartCacheLoaded() {
 
 export async function loadGifCommandsCache() {
   return ensureGifCacheLoaded();
+}
+
+export async function reloadGifCommandsCache() {
+  return refreshGifCache();
 }
 
 export async function loadSecretCommandsCache() {
@@ -438,6 +445,10 @@ export async function loadChartsCache() {
   return ensureChartCacheLoaded();
 }
 
+export async function reloadChartsCache() {
+  return refreshChartCache();
+}
+
 export function getChartsCache() {
   return { loadedAtMs: cache.loadedAtMs, charts: cache.charts || {} };
 }
@@ -486,6 +497,9 @@ export async function getChart(key) {
     triggers: Array.isArray(row.triggers) ? row.triggers.map(normalizeTrigger).filter(Boolean) : [],
     variants: normalizeVariantsRow(row),
     enabled: Boolean(row.enabled),
+    archived_message_url: row.archived_message_url ?? null,
+    archived_message_id: row.archived_message_id ?? null,
+    archived_channel_id: row.archived_channel_id ?? null,
   };
 }
 
@@ -519,6 +533,8 @@ export async function upsertChart({ key, category = 'general', title, triggers =
 export async function updateChart(key, patch = {}) {
   const k = normalizeTypeKey(key);
   if (!k) throw new Error('key is required');
+  await ensureChartCacheLoaded();
+  const rawExisting = cache.rawChartRows?.[k] ? cloneRow(cache.rawChartRows[k]) : null;
   const existing = await getChart(k).catch(() => null);
   if (!existing) return;
 
@@ -534,9 +550,16 @@ export async function updateChart(key, patch = {}) {
   }
   delete nextPatch.pages;
 
+  const archivedFields = {
+    archived_message_url: rawExisting?.archived_message_url ?? existing.archived_message_url ?? null,
+    archived_message_id: rawExisting?.archived_message_id ?? existing.archived_message_id ?? null,
+    archived_channel_id: rawExisting?.archived_channel_id ?? existing.archived_channel_id ?? null,
+  };
+
   await supabaseUpsert('charts_table', {
     key: k,
     ...existing,
+    ...archivedFields,
     ...nextPatch,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'key' });
@@ -544,6 +567,7 @@ export async function updateChart(key, patch = {}) {
   const rawNext = {
     key: k,
     ...existing,
+    ...archivedFields,
     ...nextPatch,
     updated_at: new Date().toISOString(),
   };

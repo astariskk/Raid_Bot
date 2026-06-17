@@ -11,19 +11,20 @@ import {
 } from 'discord.js';
 
 import { EMBED_COLOR, MODERATOR_ROLE_ID, OFFICER_ROLE_ID, RAID_MANAGER_ROLE_ID } from '../../config/constants.js';
-import { getStoredAssetValueFromAttachment, resolveAssetUrl } from '../../utils/assetUrls.js';
-import { uploadAttachmentToArchive } from '../../utils/discordMediaArchive.js';
+import { resolveAssetUrl } from '../../utils/assetUrls.js';
 import {
   findChartKeyByTrigger,
   getChart,
   listChartCategories,
   listChartTypesInCategory,
   loadChartsCache,
+  reloadChartsCache,
   normalizeChartVariantKey,
   updateChart,
   upsertChart,
   deleteChart,
 } from '../../utils/Supabase/files.js';
+import { uploadChartPageToArchive } from '../../utils/discordMediaArchive.js';
 
 const sessions = new Map(); // messageId -> session
 
@@ -409,14 +410,18 @@ function buildEditTriggersModal({ messageId, initialTriggers = '' }) {
     );
 }
 
-async function uploadChartPage({ typeKey, variantKey, attachment }) {
-  const url = getStoredAssetValueFromAttachment(attachment);
-  if (!url) throw new Error('Attachment URL is missing.');
-  return uploadAttachmentToArchive({
-    kind: 'chart',
+async function uploadChartPage({ chart, variant, page, pageNumber, attachment }) {
+  const typeKey = chart?.key;
+  const variantKey = variant?.key;
+  if (!typeKey || !variantKey) throw new Error('Chart type and variant are required.');
+
+  return uploadChartPageToArchive({
+    chart,
+    variant,
+    page,
+    pageNumber,
     attachment,
-    fileName: attachment?.name || `${normalizeTypeKey(typeKey)}_${normalizeChartVariantKey(variantKey) || 'page'}.png`,
-    message: `Chart page: ${typeKey}/${variantKey}\nSource: ${url}`,
+    fileName: attachment?.name || `${typeKey}_${normalizeChartVariantKey(variantKey) || 'page'}_${pageNumber}.png`,
   });
 }
 
@@ -1020,6 +1025,9 @@ export async function handleChartsCrudInteraction(interaction) {
 
     if (action === 'close') {
       sessions.delete(messageId);
+      await reloadChartsCache().catch((err) => {
+        console.error('Failed to reload charts cache:', err);
+      });
       await interaction.update({ content: 'Saved.', embeds: [], components: [] }).catch(() => {});
       return true;
     }
@@ -1090,17 +1098,24 @@ export async function handleChartsCrudInteraction(interaction) {
           errors: ['time'],
         });
         const attachment = collected.first().attachments.first();
-        const uploaded = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
+        const pageTitle = `${String(chart.title ?? '').trim()}${variant?.name ? `: ${variant.name}` : ''}`.trim()
+          || `${String(chart.category ?? 'Chart')} ${String(chart.title ?? '')}`.trim();
+        const uploaded = await uploadChartPage({
+          chart,
+          variant,
+          page: { title: pageTitle },
+          pageNumber: pages.length + 1,
+          attachment,
+        });
 
         const updatedVariants = [...chart.variants];
         const updatedVariant = { ...updatedVariants[variantIndex] };
-        const defaultTitle = `${String(chart.category ?? 'Chart')} ${String(chart.title ?? '')}`.trim();
         updatedVariant.pages = [...pages, {
           attachment_url: uploaded.attachmentUrl,
           archived_message_url: uploaded.messageUrl,
           archived_message_id: uploaded.messageId,
           archived_channel_id: uploaded.channelId,
-          title: defaultTitle || null,
+          title: pageTitle || null,
         }];
         updatedVariants[variantIndex] = updatedVariant;
 
@@ -1141,7 +1156,14 @@ export async function handleChartsCrudInteraction(interaction) {
           errors: ['time'],
         });
         const attachment = collected.first().attachments.first();
-        const uploaded = await uploadChartPage({ typeKey: chart.key, variantKey: variant.key, attachment });
+        const currentPage = pages[idx];
+        const uploaded = await uploadChartPage({
+          chart,
+          variant,
+          page: currentPage,
+          pageNumber: idx + 1,
+          attachment,
+        });
 
         const updatedPages = [...pages];
         updatedPages[idx] = {

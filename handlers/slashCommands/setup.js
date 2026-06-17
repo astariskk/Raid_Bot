@@ -196,47 +196,6 @@ export async function handleSlashCommandInteraction(interaction, client) {
       return;
     }
 
-    case 'removehelper': {
-      if (!isAdmin(interaction)) return replyNoPermission(interaction);
-
-      const target = interaction.options.getUser('user', true);
-      try {
-        const raidInfo = await getRaidInfo(interaction.channelId);
-        if (!raidInfo) {
-          await interaction.reply({ content: 'Use this command inside an active raid ticket.', flags: MessageFlags.Ephemeral });
-          return;
-        }
-
-        await removeRaidHelper(interaction.channelId, target.id, interaction.user.id);
-        const helpers = await listRaidHelpers(interaction.channelId, { includeRemoved: true });
-        if (Array.isArray(raidInfo.pendingHelperIds) && raidInfo.pendingHelperIds.includes(target.id)) {
-          await updateRaid(interaction.channelId, {
-            pendingHelperIds: raidInfo.pendingHelperIds.filter((id) => id !== target.id),
-          });
-        }
-        const spamming = isSpammingRaid(raidInfo);
-        const helperCount = helpers.filter((helper) => helper.helperId !== raidInfo.requesterId && !helper.removedAt).length;
-        const nextStatus = spamming ? getRaidStatusForHelpers({ isSpamming: true, helperCount, maxHelpers: getRaidHelperCapacity(raidInfo) }) : raidInfo.status;
-        if (spamming && nextStatus !== raidInfo.status) await updateRaid(interaction.channelId, { status: nextStatus });
-        const refreshedRaidInfo = { ...raidInfo, status: nextStatus };
-        await refreshRaidRequestMessage({ client: interaction.client, channel: interaction.channel, raidInfo: refreshedRaidInfo, helpers });
-        await sendHelperLeftNotification({
-          channel: interaction.channel,
-          guildId: interaction.guildId,
-          raidInfo: refreshedRaidInfo,
-          helperId: target.id,
-        });
-        await interaction.reply({ content: `Removed <@${target.id}> from this raid ticket.`, flags: MessageFlags.Ephemeral });
-      } catch (error) {
-        console.error('Error handling /removehelper:', error);
-        await interaction.reply({
-          content: error?.message || 'Failed to remove helper.',
-          flags: MessageFlags.Ephemeral,
-        }).catch(() => {});
-      }
-      return;
-    }
-
     case 'addgif': {
       if (!isAdmin(interaction)) return replyNoPermission(interaction);
 
